@@ -22,6 +22,8 @@ limitations under the License.
 
 namespace io::buttons
 {
+    constexpr inline uint32_t DEBOUNCE_TIME_MS = 8;
+
     enum
     {
         GROUP_DIGITAL_INPUTS,

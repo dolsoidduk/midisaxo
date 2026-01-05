@@ -21,6 +21,7 @@ limitations under the License.
 #include "common.h"
 
 #include "application/database/database.h"
+#include "application/io/buttons/common.h"
 
 namespace io::analog
 {

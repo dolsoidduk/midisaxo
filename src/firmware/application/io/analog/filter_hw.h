@@ -35,7 +35,7 @@ namespace io::analog
         {
             for (size_t i = 0; i < io::analog::Collection::SIZE(); i++)
             {
-                _lastStableValue[i] = 0xFFFF;
+                _lastValue[i] = 0xFFFF;
             }
         }
 
@@ -48,49 +48,27 @@ namespace io::analog
                                                      ADC_MIN_VALUE,
                                                      ADC_MAX_VALUE);
 
-            // avoid filtering in this case for faster response
+            // avoid full filtering in this case for faster response
             if (descriptor.type == type_t::BUTTON)
             {
-                bool newValue = _lastStableValue[index];
-
-                if (descriptor.value < _adcConfig.DIGITAL_VALUE_THRESHOLD_OFF)
-                {
-                    newValue = false;
-                }
-                else if (descriptor.value > _adcConfig.DIGITAL_VALUE_THRESHOLD_ON)
-                {
-                    newValue = true;
-                }
-                else
-                {
-                    return false;
-                }
-
-                if (newValue != _lastStableValue[index])
-                {
-                    _lastStableValue[index] = newValue;
-                    descriptor.value        = newValue;
-                    return true;
-                }
-
-                return false;
+                return isButtonFiltered(index, descriptor);
             }
 
-            const bool FAST_FILTER    = (core::mcu::timing::ms() - _lastStableMovementTime[index]) < FAST_FILTER_ENABLE_AFTER_MS;
-            const bool DIRECTION      = descriptor.value >= _lastStableValue[index];
-            const auto OLD_MIDI_VALUE = core::util::MAP_RANGE(static_cast<uint32_t>(_lastStableValue[index]),
+            const bool FAST_FILTER    = (core::mcu::timing::ms() - _lastMovementTime[index]) < FAST_FILTER_ENABLE_AFTER_MS;
+            const bool DIRECTION      = descriptor.value >= _lastValue[index];
+            const auto OLD_MIDI_VALUE = core::util::MAP_RANGE(static_cast<uint32_t>(_lastValue[index]),
                                                               static_cast<uint32_t>(ADC_MIN_VALUE),
                                                               static_cast<uint32_t>(ADC_MAX_VALUE),
                                                               static_cast<uint32_t>(0),
                                                               static_cast<uint32_t>(descriptor.maxValue));
             int16_t    stepDiff       = 1;
 
-            if (((DIRECTION != lastStableDirection(index)) || !FAST_FILTER) && ((OLD_MIDI_VALUE != 0) && (OLD_MIDI_VALUE != descriptor.maxValue)))
+            if (((DIRECTION != lastDirection(index)) || !FAST_FILTER) && ((OLD_MIDI_VALUE != 0) && (OLD_MIDI_VALUE != descriptor.maxValue)))
             {
                 stepDiff = STEP_DIFF_7BIT * 2;
             }
 
-            if (abs(static_cast<int16_t>(descriptor.value) - static_cast<int16_t>(_lastStableValue[index])) < stepDiff)
+            if (abs(static_cast<int16_t>(descriptor.value) - static_cast<int16_t>(_lastValue[index])) < stepDiff)
             {
 #ifdef PROJECT_TARGET_ANALOG_FILTER_MEDIAN
                 _medianFilter[index].reset();
@@ -130,17 +108,17 @@ namespace io::analog
                 return false;
             }
 
-            setLastStableDirection(index, DIRECTION);
-            _lastStableValue[index] = descriptor.value;
+            setlastDirection(index, DIRECTION);
+            _lastValue[index] = descriptor.value;
 
             // when edge values are reached, disable fast filter by resetting last movement time
             if ((MIDI_VALUE == 0) || (MIDI_VALUE == descriptor.maxValue))
             {
-                _lastStableMovementTime[index] = 0;
+                _lastMovementTime[index] = 0;
             }
             else
             {
-                _lastStableMovementTime[index] = core::mcu::timing::ms();
+                _lastMovementTime[index] = core::mcu::timing::ms();
             }
 
             if (descriptor.type == type_t::FSR)
@@ -168,10 +146,10 @@ namespace io::analog
 #ifdef PROJECT_TARGET_ANALOG_FILTER_MEDIAN
                 _medianFilter[index].reset();
 #endif
-                _lastStableMovementTime[index] = 0;
+                _lastMovementTime[index] = 0;
             }
 
-            _lastStableValue[index] = 0xFFFF;
+            _lastValue[index] = 0xFFFF;
         }
 
         private:
@@ -209,6 +187,7 @@ namespace io::analog
         static constexpr uint32_t FAST_FILTER_ENABLE_AFTER_MS = 50;
         static constexpr size_t   MEDIAN_SAMPLE_COUNT         = 3;
         static constexpr size_t   MEDIAN_MIDDLE_VALUE         = 1;
+        static constexpr uint8_t  BUTTON_TYPE_DEBOUNCED_MASK  = 0b00000010;
 
         const adcConfig_t& _adcConfig;
         const uint16_t     STEP_DIFF_7BIT;
@@ -223,25 +202,25 @@ namespace io::analog
 #else
         uint16_t _analogSample[io::analog::Collection::SIZE()] = {};
 #endif
-        uint32_t _lastStableMovementTime[io::analog::Collection::SIZE()] = {};
+        uint32_t _lastMovementTime[io::analog::Collection::SIZE()] = {};
 
-        uint8_t  _lastStableDirection[io::analog::Collection::SIZE() / 8 + 1] = {};
-        uint16_t _lastStableValue[io::analog::Collection::SIZE()]             = {};
+        uint8_t  _lastDirection[io::analog::Collection::SIZE() / 8 + 1] = {};
+        uint16_t _lastValue[io::analog::Collection::SIZE()]             = {};
 
-        void setLastStableDirection(size_t index, bool state)
+        void setlastDirection(size_t index, bool state)
         {
             uint8_t arrayIndex  = index / 8;
             uint8_t analogIndex = index - 8 * arrayIndex;
 
-            core::util::BIT_WRITE(_lastStableDirection[arrayIndex], analogIndex, state);
+            core::util::BIT_WRITE(_lastDirection[arrayIndex], analogIndex, state);
         }
 
-        bool lastStableDirection(size_t index)
+        bool lastDirection(size_t index)
         {
             uint8_t arrayIndex  = index / 8;
             uint8_t analogIndex = index - 8 * arrayIndex;
 
-            return core::util::BIT_READ(_lastStableDirection[arrayIndex], analogIndex);
+            return core::util::BIT_READ(_lastDirection[arrayIndex], analogIndex);
         }
 
         uint32_t lowerOffsetRaw(uint8_t percentage)
@@ -266,6 +245,51 @@ namespace io::analog
             }
 
             return _adcConfig.ADC_MAX_VALUE;
+        }
+
+        bool isButtonFiltered(size_t index, Descriptor& descriptor)
+        {
+            bool newValue = false;
+
+            if (descriptor.value < _adcConfig.DIGITAL_VALUE_THRESHOLD_OFF)
+            {
+                newValue = false;
+            }
+            else if (descriptor.value > _adcConfig.DIGITAL_VALUE_THRESHOLD_ON)
+            {
+                newValue = true;
+            }
+            else
+            {
+                return false;
+            }
+
+            auto unmaskedLastValue = _lastValue[index] & ~BUTTON_TYPE_DEBOUNCED_MASK;
+
+            if (newValue != unmaskedLastValue)
+            {
+                _lastValue[index]        = newValue;
+                _lastMovementTime[index] = core::mcu::timing::ms();
+
+                // not debounced yet
+                return false;
+            }
+
+            if ((core::mcu::timing::ms() - _lastMovementTime[index]) < io::buttons::DEBOUNCE_TIME_MS)
+            {
+                return false;
+            }
+
+            if (_lastValue[index] & BUTTON_TYPE_DEBOUNCED_MASK)
+            {
+                // button debounced and event already sent
+                return false;
+            }
+
+            _lastValue[index] |= BUTTON_TYPE_DEBOUNCED_MASK;
+            descriptor.value = newValue;
+
+            return true;
         }
     };
 }    // namespace io::analog
