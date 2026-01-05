@@ -193,7 +193,7 @@ namespace io::analog
             .FSR_MAX_VALUE               = 340,
             .AFTERTOUCH_MAX_VALUE        = 600,
             .DIGITAL_VALUE_THRESHOLD_ON  = 800,
-            .DIGITAL_VALUE_THRESHOLD_OFF = 600,
+            .DIGITAL_VALUE_THRESHOLD_OFF = 200,
         };
 
         static constexpr adcConfig_t ADC_12BIT = {
