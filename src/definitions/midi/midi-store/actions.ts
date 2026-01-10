@@ -29,12 +29,14 @@ const connectionWatcher = async (): Promise<void> => {
 
     assignInputs();
 
+    const currentRouteName = router.currentRoute.value.name;
     const isDevicePageOpen = router.currentRoute.value.matched.some(
       (r) => r.name === "device",
     );
+    const isHomePageOpen = currentRouteName === "home";
 
-    // If only one input is available, open it right away
-    if (midiState.outputs.length === 1 && !isDevicePageOpen) {
+    // If only one input is available, open it right away (home page only)
+    if (isHomePageOpen && midiState.outputs.length === 1 && !isDevicePageOpen) {
       // Redirect directly to FW page to prevent global section clogging msg stack
       const name = midiState.outputs[0].name.includes("OpenDeck DFU")
         ? "device-firmware-update"
@@ -64,6 +66,12 @@ const stopMidiConnectionWatcher = (): Promise<void> => {
 };
 
 export const assignInputs = async (): Promise<void> => {
+  if (!WebMidi.supported || !WebMidi.enabled) {
+    midiState.inputs = [];
+    midiState.outputs = [];
+    return;
+  }
+
   midiState.inputs = WebMidi.inputs.filter(
     (input: Input) =>
       input.name.includes("OpenDeck") && !input.name.includes("BLE"),
@@ -181,6 +189,8 @@ const newMidiLoadPromise = async (): Promise<void> =>
     WebMidi.enable(function (error) {
       if (error) {
         logger.error("Failed to load WebMidi", error);
+        setConnectionState(MidiConnectionState.Closed);
+        loadMidiPromise = (null as unknown) as Promise<void>;
         reject(error);
       } else {
         assignInputs();

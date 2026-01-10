@@ -86,6 +86,7 @@ export enum ButtonMessageType {
   MultiValueIncDecCC = 21,
   NoteOffOnly = 22,
   ControlChange0Only = 23,
+  BankSelectProgramChange = 24,
   ProgramChangeOffsetInc = 25,
   ProgramChangeOffsetDec = 26,
   BpmInc = 27,

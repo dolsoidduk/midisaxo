@@ -15,7 +15,7 @@
     "url": "git+https://github.com/wyrdcode/opendeck-ui.git"
   },
   "scripts": {
-    "dev": "vite --port 3002",
+    "dev": "vite",
     "build": "vite build",
     "format": "prettier --config .prettierrc --write --parser typescript \"src/**/*.ts\"",
     "lint": "eslint . --ext .ts",

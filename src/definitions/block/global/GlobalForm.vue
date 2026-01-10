@@ -1,6 +1,23 @@
 <template>
   <DeviceSettings class="global flex flex-wrap flex-grow" :block="Block.Global">
     <template #default="{ form, showField, onSettingChange }">
+      <Section :showContent="false" class="w-full">
+        <template #title>
+          <h3 class="section-heading">
+            <div class="section-heading-inner flex items-center">
+              <div class="flex-grow">MIDI Saxophone</div>
+              <router-link
+                :to="{ name: 'midisaxophone' }"
+                class="flex items-center text-sm text-gray-400 hover:text-gray-200"
+              >
+                <GlobalIcon class="w-4 h-4 mr-2" />
+                MIDI Saxophone 설정
+              </router-link>
+            </div>
+          </h3>
+        </template>
+      </Section>
+
       <Section v-if="supportedPresetsCount > 1" title="Presets">
         <div class="form-grid">
         <FormField
@@ -144,11 +161,13 @@ import { GlobalBlock } from "./global";
 import { deviceStoreMapped } from "../../device/device-store";
 
 import GlobalHardware from "./GlobalHardware.vue";
+import GlobalIcon from "./GlobalIcon.vue";
 
 export default defineComponent({
   name: "Global",
   components: {
     GlobalHardware,
+    GlobalIcon,
   },
   setup() {
     const { sections } = GlobalBlock;

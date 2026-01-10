@@ -9,6 +9,7 @@ import {
 } from "../definitions";
 import { delay, logger } from "../util";
 import { deviceStore } from "../store";
+import { midiStoreMapped } from "../store";
 
 interface IDeviceForm {
   formData: Ref<any>;
@@ -30,6 +31,14 @@ export const useDeviceForm = (
   const defaultData = getDefaultDataForBlock(block, sectionType);
   const formData = reactive(defaultData);
 
+  const isMidiConnected = (): boolean => {
+    const maybeRef = (midiStoreMapped as any).isConnected;
+    if (maybeRef && typeof maybeRef === "object" && "value" in maybeRef) {
+      return !!maybeRef.value;
+    }
+    return !!maybeRef;
+  };
+
   const showField = (sectionDef: ISectionDefinition): boolean =>
     sectionDef && (!sectionDef.showIf || sectionDef.showIf(formData));
 
@@ -39,18 +48,29 @@ export const useDeviceForm = (
   );
 
   const loadData = async () => {
+    if (!isMidiConnected()) {
+      loading.value = false;
+      return;
+    }
+
     loading.value = true;
     const indexVal =
       sectionType === SectionType.Value && indexRef
         ? indexRef.value
         : undefined;
 
-    const componentConfig = await deviceStore.actions.getComponentSettings(
-      block,
-      sectionType,
-      indexVal,
-    );
-    Object.assign(formData, componentConfig);
+    try {
+      const componentConfig = await deviceStore.actions.getComponentSettings(
+        block,
+        sectionType,
+        indexVal,
+      );
+      Object.assign(formData, componentConfig);
+    } catch (error) {
+      logger.error("ERROR WHILE LOADING FORM DATA", error);
+      loading.value = false;
+      return;
+    }
 
     // prevent initial value change from writing to device
     delay(100).then(() => (loading.value = false));
@@ -105,7 +125,21 @@ export const useDeviceForm = (
     return onChange(key, config, onLoad);
   };
 
-  onMounted(() => loadData());
+  onMounted(() => {
+    if (isMidiConnected()) {
+      return loadData();
+    }
+    loading.value = false;
+  });
+
+  watch(
+    () => isMidiConnected(),
+    (connected) => {
+      if (connected) {
+        loadData();
+      }
+    },
+  );
   if (indexRef) {
     watch([indexRef], () => indexRef && indexRef.value && loadData());
   }

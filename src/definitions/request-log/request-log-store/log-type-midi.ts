@@ -79,7 +79,9 @@ export interface MidiEventParams {
 }
 
 export const addMidi = (params: MidiEventParams): void => {
-  if (state.suspendMidiLogs) {
+  // While the UI is syncing via SysEx, keep logging user-relevant channel MIDI
+  // (e.g., button presses), but suppress high-rate realtime events to avoid spam.
+  if (state.suspendMidiLogs && MidiRealtimeEvent.includes(params.type)) {
     return;
   }
 
@@ -88,7 +90,7 @@ export const addMidi = (params: MidiEventParams): void => {
   const value =
     params.value && type !== "controlchange" ? params.value : undefined;
   const note = ["noteon", "noteoff"].includes(type) ? data[1] : undefined;
-  const controllerNumber = controller && controller.number;
+  const controllerNumber = controller;
   const velocity = data && data.length > 2 ? data[2] : undefined;
   const label =
     type == "noteoff"

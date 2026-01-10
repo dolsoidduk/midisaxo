@@ -18,6 +18,7 @@ import ButtonIcon from "./ButtonIcon.vue";
 
 const sections: Dictionary<ISectionDefinition> = {
   Type: {
+    showIf: (): boolean => true,
     block: Block.Button,
     key: "type",
     type: SectionType.Value,
@@ -43,6 +44,10 @@ const sections: Dictionary<ISectionDefinition> = {
     options: [
       { value: ButtonMessageType.Note, text: "Note" },
       { value: ButtonMessageType.ProgramChange, text: "Program Change" },
+      {
+        value: ButtonMessageType.BankSelectProgramChange,
+        text: "Bank Select (MSB/LSB) + Program Change",
+      },
       { value: ButtonMessageType.ProgramChangeInc, text: "Program Change Inc" },
       { value: ButtonMessageType.ProgramChangeDec, text: "Program Change Dec" },
       {
@@ -115,7 +120,8 @@ const sections: Dictionary<ISectionDefinition> = {
   },
   MidiId: {
     showIf: (formState: FormState): boolean =>
-      !HideButtonMidiIdOnTypes.includes(formState.messageType),
+      !HideButtonMidiIdOnTypes.includes(formState.messageType) &&
+      formState.messageType !== ButtonMessageType.BankSelectProgramChange,
     key: "midiId",
     type: SectionType.Value,
     section: 2,
@@ -124,6 +130,20 @@ const sections: Dictionary<ISectionDefinition> = {
     max: 127,
     label: "MIDI ID",
     helpText: "",
+    block: Block.Button,
+  },
+
+  MidiIdProgram: {
+    showIf: (formState: FormState): boolean =>
+      formState.messageType == ButtonMessageType.BankSelectProgramChange,
+    key: "midiId",
+    type: SectionType.Value,
+    section: 2,
+    component: FormInputComponent.Input,
+    min: 0,
+    max: 127,
+    label: "Program (PC)",
+    helpText: "Program Change number (0-127). Some devices label programs as 1-128.",
     block: Block.Button,
   },
   Preset: {
@@ -142,7 +162,8 @@ const sections: Dictionary<ISectionDefinition> = {
   },
   Value: {
     showIf: (formState: FormState): boolean =>
-      !HideButtonVelocityOnTypes.includes(formState.messageType),
+      !HideButtonVelocityOnTypes.includes(formState.messageType) &&
+      formState.messageType !== ButtonMessageType.BankSelectProgramChange,
     key: "value",
     type: SectionType.Value,
     section: 3,
@@ -152,6 +173,21 @@ const sections: Dictionary<ISectionDefinition> = {
     label: "Value",
     helpText:
       "Velocity for notes, control value for CC, increment/decrement value for Multi Value message types or offset for Program Change.",
+    block: Block.Button,
+  },
+
+  ValueBank: {
+    showIf: (formState: FormState): boolean =>
+      formState.messageType == ButtonMessageType.BankSelectProgramChange,
+    key: "value",
+    type: SectionType.Value,
+    section: 3,
+    component: FormInputComponent.Input,
+    min: 0,
+    max: 16383,
+    label: "Bank (0-16383)",
+    helpText:
+      "14-bit bank number. MSB = bank >> 7, LSB = bank & 0x7F. OpenDeck sends CC#0 (MSB), CC#32 (LSB), then Program Change.",
     block: Block.Button,
   },
 };

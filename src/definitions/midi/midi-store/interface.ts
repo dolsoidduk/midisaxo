@@ -9,4 +9,5 @@ export interface IMidiState {
   inputs: Array<Input>;
   outputs: Array<Output>;
   log: boolean;
+  isWebMidiSupported: boolean;
 }

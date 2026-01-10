@@ -44,6 +44,8 @@
           </div>
         </Section>
 
+        <router-view v-else-if="isMidiSaxophonePage" />
+
         <Section
           v-else-if="isConnecting"
           class="h-screen"
@@ -89,6 +91,11 @@
           <h3 class="heading">Resources</h3>
           <ul class="list">
             <li>
+              <router-link :to="{ name: 'midisaxophone' }"
+                >MIDI Saxophone</router-link
+              >
+            </li>
+            <li>
               <a href="https://github.com/paradajz/OpenDeck"
                 >OpenDeck GitHub repository</a
               >
@@ -123,6 +130,10 @@ export default defineComponent({
       () => router.currentRoute.value.name === "home",
     );
 
+    const isMidiSaxophonePage = computed(
+      () => router.currentRoute.value.name === "midisaxophone",
+    );
+
     const { isConnected, isConnecting, isWebMidiSupported } = midiStoreMapped;
     const { supportedPresetsCount, isBootloaderMode } = deviceStoreMapped;
 
@@ -136,6 +147,7 @@ export default defineComponent({
 
     return {
       isHomePage,
+      isMidiSaxophonePage,
       outputId,
       isWebMidiSupported,
       isConnected,

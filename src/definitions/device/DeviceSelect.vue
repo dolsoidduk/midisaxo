@@ -40,8 +40,15 @@ export default defineComponent({
   name: "DeviceSelect",
   setup() {
     onMounted(() => {
-      midiStoreMapped.assignInputs();
-      midiStoreMapped.startMidiConnectionWatcher();
+      midiStoreMapped
+        .loadMidi()
+        .catch(() => {
+          // UI will show "Problem connecting" in App.vue
+        })
+        .finally(() => {
+          midiStoreMapped.assignInputs();
+          midiStoreMapped.startMidiConnectionWatcher();
+        });
 
       // Note: this should be in Device.vue onUnmounted, but it is unreliable for some reason
       deviceStoreMapped.closeConnection();
