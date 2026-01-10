@@ -45,6 +45,45 @@ const sections: Dictionary<ISectionDefinition> = {
     label: "Enable preset change with MIDI Program Change In",
     helpText: `When enabled, upon receiving MIDI Program Change message (on any interface and any channel) the board will change the preset to cooresponding program change value.`,
   },
+
+  // Sax fingering table (24 keys): hidden raw sections used by MIDI Saxophone page.
+  // These use SectionType.Value so they can be bulk-fetched via GetSectionValues.
+  SaxFingeringMaskLo14: {
+    showIf: (): boolean => false,
+    block: Block.Global,
+    key: "saxFingeringMaskLo14",
+    type: SectionType.Value,
+    section: 3,
+    component: FormInputComponent.Input,
+    label: "Sax fingering mask lo14",
+    helpText: "Internal",
+    min: 0,
+    max: 16383,
+  },
+  SaxFingeringMaskHi10Enable: {
+    showIf: (): boolean => false,
+    block: Block.Global,
+    key: "saxFingeringMaskHi10Enable",
+    type: SectionType.Value,
+    section: 4,
+    component: FormInputComponent.Input,
+    label: "Sax fingering mask hi10+enable",
+    helpText: "Internal",
+    min: 0,
+    max: 2047,
+  },
+  SaxFingeringNote: {
+    showIf: (): boolean => false,
+    block: Block.Global,
+    key: "saxFingeringNote",
+    type: SectionType.Value,
+    section: 5,
+    component: FormInputComponent.Input,
+    label: "Sax fingering note",
+    helpText: "Internal",
+    min: 0,
+    max: 127,
+  },
   SaxRegisterChromaticEnable: {
     block: Block.Global,
     key: "saxRegisterChromaticEnable",
@@ -68,6 +107,19 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     label: "색소폰 기본음 (0-127)",
     helpText: `레지스터 키 0에 대한 기본 MIDI 노트 번호입니다. 레지스터 키 인덱스는 이 값에 추가됩니다.`,
+  },
+  SaxRegisterChromaticInputInvert: {
+    showIf: (formState: FormState): boolean =>
+      !!formState.saxRegisterChromaticEnable,
+    block: Block.Global,
+    key: "saxRegisterChromaticInputInvert",
+    type: SectionType.Setting,
+    section: 2,
+    settingIndex: 9,
+    component: FormInputComponent.Toggle,
+    label: "키 입력 반전 (Active-Low)",
+    helpText:
+      "센서 출력이 0(LOW)일 때 ‘눌림/닫힘’으로 동작한다면 활성화하세요.",
   },
   SaxBreathControllerEnable: {
     block: Block.Global,
