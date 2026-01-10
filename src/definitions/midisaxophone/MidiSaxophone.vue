@@ -7,15 +7,15 @@
     <Section title="MIDI Saxophone" class="w-full">
       <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
         <p class="text-sm mb-6">
-          Yamaha YDS-150 key system support (register keys in chromatic order + breath controller).
+          야마하 YDS-150 키 시스템 지원 (크로매틱 순서로 키 레지스터 + 브레스 컨트롤러).
         </p>
 
         <p v-if="!isConnected" class="text-sm mb-6">
-          Device is not connected. Connect to edit settings.
+          디바이스가 연결되지 않았습니다. 설정을 변경하려면 먼저 연결하세요.
         </p>
 
         <p v-else-if="!hasSaxSections" class="text-sm mb-6">
-          No saxophone settings are available in this UI build.
+          이 UI 빌드에는 색소폰 설정 항목이 포함되어 있지 않습니다.
         </p>
 
         <div

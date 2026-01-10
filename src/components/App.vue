@@ -82,9 +82,9 @@
         <nav class="app-about">
           <h3 class="heading">About</h3>
           <p class="text-sm">
-            OpenDeck Configurator is a WebMIDI based configuration tool for all
-            MIDI devices running OpenDeck firmware. OpenDeck is a platform
-            suited both for prototyping and developing custom MIDI controllers.
+            OpenDeck Configurator는 OpenDeck 펌웨어를 실행하는 모든 MIDI 장치를 위한
+            WebMIDI 기반 구성 도구입니다. OpenDeck은 프로토타입 제작 및 맞춤형 MIDI
+            컨트롤러 개발에 적합한 플랫폼입니다.
           </p>
         </nav>
         <nav class="app-resources">
@@ -92,17 +92,17 @@
           <ul class="list">
             <li>
               <router-link :to="{ name: 'midisaxophone' }"
-                >MIDI Saxophone</router-link
+                >MIDI 색소폰</router-link
               >
             </li>
             <li>
               <a href="https://github.com/paradajz/OpenDeck"
-                >OpenDeck GitHub repository</a
+                >OpenDeck GitHub 저장소</a
               >
             </li>
             <li>
               <a href="https://shanteacontrols.com/"
-                >Shantea Controls official Web</a
+                >Shantea Controls 공식 웹사이트</a
               >
             </li>
           </ul>

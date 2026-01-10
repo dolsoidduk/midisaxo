@@ -26,14 +26,14 @@
     />
     <p v-else class="error-message text-red-500">
       <template v-if="isDisabled === ControlDisableType.NotSupported">
-        Not supported on this device.
+        이 디바이스에서는 지원되지 않습니다.
       </template>
       <template v-if="isDisabled === ControlDisableType.MissingIndex">
-        Not supported on this firmware.
+        이 펌웨어에서는 지원되지 않습니다.
       </template>
       <template v-if="isDisabled === ControlDisableType.UartInterfaceAllocated">
-        The UART interface on board required for this peripheral is already
-        taken by another peripheral.
+        이 주변장치에 필요한 보드의 UART 인터페이스가 이미 다른 주변장치에 의해
+        사용 중입니다.
       </template>
     </p>
 

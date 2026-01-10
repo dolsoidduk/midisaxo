@@ -52,8 +52,8 @@ const sections: Dictionary<ISectionDefinition> = {
     section: 2,
     settingIndex: 4,
     component: FormInputComponent.Toggle,
-    label: "Sax register chromatic mode",
-    helpText: `When enabled, digital button inputs are combined into a single monophonic chromatic note stream (register keys).`,
+    label: "색소폰 레지스터 크로매틱 모드",
+    helpText: `활성화되면 디지털 버튼 입력이 단일 모노포닉 크로매틱 노트 스트림(레지스터 키)으로 결합됩니다.`,
   },
   SaxRegisterChromaticBaseNote: {
     showIf: (formState: FormState): boolean =>
@@ -66,8 +66,8 @@ const sections: Dictionary<ISectionDefinition> = {
     min: 0,
     max: 127,
     component: FormInputComponent.Input,
-    label: "Sax base note (0-127)",
-    helpText: `Base MIDI note number for register key 0. Register key index is added on top of this value.`,
+    label: "색소폰 기본음 (0-127)",
+    helpText: `레지스터 키 0에 대한 기본 MIDI 노트 번호입니다. 레지스터 키 인덱스는 이 값에 추가됩니다.`,
   },
   SaxBreathControllerEnable: {
     block: Block.Global,
@@ -76,8 +76,10 @@ const sections: Dictionary<ISectionDefinition> = {
     section: 2,
     settingIndex: 6,
     component: FormInputComponent.Toggle,
-    label: "Sax breath controller (MPXV7002DP)",
-    helpText: `When enabled, selected analog input is mapped to MIDI CC (breath/expression).`,
+    label: "색소폰 브레스 컨트롤러 (MPXV7002DP)",
+    helpText: `이 펌웨어에서는 지원되지 않습니다.
+
+  활성화되면 선택된 아날로그 입력이 MIDI CC(호흡/표현)에 매핑됩니다.`,
   },
   SaxBreathControllerAnalogIndex: {
     showIf: (formState: FormState): boolean =>
@@ -90,8 +92,8 @@ const sections: Dictionary<ISectionDefinition> = {
     min: 0,
     max: 255,
     component: FormInputComponent.Input,
-    label: "Breath analog index (0-255)",
-    helpText: `Analog input index to use for MPXV7002DP. (Index mapping depends on your target configuration.)`,
+    label: "브레스 아날로그 인덱스 (0-255)",
+    helpText: `MPXV7002DP에 사용할 아날로그 입력 인덱스입니다. (인덱스 매핑은 타겟 설정에 따라 달라질 수 있습니다.)`,
   },
   SaxBreathControllerCC: {
     showIf: (formState: FormState): boolean =>
@@ -107,8 +109,8 @@ const sections: Dictionary<ISectionDefinition> = {
       { value: 11, text: "CC11 (Expression)" },
       { value: 13, text: "CC2 + CC11" },
     ],
-    label: "Breath CC", 
-    helpText: `Select which MIDI CC to send based on breath pressure.`,
+    label: "브레스 CC",
+    helpText: `호흡 압력에 따라 전송할 MIDI CC를 선택합니다.`,
   },
   ActivePreset: {
     block: Block.Global,
