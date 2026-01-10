@@ -288,6 +288,8 @@ export interface IBlockDefinition {
   sections: Dictionary<ISectionDefinition>;
   // Marks position of component count in GetNumberOfSupportedComponents req
   componentCountResponseIndex?: number;
+  // Not part of the strict core definition but used throughout block definitions
+  routes?: any[];
 }
 
 interface ISectionBase {
@@ -298,7 +300,7 @@ interface ISectionBase {
   label: string;
   helpText: string;
   options?: Array<IFormSelectOption> | genericMethod;
-  showIf: (formState: Dictionary<number>) => boolean;
+  showIf?: (formState: Dictionary<number>) => boolean;
   onLoad?: genericMethod;
   min?: number;
   max?: number;

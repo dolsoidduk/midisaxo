@@ -16,6 +16,8 @@ import DeviceForm from "../../device/DeviceForm.vue";
 import DeviceGrid from "../../device/DeviceGrid.vue";
 import ButtonIcon from "./ButtonIcon.vue";
 
+type FormState = Dictionary<number>;
+
 const sections: Dictionary<ISectionDefinition> = {
   Type: {
     showIf: (): boolean => true,
@@ -188,6 +190,19 @@ const sections: Dictionary<ISectionDefinition> = {
     label: "Bank (0-16383)",
     helpText:
       "14-bit bank number. MSB = bank >> 7, LSB = bank & 0x7F. OpenDeck sends CC#0 (MSB), CC#32 (LSB), then Program Change.",
+    block: Block.Button,
+  },
+
+  // Hidden by default; used by the MIDI Saxophone page to remap register keys.
+  SaxRegisterKeyMap: {
+    showIf: (): boolean => false,
+    key: "saxRegisterKeyMap",
+    type: SectionType.Value,
+    section: 5,
+    component: FormInputComponent.Select,
+    options: [],
+    label: "Sax register key map",
+    helpText: "0 = default/identity; otherwise mappedIndex+1",
     block: Block.Button,
   },
 };
