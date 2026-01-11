@@ -15,6 +15,45 @@ let connectionWatcherTimer = null;
 
 // Helpers
 
+const dumpMidiPorts = (tag: string): void => {
+  if (!WebMidi.supported) {
+    logger.warn(`[MIDI] ${tag}: WebMIDI not supported by this browser`);
+    return;
+  }
+
+  if (!WebMidi.enabled) {
+    logger.warn(`[MIDI] ${tag}: WebMIDI not enabled yet`);
+    return;
+  }
+
+  const summarize = (port: Input | Output) => {
+    // webmidi may not provide manufacturer on some platforms
+    const manufacturer = (port as any)?.manufacturer ?? "(unknown manufacturer)";
+    const state = (port as any)?.state ?? "(unknown state)";
+
+    return {
+      id: port.id,
+      name: port.name,
+      manufacturer,
+      state,
+    };
+  };
+
+  logger.log(`[MIDI] ${tag}: inputs=${WebMidi.inputs.length} outputs=${WebMidi.outputs.length}`);
+  logger.log("[MIDI] inputs", WebMidi.inputs.map(summarize));
+  logger.log("[MIDI] outputs", WebMidi.outputs.map(summarize));
+
+  const names = [...WebMidi.inputs.map((i) => i.name), ...WebMidi.outputs.map((o) => o.name)];
+  const hasOnlyGenericThrough =
+    names.length > 0 && names.every((name) => /\bmidi\s*(thru|through)\b/i.test(name));
+
+  if (hasOnlyGenericThrough) {
+    logger.warn(
+      "[MIDI] Only 'MIDI Through' ports detected. This usually means the OS/browser does not see your USB-MIDI device. UI filtering is not the cause.",
+    );
+  }
+};
+
 const setConnectionState = (value: MidiConnectionState): void => {
   midiState.connectionState = value;
 };
@@ -37,6 +76,12 @@ const connectionWatcher = async (): Promise<void> => {
 
     // If only one input is available, open it right away (home page only)
     if (isHomePageOpen && midiState.outputs.length === 1 && !isDevicePageOpen) {
+      // Avoid redirecting to unrelated MIDI devices when device name doesn't
+      // include "OpenDeck" (some setups may list multiple generic MIDI outputs).
+      if (!midiState.outputs[0].name.includes("OpenDeck")) {
+        return;
+      }
+
       // Redirect directly to FW page to prevent global section clogging msg stack
       const name = midiState.outputs[0].name.includes("OpenDeck DFU")
         ? "device-firmware-update"
@@ -72,14 +117,52 @@ export const assignInputs = async (): Promise<void> => {
     return;
   }
 
-  midiState.inputs = WebMidi.inputs.filter(
-    (input: Input) =>
-      input.name.includes("OpenDeck") && !input.name.includes("BLE"),
+  dumpMidiPorts("assignInputs (raw)");
+
+  // Prefer OpenDeck-named devices, but fall back to listing all MIDI devices.
+  // Some custom targets/platforms expose a different USB MIDI name even though
+  // the device speaks the OpenDeck SysEx protocol.
+  const isGenericThroughPort = (name: string): boolean =>
+    /\bmidi\s*(thru|through)\b/i.test(name);
+
+  const nonBleInputs = WebMidi.inputs.filter(
+    (input: Input) => !input.name.includes("BLE"),
   );
-  midiState.outputs = WebMidi.outputs.filter(
-    (output: Output) =>
-      output.name.includes("OpenDeck") && !output.name.includes("BLE"),
+  const nonBleOutputs = WebMidi.outputs.filter(
+    (output: Output) => !output.name.includes("BLE"),
   );
+
+  // Hide MIDI Through only when there are other real ports available.
+  const inputs = nonBleInputs.filter(
+    (input: Input) => !isGenericThroughPort(input.name),
+  );
+  const outputs = nonBleOutputs.filter(
+    (output: Output) => !isGenericThroughPort(output.name),
+  );
+
+  const openDeckInputs = inputs.filter((input: Input) =>
+    input.name.includes("OpenDeck"),
+  );
+  const openDeckOutputs = outputs.filter((output: Output) =>
+    output.name.includes("OpenDeck"),
+  );
+
+  midiState.inputs = openDeckInputs.length
+    ? openDeckInputs
+    : inputs.length
+      ? inputs
+      : nonBleInputs;
+
+  midiState.outputs = openDeckOutputs.length
+    ? openDeckOutputs
+    : outputs.length
+      ? outputs
+      : nonBleOutputs;
+
+  logger.log("[MIDI] assignInputs (selected)", {
+    inputs: midiState.inputs.map((i) => ({ id: i.id, name: i.name })),
+    outputs: midiState.outputs.map((o) => ({ id: o.id, name: o.name })),
+  });
 };
 
 // Actions
@@ -193,6 +276,7 @@ const newMidiLoadPromise = async (): Promise<void> =>
         loadMidiPromise = (null as unknown) as Promise<void>;
         reject(error);
       } else {
+        dumpMidiPorts("WebMidi.enable (success)");
         assignInputs();
         setConnectionState(MidiConnectionState.Open);
         loadMidiPromise = (null as unknown) as Promise<void>;

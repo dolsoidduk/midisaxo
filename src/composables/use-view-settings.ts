@@ -1,5 +1,12 @@
 import { computed } from "vue";
-import { Block, BlockMap, ISectionDefinition } from "../definitions";
+import {
+  Block,
+  BlockMap,
+  ButtonMessageType,
+  FormInputComponent,
+  ISectionDefinition,
+  SectionType,
+} from "../definitions";
 import { deviceStore } from "../store";
 import { IViewSettingState } from "../definitions/device/device-store/state";
 
@@ -44,7 +51,31 @@ export const useViewSettings = (block: Block): IViewSettings => {
     return items;
   });
 
-  const sections = computed(() => BlockMap[block].sections);
+  const sections = computed(() => {
+    const base = BlockMap[block].sections;
+
+    // Table-only helper field: allow pasting raw MIDI bytes and auto-map to button settings.
+    if (!viewSetting.value.viewListAsTable || block !== Block.Button) {
+      return base;
+    }
+
+    const rawMidiHex: ISectionDefinition = {
+      showIf: (): boolean => true,
+      block: Block.Button,
+      key: "rawMidiHex",
+      type: SectionType.Value,
+      section: -1,
+      component: FormInputComponent.Input,
+      label: "MIDI (HEX)",
+      helpText:
+        "HEX를 붙여넣으면 버튼 설정으로 변환해 저장합니다. (Note/CC/PC/RealTime 또는 SysEx(F0..F7) 자동 인식)",
+    };
+
+    return {
+      RawMidiHex: rawMidiHex,
+      ...base,
+    };
+  });
 
   return {
     componentCount,
