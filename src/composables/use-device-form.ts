@@ -84,6 +84,24 @@ export const useDeviceForm = (
     if (loading.value) {
       return;
     }
+
+    // Allow UI to be usable even when the device is not connected.
+    // In that case we only update local state (no MIDI writes).
+    if (!isMidiConnected()) {
+      formData[key] = config.value;
+      if (onLoad) {
+        onLoad(config.value);
+      }
+      return Promise.resolve();
+    }
+
+    // Optimistically update local state so conditional fields can react
+    // immediately, while the device write is pending.
+    formData[key] = config.value;
+    if (onLoad) {
+      onLoad(config.value);
+    }
+
     loading.value = true;
 
     const onSuccess = () => {

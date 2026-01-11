@@ -92,6 +92,7 @@ export enum ButtonMessageType {
   BpmInc = 27,
   BpmDec = 28,
   MmcPlayStop = 29,
+  CustomSysEx = 31,
 }
 
 export enum EncodingMode {
@@ -180,6 +181,7 @@ export const HideButtonMidiChannelOnTypes = [
   ButtonMessageType.ProgramChangeOffsetDec,
   ButtonMessageType.BpmInc,
   ButtonMessageType.BpmDec,
+  ButtonMessageType.CustomSysEx,
 ];
 
 export const HideAnalogMidiIdOnTypes = [AnalogType.Button];
