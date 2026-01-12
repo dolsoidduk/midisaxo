@@ -3,9 +3,10 @@
   "description": "Configuration utility for OpenDeck MIDI platform",
   "main": "main.js",
   "version": "0.1.0",
+  "private": true,
   "files": [
-    "dist/**/*.js",
-    "dist/**/*.d.ts"
+    "main.js",
+    "dist/**"
   ],
   "engines": {
     "node": ">=10.16.0"
@@ -21,7 +22,12 @@
     "format": "prettier --config .prettierrc --write --parser typescript \"src/**/*.ts\"",
     "lint": "eslint . --ext .ts",
     "lint-and-fix": "eslint . --ext .ts --fix",
-    "start": "electron ."
+    "start": "electron .",
+    "electron:dev": "concurrently -k \"npm run dev\" \"wait-on http://127.0.0.1:3004 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:3004 electron .\"",
+    "pack": "npm run build && electron-builder --dir",
+    "dist:linux": "npm run build && electron-builder --linux AppImage",
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:all": "npm run build && electron-builder -wl"
   },
   "dependencies": {
     "@tailwindcss/ui": "^0.5.0",
@@ -52,7 +58,34 @@
     "prettier": "^2.0.5",
     "typescript": "^3.9.3",
     "vite": "^1.0.0-rc.3",
-    "vue-eslint-parser": "^7.1.0"
+    "vue-eslint-parser": "^7.1.0",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "wait-on": "^7.2.0",
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.dolsoidduk.midisaxo",
+    "productName": "Midisaxo",
+    "files": [
+      "main.js",
+      "dist/**"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Audio"
+    }
   },
   "lint-staged": {
     "*.js": [

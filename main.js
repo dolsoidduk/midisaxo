@@ -1,11 +1,19 @@
-const {
-  app,
-  BrowserWindow
-} = require('electron')
+const { app, BrowserWindow } = require("electron");
+const path = require("path");
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let win
+
+// WebMIDI can be gated behind Chromium switches on some builds.
+// If unsupported, Electron will ignore unknown switches.
+try {
+  app.commandLine.appendSwitch("enable-webmidi");
+} catch {
+  // ignore
+}
+
+const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 
 function createWindow() {
   // Create the browser window.
@@ -13,12 +21,17 @@ function createWindow() {
     width: 1200,
     height: 675,
     webPreferences: {
-      nodeIntegration: false
+      nodeIntegration: false,
+      contextIsolation: true
     }
   })
 
-  // and load the index.html of the app.
-  win.loadFile('index.html')
+  // Load UI.
+  if (DEV_SERVER_URL) {
+    win.loadURL(DEV_SERVER_URL);
+  } else {
+    win.loadFile(path.join(__dirname, "dist", "index.html"));
+  }
 
   // Emitted when the window is closed.
   win.on('closed', () => {

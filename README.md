@@ -22,6 +22,41 @@ The development version of the configurator with local server can be started wit
 
     make
 
+
+## Desktop packaging (Linux/Windows)
+
+This repo can be packaged as a cross-platform desktop app via Electron.
+
+### Development (Electron)
+
+Run Vite + Electron together:
+
+```bash
+npm run electron:dev
+```
+
+### Build UI (static)
+
+```bash
+npm run build
+```
+
+### Package for Linux
+
+```bash
+npm run dist:linux
+```
+
+Output will be created under `release/`.
+
+### Package for Windows
+
+```bash
+npm run dist:win
+```
+
+Notes:
+- Building Windows installers on Linux may require Wine. If it fails, run the command on a Windows machine.
 To package the configurator for offline usage, `make pkg` command can be used with `PLATFORM` variable being set to the platform for which to build the configurator:
 
 * Linux: `make pkg PLATFORM=linux`
