@@ -1,0 +1,55 @@
+name: Deploy
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: Attach firmware to release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup missing directories and files on the runner
+        run: |
+          mkdir -p ~/.ssh
+          touch ~/.gitconfig
+      - name: Prepare container
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: opendeck # Local name only
+          imageTag: latest # Local tag only
+          push: never
+          env: |
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+      - name: Build and upload
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: opendeck
+          imageTag: latest
+          push: never
+          runCmd: |
+            git fetch --tags
+            ./scripts/build_targets.sh --type=build
+            ./scripts/copy_release_binaries.sh --build-dir=build --copy-dir=release
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: release/*
+      -
+        name: Upload binaries to Github Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: release/*
+          allowUpdates: true
+          omitBody: false

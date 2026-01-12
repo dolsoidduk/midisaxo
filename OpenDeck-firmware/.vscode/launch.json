@@ -1,0 +1,76 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test.out",
+            "args": [],
+            "stopAtEntry": true,
+            "environment": [],
+            "externalConsole": false,
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "[Tests] Build"
+        },
+        {
+            "name": "blackpill411",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "jlink",
+            "cwd": "${workspaceRoot}",
+            "executable": "build/blackpill411/debug/merged.hex",
+            "serverpath": "/usr/bin/JLinkGDBServerCLExe",
+            "interface": "swd",
+            "device": "stm32f411ce",
+            "preLaunchTask": "[Debug] blackpill411",
+            "gdbPath": "/usr/bin/gdb-multiarch",
+            "preLaunchCommands": [
+                "add-symbol-file build/blackpill411/debug/application.elf",
+            ],
+        },
+        {
+            "name": "nrf52840dk",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "jlink",
+            "cwd": "${workspaceRoot}",
+            "executable": "build/nrf52840dk/debug/merged.hex",
+            "serverpath": "/usr/bin/JLinkGDBServerCLExe",
+            "interface": "swd",
+            "device": "nrf52840_xxaa",
+            "preLaunchTask": "[Debug] nrf52840dk",
+            "gdbPath": "/usr/bin/gdb-multiarch",
+            "preLaunchCommands": [
+                "add-symbol-file build/nrf52840dk/debug/application.elf",
+            ],
+        },
+        {
+            "name": "bergamot",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "jlink",
+            "cwd": "${workspaceRoot}",
+            "executable": "build/bergamot/debug/merged.hex",
+            "serverpath": "/usr/bin/JLinkGDBServerCLExe",
+            "interface": "swd",
+            "device": "stm32f405rg",
+            "preLaunchTask": "[Debug] bergamot",
+            "gdbPath": "/usr/bin/gdb-multiarch",
+            "preLaunchCommands": [
+                "add-symbol-file build/bergamot/debug/application.elf",
+            ],
+        },
+    ]
+}

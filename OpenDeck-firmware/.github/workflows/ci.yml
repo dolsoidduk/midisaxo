@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+
+jobs:
+  build:
+    name: Build/Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ccache
+          key: ccache-
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup missing directories and files on the runner
+        run: |
+          mkdir -p ~/.ssh
+          touch ~/.gitconfig
+      - name: Prepare container
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: opendeck # Local name only
+          imageTag: latest # Local tag only
+          push: never
+      - name: Build and test targets
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: opendeck
+          imageTag: latest
+          push: never
+          runCmd: |
+            git fetch --tags
+            ./scripts/build_targets.sh --type=build
+            ./scripts/copy_release_binaries.sh --build-dir=build --copy-dir=release
+            ./scripts/build_targets.sh --type=test
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: release/*
+      - name: Save ccache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ccache
+          key: "ccache-${{ github.run_id }}"
+  format:
+    name: Code formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup missing directories and files on the runner
+        run: |
+          mkdir -p ~/.ssh
+          touch ~/.gitconfig
+      - name: Prepare container
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: opendeck # Local name only
+          imageTag: latest # Local tag only
+          push: never
+      - name: Check formatting
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: opendeck
+          imageTag: latest
+          push: never
+          runCmd: |
+            make format
+  lint:
+    name: Code linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup missing directories and files on the runner
+        run: |
+          mkdir -p ~/.ssh
+          touch ~/.gitconfig
+      - name: Prepare container
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: opendeck # Local name only
+          imageTag: latest # Local tag only
+          push: never
+      - name: Check linting
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: opendeck
+          imageTag: latest
+          push: never
+          runCmd: |
+            ./scripts/build_targets.sh --type=lint

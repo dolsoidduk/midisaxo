@@ -1,0 +1,43 @@
+{
+    "name": "${localWorkspaceFolderBasename}",
+    "build": {
+        "dockerfile": "Dockerfile.ghcr",
+        "context": "${localWorkspaceFolder}"
+    },
+    "workspaceMount": "src=${localWorkspaceFolder},dst=/home/ubuntu/workspace/OpenDeck,type=bind",
+    "workspaceFolder": "/home/ubuntu/workspace/OpenDeck",
+    "mounts": [
+        {
+            "source": "/dev",
+            "target": "/dev",
+            "type": "bind"
+        },
+        {
+            "source": "${localEnv:HOME}/.gitconfig",
+            "target": "/etc/gitconfig",
+            "type": "bind"
+        },
+        {
+            "source": "${localEnv:HOME}/.ssh",
+            "target": "/home/ubuntu/.ssh",
+            "type": "bind"
+        }
+    ],
+    "runArgs": [
+        "--network=host",
+        "--hostname=${localWorkspaceFolderBasename}"
+    ],
+    "containerUser": "ubuntu",
+    "privileged": true,
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "xaver.clang-format",
+                "timonwong.shellcheck",
+                "marus25.cortex-debug"
+            ]
+        }
+    },
+    "postStartCommand": "rm -f .west-updated && make clean"
+}
