@@ -51,7 +51,7 @@
 <script lang="ts">
 import { defineComponent, toRefs, ref, computed, watch } from "vue";
 import { useHighlightAnimation } from "./../../composables/use-highlight-animation";
-import { Block, ButtonMessageType } from "./../../definitions";
+import { Block } from "./../../definitions";
 import { deviceStore, deviceStoreMapped } from "../../store";
 import { parseHexBytes, parseRawMidiToButton } from "../../util/raw-midi";
 
@@ -89,7 +89,7 @@ export default defineComponent({
     const rawMidiText = ref("");
     const rawMidiError = ref<string | null>(null);
     const rawMidiHelpText = ref<string>(
-      "HEX를 붙여넣으면 버튼 설정으로 변환해 저장합니다. (Note/CC/PC/RealTime 또는 SysEx(F0..F7) 자동 인식)",
+      "HEX를 붙여넣으면 버튼 설정으로 변환해 저장합니다. (Note/CC/PC/RealTime 자동 인식)",
     );
     const rawMidiPendingSave = ref(false);
 
@@ -100,10 +100,6 @@ export default defineComponent({
       }
       return !!maybeRef;
     };
-
-    const isCustomSysEx = computed(
-      () => Number((props.formData as any)?.messageType) === ButtonMessageType.CustomSysEx,
-    );
 
     const setValueAndUpdate = async (
       key: string,
@@ -141,9 +137,6 @@ export default defineComponent({
         return;
       }
 
-      const isSysExMapping =
-        mapped.messageType === ButtonMessageType.CustomSysEx && !!mapped.sysEx;
-
       // Always reflect mapping in local state
       (props.formData as any).messageType = mapped.messageType;
       if (typeof mapped.midiChannel === "number") {
@@ -156,13 +149,6 @@ export default defineComponent({
         (props.formData as any).value = mapped.value;
       }
 
-      if (isSysExMapping) {
-        (props.formData as any).sysExLength = mapped.sysEx!.length;
-        for (let i = 0; i < 8; i++) {
-          (props.formData as any)[`sysExData${i}`] = mapped.sysEx!.words[i] ?? 0;
-        }
-      }
-
       if (!isMidiConnected()) {
         rawMidiPendingSave.value = true;
         rawMidiHelpText.value =
@@ -172,30 +158,6 @@ export default defineComponent({
 
       try {
         await setValueAndUpdate("messageType", 1, mapped.messageType);
-
-        if (isSysExMapping) {
-          // Ensure defaults are persisted for Custom SysEx.
-          if (typeof mapped.midiId === "number") {
-            await setValueAndUpdate("midiId", 2, mapped.midiId);
-          }
-          if (typeof mapped.value === "number") {
-            await setValueAndUpdate("value", 3, mapped.value);
-          }
-
-          await setValueAndUpdate("sysExLength", 6, mapped.sysEx!.length);
-          for (let i = 0; i < 8; i++) {
-            await setValueAndUpdate(
-              `sysExData${i}`,
-              7 + i,
-              mapped.sysEx!.words[i] ?? 0,
-            );
-          }
-
-          rawMidiHelpText.value = mapped.sysEx!.truncated
-            ? "저장되었습니다. (SysEx가 길어서 자동으로 잘렸습니다)"
-            : "저장되었습니다.";
-          return;
-        }
 
         if (typeof mapped.midiChannel === "number") {
           await setValueAndUpdate("midiChannel", 4, mapped.midiChannel);
@@ -219,14 +181,6 @@ export default defineComponent({
           (message ? ` (${message})` : "");
       }
     };
-
-    watch(
-      () => isCustomSysEx.value,
-      () => {
-        rawMidiError.value = null;
-        rawMidiPendingSave.value = false;
-      },
-    );
 
     watch(
       () => isMidiConnected(),

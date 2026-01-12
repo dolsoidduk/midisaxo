@@ -8,6 +8,7 @@ export type MidiEventType =
   | "controlchange"
   | "programchange"
   | "pitchbend"
+  | "sysex"
   | "clock"
   | "start"
   | "continue"
@@ -26,6 +27,7 @@ export const MidiEventTypeLabel = {
   controlchange: "Control Change",
   programchange: "Program Change",
   pitchbend: "Pitch Bend",
+  sysex: "SysEx",
   clock: "RealTime: Clock",
   start: "RealTime: Start",
   continue: "RealTime: Continue",

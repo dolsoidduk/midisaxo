@@ -77,73 +77,8 @@ export type ParsedRawMidi =
       midiChannel?: number;
       midiId?: number;
       value?: number;
-      sysEx?: {
-        payload: number[];
-        length: number;
-        words: number[];
-        truncated: boolean;
-      };
     }
   | { error: string };
-
-const CUSTOM_SYSEX_MAX_TOTAL_BYTES = 16;
-const CUSTOM_SYSEX_MAX_PAYLOAD_BYTES = CUSTOM_SYSEX_MAX_TOTAL_BYTES - 2;
-const CUSTOM_SYSEX_WORDS = CUSTOM_SYSEX_MAX_TOTAL_BYTES / 2;
-
-const normalizeSysexPayload = (
-  bytes: number[],
-): { payload: number[]; truncated: boolean; error?: string } => {
-  if (!bytes.length) {
-    return { payload: [], truncated: false };
-  }
-
-  const hasF0 = bytes[0] === 0xf0;
-  const hasF7 = bytes[bytes.length - 1] === 0xf7;
-
-  if (!(hasF0 && hasF7)) {
-    return {
-      payload: [],
-      truncated: false,
-      error: "SysEx는 F0로 시작하고 F7로 끝나야 합니다.",
-    };
-  }
-
-  if (bytes.length < 2) {
-    return {
-      payload: [],
-      truncated: false,
-      error: "SysEx 길이가 너무 짧습니다.",
-    };
-  }
-
-  const payload = bytes.slice(1, -1);
-
-  for (const b of payload) {
-    if (b < 0 || b > 0x7f) {
-      return {
-        payload: [],
-        truncated: false,
-        error: "SysEx payload 바이트는 00..7F 범위여야 합니다.",
-      };
-    }
-  }
-
-  const truncatedPayload = payload.slice(0, CUSTOM_SYSEX_MAX_PAYLOAD_BYTES);
-  return {
-    payload: truncatedPayload,
-    truncated: truncatedPayload.length !== payload.length,
-  };
-};
-
-const bytesToWords = (bytes: number[]): number[] => {
-  const words: number[] = [];
-  for (let i = 0; i < CUSTOM_SYSEX_WORDS; i++) {
-    const b0 = (bytes[i * 2] ?? 0) & 0x7f;
-    const b1 = (bytes[i * 2 + 1] ?? 0) & 0x7f;
-    words.push(b0 | (b1 << 7));
-  }
-  return words;
-};
 
 type ParsedMidiMessage =
   | {
@@ -219,44 +154,6 @@ const parseMessageStream = (bytes: number[]): ParsedMidiMessage[] | string => {
 export const parseRawMidiToButton = (bytes: number[]): ParsedRawMidi => {
   if (!bytes.length) {
     return { error: "HEX가 비어 있습니다." };
-  }
-
-  const status = bytes[0] & 0xff;
-
-  // SysEx (F0..F7)
-  if (status === 0xf0 || bytes.includes(0xf7) || bytes.includes(0xf0)) {
-    if (bytes[0] !== 0xf0) {
-      return { error: "SysEx는 F0로 시작해야 합니다." };
-    }
-    if (bytes[bytes.length - 1] !== 0xf7) {
-      return { error: "SysEx는 F7로 끝나야 합니다." };
-    }
-
-    if (bytes.length > CUSTOM_SYSEX_MAX_TOTAL_BYTES) {
-      // Still allow mapping, but it'll be truncated at payload level.
-    }
-
-    const normalized = normalizeSysexPayload(bytes);
-    if (normalized.error) {
-      return { error: normalized.error };
-    }
-
-    const payload = normalized.payload;
-    const length = payload.length;
-    const words = bytesToWords(payload);
-
-    return {
-      messageType: ButtonMessageType.CustomSysEx,
-      // Default: no substitution.
-      midiId: 0,
-      value: 0,
-      sysEx: {
-        payload,
-        length,
-        words,
-        truncated: normalized.truncated || bytes.length > CUSTOM_SYSEX_MAX_TOTAL_BYTES,
-      },
-    };
   }
 
   const messagesOrError = parseMessageStream(bytes);

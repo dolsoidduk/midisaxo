@@ -3,7 +3,7 @@ import { openDeckManufacturerId } from "../../../definitions";
 import { logger, delay } from "../../../util";
 import router from "../../../router";
 
-import { MidiConnectionState } from "./interface";
+import { MidiConnectionState, IMidiPortSummary } from "./interface";
 import { midiState } from "./state";
 import { isConnected, isConnecting } from "./computed";
 
@@ -11,22 +11,16 @@ import { isConnected, isConnecting } from "./computed";
 
 let loadMidiPromise = (null as unknown) as Promise<void>;
 
+let reloadMidiPromise = (null as unknown) as Promise<void>;
+
 let connectionWatcherTimer = null;
+
+let areWebMidiPortListenersInstalled = false;
 
 // Helpers
 
 const dumpMidiPorts = (tag: string): void => {
-  if (!WebMidi.supported) {
-    logger.warn(`[MIDI] ${tag}: WebMIDI not supported by this browser`);
-    return;
-  }
-
-  if (!WebMidi.enabled) {
-    logger.warn(`[MIDI] ${tag}: WebMIDI not enabled yet`);
-    return;
-  }
-
-  const summarize = (port: Input | Output) => {
+  const summarize = (port: Input | Output): IMidiPortSummary => {
     // webmidi may not provide manufacturer on some platforms
     const manufacturer = (port as any)?.manufacturer ?? "(unknown manufacturer)";
     const state = (port as any)?.state ?? "(unknown state)";
@@ -39,18 +33,76 @@ const dumpMidiPorts = (tag: string): void => {
     };
   };
 
-  logger.log(`[MIDI] ${tag}: inputs=${WebMidi.inputs.length} outputs=${WebMidi.outputs.length}`);
-  logger.log("[MIDI] inputs", WebMidi.inputs.map(summarize));
-  logger.log("[MIDI] outputs", WebMidi.outputs.map(summarize));
-
   const names = [...WebMidi.inputs.map((i) => i.name), ...WebMidi.outputs.map((o) => o.name)];
   const hasOnlyGenericThrough =
     names.length > 0 && names.every((name) => /\bmidi\s*(thru|through)\b/i.test(name));
 
+  midiState.debug = {
+    tag,
+    supported: WebMidi.supported,
+    enabled: WebMidi.enabled,
+    inputs: WebMidi.inputs.map(summarize),
+    outputs: WebMidi.outputs.map(summarize),
+    hasOnlyGenericThrough,
+  };
+
+  if (!WebMidi.supported) {
+    logger.warn(`[MIDI] ${tag}: WebMIDI not supported by this browser`);
+    return;
+  }
+
+  if (!WebMidi.enabled) {
+    logger.warn(`[MIDI] ${tag}: WebMIDI not enabled yet`);
+    return;
+  }
+
+  logger.log(`[MIDI] ${tag}: inputs=${WebMidi.inputs.length} outputs=${WebMidi.outputs.length}`);
+  logger.log("[MIDI] inputs", WebMidi.inputs.map(summarize));
+  logger.log("[MIDI] outputs", WebMidi.outputs.map(summarize));
+
   if (hasOnlyGenericThrough) {
     logger.warn(
-      "[MIDI] Only 'MIDI Through' ports detected. This usually means the OS/browser does not see your USB-MIDI device. UI filtering is not the cause.",
+      "[MIDI] Only 'MIDI Through' ports detected. This can mean the OS/browser does not see your USB-MIDI device, or WebMidi's internal port list is stale. Try reloading WebMidi.",
     );
+  }
+};
+
+const installWebMidiPortChangeListeners = (): void => {
+  if (areWebMidiPortListenersInstalled) {
+    return;
+  }
+
+  // webmidi.js v2 typings don't always include the global connected/disconnected
+  // listener signatures across platforms. Use a defensive cast.
+  const webMidiAny = WebMidi as any;
+  if (typeof webMidiAny?.addListener !== "function") {
+    return;
+  }
+
+  try {
+    webMidiAny.addListener("connected", (event: any) => {
+      logger.log("[MIDI] WebMidi connected", {
+        type: event?.port?.type,
+        name: event?.port?.name,
+        id: event?.port?.id,
+      });
+      dumpMidiPorts("WebMidi connected");
+      assignInputs();
+    });
+
+    webMidiAny.addListener("disconnected", (event: any) => {
+      logger.log("[MIDI] WebMidi disconnected", {
+        type: event?.port?.type,
+        name: event?.port?.name,
+        id: event?.port?.id,
+      });
+      dumpMidiPorts("WebMidi disconnected");
+      assignInputs();
+    });
+
+    areWebMidiPortListenersInstalled = true;
+  } catch (err) {
+    logger.warn("[MIDI] Failed to install WebMidi port listeners", err);
   }
 };
 
@@ -252,6 +304,9 @@ export const loadMidi = async (): Promise<void> => {
     return loadMidiPromise;
   }
   if (WebMidi.enabled) {
+    installWebMidiPortChangeListeners();
+    dumpMidiPorts("loadMidi (already enabled)");
+    assignInputs();
     setConnectionState(MidiConnectionState.Open);
     return;
   }
@@ -276,14 +331,57 @@ const newMidiLoadPromise = async (): Promise<void> =>
         loadMidiPromise = (null as unknown) as Promise<void>;
         reject(error);
       } else {
+        installWebMidiPortChangeListeners();
         dumpMidiPorts("WebMidi.enable (success)");
         assignInputs();
+
+        // Some setups update port lists slightly after enable(). Re-run once or
+        // twice to reduce the chance of a stale port snapshot.
+        setTimeout(() => assignInputs(), 250);
+        setTimeout(() => assignInputs(), 1000);
+
         setConnectionState(MidiConnectionState.Open);
         loadMidiPromise = (null as unknown) as Promise<void>;
         return resolve();
       }
     }, true);
   });
+
+export const reloadMidi = async (): Promise<void> => {
+  if (!WebMidi.supported) {
+    return;
+  }
+
+  if (reloadMidiPromise) {
+    return reloadMidiPromise;
+  }
+
+  reloadMidiPromise = (async () => {
+    try {
+      setConnectionState(MidiConnectionState.Pending);
+
+      if (WebMidi.enabled) {
+        try {
+          (WebMidi as any).disable();
+        } catch (err) {
+          logger.warn("[MIDI] WebMidi.disable failed", err);
+        }
+      }
+
+      // Ensure loadMidi() goes through enable() again.
+      loadMidiPromise = (null as unknown) as Promise<void>;
+
+      await loadMidi();
+      assignInputs();
+      setTimeout(() => assignInputs(), 250);
+      setTimeout(() => assignInputs(), 1000);
+    } finally {
+      reloadMidiPromise = (null as unknown) as Promise<void>;
+    }
+  })();
+
+  return reloadMidiPromise;
+};
 
 // Export
 
@@ -296,6 +394,7 @@ interface InputOutputMatch {
 
 export interface IMidiActions {
   loadMidi: () => Promise<void>;
+  reloadMidi: () => Promise<void>;
   assignInputs: () => Promise<void>;
   matchInputOutput: (outputId: string) => Promise<InputOutputMatch>;
   startMidiConnectionWatcher: () => void;
@@ -304,6 +403,7 @@ export interface IMidiActions {
 
 export const midiStoreActions: IMidiActions = {
   loadMidi,
+  reloadMidi,
   matchInputOutput,
   assignInputs,
   findOutputById,

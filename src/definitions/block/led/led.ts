@@ -78,7 +78,8 @@ export const sections: Dictionary<ISectionDefinition> = {
     min: 0,
     max: 127,
     label: "Activation ID",
-    helpText: ``,
+    helpText:
+      "For 'MIDI in / CC' modes: set this to the CC number. If you enabled 'LED 피드백용 CC 보내기' in MIDI Bank Changer, set Activation ID to the same CC#. ",
     block: Block.Led,
   },
   RGBEnable: {
@@ -157,7 +158,8 @@ export const sections: Dictionary<ISectionDefinition> = {
     min: 0,
     max: 127,
     label: "Activation Value",
-    helpText: "",
+    helpText:
+      "For 'MIDI in / CC (Single value)': LED turns on when the incoming CC value matches this number. When used with MIDI Bank Changer LED feedback, set this to the button number shown in the Bank Changer UI (1-127).",
     block: Block.Led,
   },
   MidiChannel: {

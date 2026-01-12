@@ -21,7 +21,8 @@ export const useDeviceTableView = (
   block: Block,
   viewSetting: ComputedRef<IViewSettingState>,
 ): IDeviceTableView => {
-  const loading = ref(true);
+  // Default to not-loading. Table view (2-byte protocol) will toggle this.
+  const loading = ref(false);
   const defaultData = getDefaultDataForBlock(block, SectionType.Value);
   const columnViewData = reactive({});
   const tableViewActive = computed(() => !!viewSetting.value.viewListAsTable);
@@ -32,6 +33,7 @@ export const useDeviceTableView = (
   const loadData = async () => {
     // Old protocol doesn't support table view
     if (deviceStore.state.valueSize !== 2 || !tableViewActive.value) {
+      loading.value = false;
       return;
     }
 

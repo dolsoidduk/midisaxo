@@ -8,6 +8,14 @@ export const defaultState: IMidiState = {
   outputs: [] as Array<Output>,
   log: true,
   isWebMidiSupported: false,
+  debug: {
+    tag: "(init)",
+    supported: false,
+    enabled: false,
+    inputs: [],
+    outputs: [],
+    hasOnlyGenericThrough: false,
+  },
 };
 
 export const midiState = reactive(defaultState);

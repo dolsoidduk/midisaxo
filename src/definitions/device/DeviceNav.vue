@@ -7,6 +7,7 @@
       :block="blockDef.block"
       :params="{ outputId }"
     />
+
   </div>
 </template>
 

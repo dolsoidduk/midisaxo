@@ -56,47 +56,83 @@
           </div>
         </div>
 
-        <div v-if="isCustomSysEx" :class="`col-span-${gridCols}`">
-          <div class="form-field" :class="{ error: !!sysexError }">
-            <label class="label">
-              SysEx (HEX)
-              <small class="instructions">최대 16바이트 (payload 14)</small>
-            </label>
+          <div v-if="isBankSelectProgramChange" :class="`col-span-${gridCols}`">
+            <div class="form-field">
+              <label class="label">
+                Bank 계산기
+                <small class="instructions">MSB/LSB ↔ Bank(0-16383)</small>
+              </label>
 
-            <input
-              v-model="sysexText"
-              class="form-input mt-1 py-1 text-sm block w-full"
-              type="text"
-              name="customSysExHex"
-              placeholder="예: F0 43 10 4C 00 00 7F F7"
-              @change="applySysexText"
-            />
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div>
+                  <label class="label text-xs">MSB (0-127)</label>
+                  <input
+                    v-model.number="bankCalcMsb"
+                    class="form-input mt-1 py-1 text-sm block w-full"
+                    type="number"
+                    min="0"
+                    max="127"
+                  />
+                </div>
 
-            <p v-if="sysexHelpText" class="help-text">{{ sysexHelpText }}</p>
-            <p class="help-text">
-              <template v-if="varPos === 0">
-                치환: 사용 안 함 (Variable byte index = 0)
-              </template>
-              <template v-else>
-                치환: index {{ varPos }} 의 바이트를 value {{ varValue }}(0x{{
-                  varValueHex
-                }})로 전송합니다.
-              </template>
-            </p>
-            <p v-if="sysexPreviewOriginal" class="help-text">
-              미리보기(원본): {{ sysexPreviewOriginal }}
-            </p>
-            <p v-if="sysexPreviewTransmit" class="help-text">
-              미리보기(전송): {{ sysexPreviewTransmit }}
-            </p>
-            <p v-if="sysexVarWarning" class="error-message text-red-500">
-              {{ sysexVarWarning }}
-            </p>
-            <p v-if="sysexError" class="error-message text-red-500">
-              {{ sysexError }}
-            </p>
+                <div>
+                  <label class="label text-xs">LSB (0-127)</label>
+                  <input
+                    v-model.number="bankCalcLsb"
+                    class="form-input mt-1 py-1 text-sm block w-full"
+                    type="number"
+                    min="0"
+                    max="127"
+                  />
+                </div>
+
+                <div>
+                  <label class="label text-xs">계산된 Bank</label>
+                  <div class="relative mt-1">
+                    <input
+                      v-model.number="calcBankModel"
+                      class="form-input py-1 text-sm block w-full pr-8"
+                      type="number"
+                      min="0"
+                      max="16383"
+                    />
+
+                    <div class="absolute top-0 right-0 bottom-0 flex flex-col justify-center pr-2">
+                      <button
+                        class="px-1 text-xs leading-none text-gray-400 hover:text-gray-200 focus:outline-none"
+                        type="button"
+                        @click="nudgeCalcBank(1)"
+                        aria-label="Bank +1"
+                        title="Bank +1"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        class="px-1 text-xs leading-none text-gray-400 hover:text-gray-200 focus:outline-none"
+                        type="button"
+                        @click="nudgeCalcBank(-1)"
+                        aria-label="Bank -1"
+                        title="Bank -1"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p class="help-text">
+                현재 Bank={{ bankValue }} → MSB={{ bankMsbFromBank }} / LSB={{ bankLsbFromBank }}
+              </p>
+              <p class="help-text">
+                전송 순서: CC#0(MSB) → CC#32(LSB) → Program Change
+              </p>
+
+              <button class="btn btn-xs" type="button" @click="applyCalcBank">
+                Bank에 적용
+              </button>
+            </div>
           </div>
-        </div>
 
         <template v-for="section in sections">
           <FormField
@@ -116,97 +152,10 @@
 <script lang="ts">
 import { defineComponent, computed, ref, watch } from "vue";
 import { Block, ButtonMessageType, SectionType } from "../../interface";
-import { ErrorCode } from "../../error";
 import { useDeviceForm } from "../../../composables";
 import { deviceStoreMapped, deviceStore } from "../../../store";
 import router from "../../../router";
 import { parseHexBytes, parseRawMidiToButton } from "../../../util/raw-midi";
-
-// Firmware stores only SysEx payload (bytes between F0 and F7) as 7-bit safe bytes.
-// Payload is packed into 8x 14-bit words: word = b0 | (b1 << 7)
-// Total transmitted SysEx length is payload + 2 (F0/F7), limited to 16 bytes.
-const CUSTOM_SYSEX_MAX_TOTAL_BYTES = 16;
-const CUSTOM_SYSEX_MAX_PAYLOAD_BYTES = CUSTOM_SYSEX_MAX_TOTAL_BYTES - 2;
-const CUSTOM_SYSEX_WORDS = CUSTOM_SYSEX_MAX_TOTAL_BYTES / 2;
-
-
-const normalizeSysexPayload = (
-  bytes: number[],
-): { payload: number[]; truncated: boolean; error?: string } => {
-  if (!bytes.length) {
-    return { payload: [], truncated: false };
-  }
-
-  const hasF0 = bytes[0] === 0xf0;
-  const hasF7 = bytes[bytes.length - 1] === 0xf7;
-
-  // Allow either full SysEx (F0 .. F7) or payload-only.
-  if (hasF0 || hasF7)
-  {
-    if (!(hasF0 && hasF7))
-    {
-      return {
-        payload: [],
-        truncated: false,
-        error:
-          "SysEx는 F0로 시작하고 F7로 끝나야 합니다. (또는 payload만 입력하세요)",
-      };
-    }
-
-    if (bytes.length < 2)
-    {
-      return {
-        payload: [],
-        truncated: false,
-        error: "SysEx 길이가 너무 짧습니다.",
-      };
-    }
-  }
-
-  const payload = hasF0 && hasF7 ? bytes.slice(1, -1) : bytes.slice();
-
-  for (const b of payload)
-  {
-    if (b < 0 || b > 0x7f)
-    {
-      return {
-        payload: [],
-        truncated: false,
-        error:
-          "SysEx payload 바이트는 00..7F 범위여야 합니다. (F0/F7는 자동 처리됩니다)",
-      };
-    }
-  }
-
-  const truncatedPayload = payload.slice(0, CUSTOM_SYSEX_MAX_PAYLOAD_BYTES);
-  return {
-    payload: truncatedPayload,
-    truncated: truncatedPayload.length !== payload.length,
-  };
-};
-
-const bytesToWords = (bytes: number[]): number[] => {
-  const words: number[] = [];
-  for (let i = 0; i < CUSTOM_SYSEX_WORDS; i++) {
-    const b0 = (bytes[i * 2] ?? 0) & 0x7f;
-    const b1 = (bytes[i * 2 + 1] ?? 0) & 0x7f;
-    words.push(b0 | (b1 << 7));
-  }
-  return words;
-};
-
-const wordsToBytes = (words: number[]): number[] => {
-  const bytes: number[] = [];
-  for (const wordRaw of words) {
-    const word = Number(wordRaw ?? 0) & 0x3fff;
-    bytes.push(word & 0x7f);
-    bytes.push((word >> 7) & 0x7f);
-  }
-  return bytes;
-};
-
-const formatHex = (bytes: number[]): string =>
-  bytes.map((b) => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
 
 export default defineComponent({
   name: "ButtonForm",
@@ -235,25 +184,119 @@ export default defineComponent({
 
     const deviceForm = useDeviceForm(props.block, SectionType.Value, index);
 
-    const sysexText = ref("");
-    const sysexError = ref<string | null>(null);
-    const sysexHelpText = ref<string>(
-      "HEX를 공백/콤마로 나누어서 입력하세요. (F0..F7 포함 또는 payload만) 입력 후 포커스를 옮기면 저장됩니다. (.../… 생략 표기는 무시됩니다)",
-    );
-    const sysexDirty = ref(false);
-    const sysexPendingSave = ref(false);
-
     const rawMidiText = ref("");
     const rawMidiError = ref<string | null>(null);
     const rawMidiHelpText = ref<string>(
-      "HEX를 붙여넣으면 버튼 설정으로 변환해 저장합니다. (Note/CC/PC/RealTime 또는 SysEx(F0..F7) 자동 인식)",
+      "HEX를 붙여넣으면 버튼 설정으로 변환해 저장합니다. (Note/CC/PC/RealTime 자동 인식)",
     );
     const rawMidiPendingSave = ref(false);
 
-    const isCustomSysEx = computed(
+    const isBankSelectProgramChange = computed(
       () =>
         Number(deviceForm.formData.messageType) ===
-        ButtonMessageType.CustomSysEx,
+        ButtonMessageType.BankSelectProgramChange,
+    );
+
+    const bankValue = computed(() => {
+      const raw = Number(deviceForm.formData.value ?? 0);
+      if (!Number.isFinite(raw)) {
+        return 0;
+      }
+      return Math.max(0, Math.min(16383, raw));
+    });
+
+    const bankMsbFromBank = computed(() => (bankValue.value >> 7) & 0x7f);
+    const bankLsbFromBank = computed(() => bankValue.value & 0x7f);
+
+    const bankCalcMsb = ref(0);
+    const bankCalcLsb = ref(0);
+
+    // Keep calculator inputs in sync with the current Bank field.
+    watch(
+      () => [isBankSelectProgramChange.value, bankValue.value] as const,
+      ([enabled]) => {
+        if (!enabled) {
+          return;
+        }
+        bankCalcMsb.value = bankMsbFromBank.value;
+        bankCalcLsb.value = bankLsbFromBank.value;
+      },
+      { immediate: true },
+    );
+
+    const calcBank = computed(() => {
+      const msb = Math.max(0, Math.min(127, Number(bankCalcMsb.value) || 0));
+      const lsb = Math.max(0, Math.min(127, Number(bankCalcLsb.value) || 0));
+      return (msb << 7) + lsb;
+    });
+
+    const calcBankModel = computed<number>({
+      get: () => calcBank.value,
+      set: (value: number) => {
+        const bank = Math.max(0, Math.min(16383, Math.floor(Number(value) || 0)));
+        bankCalcMsb.value = (bank >> 7) & 0x7f;
+        bankCalcLsb.value = bank & 0x7f;
+      },
+    });
+
+    const nudgeCalcBank = (delta: number) => {
+      calcBankModel.value = calcBankModel.value + delta;
+    };
+
+    const applyCalcBank = async () => {
+      const bank = Math.max(0, Math.min(16383, calcBank.value));
+
+      // Always keep local state in sync.
+      deviceForm.formData.value = bank;
+
+      // If not connected, don't try to write to the device.
+      if (!isDeviceConnected.value) {
+        return;
+      }
+
+      // Write without toggling the global loading overlay (prevents UI flicker).
+      await setValueAndUpdate("value", 3, bank);
+    };
+
+    // Auto-apply calculator changes to the real Bank field.
+    // This keeps the stored Bank(value) in sync without requiring a manual button click.
+    const autoApplyTimeoutId = ref<number | null>(null);
+    const scheduleAutoApplyCalcBank = () => {
+      if (!isBankSelectProgramChange.value) {
+        return;
+      }
+
+      const target = Math.max(0, Math.min(16383, calcBank.value));
+      const current = bankValue.value;
+
+      // Avoid redundant writes / loops.
+      if (target === current) {
+        return;
+      }
+
+      if (autoApplyTimeoutId.value) {
+        window.clearTimeout(autoApplyTimeoutId.value);
+      }
+
+      autoApplyTimeoutId.value = window.setTimeout(async () => {
+        autoApplyTimeoutId.value = null;
+        // Re-check after debounce
+        const newTarget = Math.max(0, Math.min(16383, calcBank.value));
+        if (newTarget === bankValue.value) {
+          return;
+        }
+        await applyCalcBank();
+      }, 250);
+    };
+
+    watch(
+      () => [isBankSelectProgramChange.value, calcBank.value, bankValue.value] as const,
+      ([enabled]) => {
+        if (!enabled) {
+          return;
+        }
+        scheduleAutoApplyCalcBank();
+      },
     );
 
     const showRawMidiHex = computed(() => true);
@@ -271,130 +314,6 @@ export default defineComponent({
       return parts.filter(Boolean).join(" ");
     });
 
-    const varPos = computed(() => Number(deviceForm.formData.midiId ?? 0));
-    const varValue = computed(() => Number(deviceForm.formData.value ?? 0) & 0x7f);
-    const varValueHex = computed(() =>
-      varValue.value.toString(16).toUpperCase().padStart(2, "0"),
-    );
-
-    const getPayloadFromSysexText = (): {
-      payload: number[];
-      truncated: boolean;
-      error?: string;
-    } => {
-      const parsed = parseHexBytes(sysexText.value);
-      if (parsed.error) {
-        return { payload: [], truncated: false, error: parsed.error };
-      }
-      return normalizeSysexPayload(parsed.bytes);
-    };
-
-    const buildFullSysexFromPayload = (payload: number[]): number[] => {
-      if (!payload.length) {
-        return [];
-      }
-      return [0xf0, ...payload.slice(0, CUSTOM_SYSEX_MAX_PAYLOAD_BYTES), 0xf7];
-    };
-
-    const sysexPreviewOriginal = computed(() => {
-      if (!isCustomSysEx.value) {
-        return "";
-      }
-
-      const parsed = getPayloadFromSysexText();
-      if (parsed.error || !parsed.payload.length) {
-        return "";
-      }
-
-      const bytes = buildFullSysexFromPayload(parsed.payload);
-      const pos = varPos.value;
-
-      return bytes
-        .map((b, i) => {
-          const hex = b.toString(16).toUpperCase().padStart(2, "0");
-          return pos !== 0 && i === pos ? `[${hex}]` : hex;
-        })
-        .join(" ");
-    });
-
-    const sysexPreviewTransmit = computed(() => {
-      if (!isCustomSysEx.value) {
-        return "";
-      }
-
-      const parsed = getPayloadFromSysexText();
-      if (parsed.error || !parsed.payload.length) {
-        return "";
-      }
-
-      const bytes = buildFullSysexFromPayload(parsed.payload);
-      const pos = varPos.value;
-      const substituted = bytes.map((b, i) =>
-        pos !== 0 && i === pos ? varValue.value : b,
-      );
-
-      return substituted
-        .map((b, i) => {
-          const hex = b.toString(16).toUpperCase().padStart(2, "0");
-          return pos !== 0 && i === pos ? `[${hex}]` : hex;
-        })
-        .join(" ");
-    });
-
-    const sysexVarWarning = computed(() => {
-      if (!isCustomSysEx.value) {
-        return "";
-      }
-
-      const parsed = getPayloadFromSysexText();
-      if (parsed.error) {
-        return "";
-      }
-
-      const length = parsed.payload.length ? parsed.payload.length + 2 : 0;
-      if (length === 0) {
-        return "";
-      }
-
-      if (varPos.value === 0) {
-        return "";
-      }
-
-      // Firmware uses full-message indexing and disallows targeting the trailing 0xF7.
-      if (varPos.value < 0 || varPos.value >= length - 1) {
-        return `Variable byte index(${varPos.value})가 SysEx 길이(${length}) 범위를 벗어납니다. (F0 포함 인덱스)`;
-      }
-
-      return "";
-    });
-
-    const buildSysexFromForm = () => {
-      const length = Number(deviceForm.formData.sysExLength ?? 0);
-      const words = [
-        deviceForm.formData.sysExData0,
-        deviceForm.formData.sysExData1,
-        deviceForm.formData.sysExData2,
-        deviceForm.formData.sysExData3,
-        deviceForm.formData.sysExData4,
-        deviceForm.formData.sysExData5,
-        deviceForm.formData.sysExData6,
-        deviceForm.formData.sysExData7,
-      ].map((v) => Number(v ?? 0));
-
-      const payload = wordsToBytes(words).slice(0, Math.max(0, length));
-      const full = buildFullSysexFromPayload(payload);
-      return full.length ? formatHex(full) : "";
-    };
-
-    const refreshSysexTextFromDeviceState = () => {
-      if (!isCustomSysEx.value) {
-        return;
-      }
-      if (sysexDirty.value) {
-        return;
-      }
-      sysexText.value = buildSysexFromForm();
-    };
 
     const setValueAndUpdate = async (
       key: string,
@@ -413,99 +332,6 @@ export default defineComponent({
       await deviceStore.actions.setComponentSectionValue(cfg as any, () => {
         // no-op: local state already updated optimistically
       });
-    };
-
-    const applySysexText = async () => {
-      if (!isCustomSysEx.value) {
-        return;
-      }
-
-      sysexDirty.value = true;
-      sysexError.value = null;
-
-      const parsed = parseHexBytes(sysexText.value);
-      if (parsed.error) {
-        sysexError.value = parsed.error;
-        return;
-      }
-
-      const normalized = normalizeSysexPayload(parsed.bytes);
-      if (normalized.error) {
-        sysexError.value = normalized.error;
-        return;
-      }
-
-      const payload = normalized.payload;
-
-      if (normalized.truncated) {
-        sysexHelpText.value =
-          `payload는 최대 ${CUSTOM_SYSEX_MAX_PAYLOAD_BYTES}바이트까지만 저장됩니다. (자동으로 잘림)`;
-      } else {
-        sysexHelpText.value =
-          "HEX를 공백/콤마로 나누어서 입력하세요. (F0..F7 포함 또는 payload만) 입력 후 포커스를 옮기면 저장됩니다. (.../… 생략 표기는 무시됩니다)";
-      }
-
-      const length = payload.length;
-      const words = bytesToWords(payload);
-
-      // Always reflect parsed bytes in local form state.
-      deviceForm.formData.sysExLength = length;
-      for (let i = 0; i < 8; i++) {
-        (deviceForm.formData as any)[`sysExData${i}`] = words[i] ?? 0;
-      }
-
-      // If not connected, update local state only and defer writing.
-      if (!isDeviceConnected.value) {
-        sysexPendingSave.value = true;
-        sysexHelpText.value =
-          "장치가 연결되어 있지 않습니다. 연결되면 자동으로 저장됩니다.";
-        return;
-      }
-
-      deviceForm.loading.value = true;
-      try {
-        await setValueAndUpdate("sysExLength", 6, length);
-        for (let i = 0; i < 8; i++) {
-          await setValueAndUpdate(`sysExData${i}`, 7 + i, words[i] ?? 0);
-        }
-      } catch (e) {
-        const errorCode = typeof e === "number" ? (e as number) : undefined;
-
-        // Some errors are not transient and shouldn't be auto-retried.
-        const isNonTransient =
-          errorCode === ErrorCode.SECTION ||
-          errorCode === ErrorCode.BLOCK ||
-          errorCode === ErrorCode.NOT_SUPPORTED;
-
-        sysexPendingSave.value = !isNonTransient;
-
-        if (errorCode === ErrorCode.SECTION) {
-          sysexError.value =
-            "SysEx 저장에 실패했습니다. (7=SECTION) 현재 보드 펌웨어가 Custom SysEx 저장 섹션을 지원하지 않는 것 같습니다. " +
-            "최신 펌웨어(UF2)로 업데이트 후 다시 시도해주세요." +
-            (deviceLabel.value ? ` (현재 연결: ${deviceLabel.value})` : "");
-          return;
-        }
-
-        if (errorCode === ErrorCode.HANDSHAKE) {
-          sysexError.value =
-            "SysEx 저장에 실패했습니다. (3=HANDSHAKE) 장치 연결이 초기화되지 않았습니다. 장치를 다시 선택/연결 후 시도해주세요.";
-          return;
-        }
-
-        const message =
-          e instanceof Error
-            ? e.message
-            : typeof e === "string"
-              ? e
-              : JSON.stringify(e);
-
-        sysexError.value =
-          "SysEx 저장에 실패했습니다. 연결/권한(WebMIDI SysEx) 상태를 확인해주세요." +
-          (message ? ` (${message})` : "");
-      } finally {
-        deviceForm.loading.value = false;
-      }
     };
 
     const applyRawMidiText = async () => {
@@ -527,9 +353,6 @@ export default defineComponent({
         return;
       }
 
-      const isSysExMapping =
-        mapped.messageType === ButtonMessageType.CustomSysEx && !!mapped.sysEx;
-
       // Always reflect parsed mapping in local state.
       deviceForm.formData.messageType = mapped.messageType;
       if (typeof mapped.midiChannel === "number") {
@@ -540,31 +363,6 @@ export default defineComponent({
       }
       if (typeof mapped.value === "number") {
         deviceForm.formData.value = mapped.value;
-      }
-
-      if (isSysExMapping) {
-        const length = mapped.sysEx!.length;
-        const words = mapped.sysEx!.words;
-
-        deviceForm.formData.sysExLength = length;
-        for (let i = 0; i < 8; i++) {
-          (deviceForm.formData as any)[`sysExData${i}`] = words[i] ?? 0;
-        }
-
-        // Keep the dedicated SysEx field in sync for visibility/editing.
-        sysexDirty.value = true;
-        sysexError.value = null;
-        sysexText.value = length
-          ? formatHex([0xf0, ...mapped.sysEx!.payload.slice(0, length), 0xf7])
-          : "";
-
-        if (mapped.sysEx!.truncated) {
-          sysexHelpText.value =
-            `SysEx는 최대 ${CUSTOM_SYSEX_MAX_TOTAL_BYTES}바이트(총길이) / payload ${CUSTOM_SYSEX_MAX_PAYLOAD_BYTES}바이트까지만 저장됩니다. (자동으로 잘림)`;
-        } else {
-          sysexHelpText.value =
-            "HEX를 공백/콤마로 나누어서 입력하세요. (F0..F7 포함 또는 payload만) 입력 후 포커스를 옮기면 저장됩니다. (.../… 생략 표기는 무시됩니다)";
-        }
       }
 
       // If not connected, update local state only and defer writing.
@@ -578,28 +376,6 @@ export default defineComponent({
       deviceForm.loading.value = true;
       try {
         await setValueAndUpdate("messageType", 1, mapped.messageType);
-
-        if (isSysExMapping) {
-          // Ensure substitution defaults are stored (varPos/varValue).
-          if (typeof mapped.midiId === "number") {
-            await setValueAndUpdate("midiId", 2, mapped.midiId);
-          }
-          if (typeof mapped.value === "number") {
-            await setValueAndUpdate("value", 3, mapped.value);
-          }
-
-          const length = mapped.sysEx!.length;
-          const words = mapped.sysEx!.words;
-          await setValueAndUpdate("sysExLength", 6, length);
-          for (let i = 0; i < 8; i++) {
-            await setValueAndUpdate(`sysExData${i}`, 7 + i, words[i] ?? 0);
-          }
-
-          rawMidiHelpText.value = mapped.sysEx!.truncated
-            ? "저장되었습니다. (SysEx가 길어서 자동으로 잘렸습니다)"
-            : "저장되었습니다.";
-          return;
-        }
 
         if (typeof mapped.midiChannel === "number") {
           await setValueAndUpdate("midiChannel", 4, mapped.midiChannel);
@@ -631,41 +407,17 @@ export default defineComponent({
     watch(
       () => deviceForm.loading.value,
       (isLoading) => {
-        if (!isLoading) {
-          refreshSysexTextFromDeviceState();
-        }
+        // no-op
       },
     );
 
     watch(
       () => index.value,
       () => {
-        sysexDirty.value = false;
-        sysexPendingSave.value = false;
-        sysexError.value = null;
-        sysexHelpText.value =
-          "HEX를 공백/콤마로 나누어서 입력하세요. (F0..F7 포함 또는 payload만) 입력 후 포커스를 옮기면 저장됩니다. (.../… 생략 표기는 무시됩니다)";
-        refreshSysexTextFromDeviceState();
-
         rawMidiPendingSave.value = false;
         rawMidiError.value = null;
         rawMidiHelpText.value =
-          "HEX를 붙여넣으면 버튼 설정으로 변환해 저장합니다. (Note/CC/PC/RealTime 또는 SysEx(F0..F7) 자동 인식)";
-      },
-    );
-
-    watch(
-      () => isCustomSysEx.value,
-      (enabled) => {
-        sysexDirty.value = false;
-        sysexPendingSave.value = false;
-        sysexError.value = null;
-        if (enabled) {
-          refreshSysexTextFromDeviceState();
-        }
-
-        rawMidiPendingSave.value = false;
-        rawMidiError.value = null;
+          "HEX를 붙여넣으면 버튼 설정으로 변환해 저장합니다. (Note/CC/PC/RealTime 자동 인식)";
       },
     );
 
@@ -675,15 +427,6 @@ export default defineComponent({
         if (!connected) {
           return;
         }
-        if (!sysexPendingSave.value) {
-          // continue - raw MIDI might still be pending
-        }
-
-        if (sysexPendingSave.value) {
-          sysexPendingSave.value = false;
-          await applySysexText();
-        }
-
         if (rawMidiPendingSave.value) {
           rawMidiPendingSave.value = false;
           await applyRawMidiText();
@@ -704,17 +447,16 @@ export default defineComponent({
       rawMidiError,
       rawMidiHelpText,
       applyRawMidiText,
-      isCustomSysEx,
-      sysexText,
-      sysexError,
-      sysexHelpText,
-      sysexPreviewOriginal,
-      sysexPreviewTransmit,
-      sysexVarWarning,
-      varPos,
-      varValue,
-      varValueHex,
-      applySysexText,
+      isBankSelectProgramChange,
+      bankValue,
+      bankMsbFromBank,
+      bankLsbFromBank,
+      bankCalcMsb,
+      bankCalcLsb,
+      calcBank,
+      calcBankModel,
+      nudgeCalcBank,
+      applyCalcBank,
     };
   },
 });

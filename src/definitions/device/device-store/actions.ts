@@ -11,6 +11,7 @@ import {
   SectionType,
   Block,
   BlockMap,
+  ErrorCode,
   IOpenDeckRelease,
   GitHubReleasesUrl,
   getBoardDefinition,
@@ -289,7 +290,12 @@ const startBackup = async (): Promise<void> => {
   sendMessage({
     command: Request.Backup,
     handler,
-  }).catch((error) => logger.error("Failed to read component config", error));
+  }).catch((error) => {
+    if (Number(error) === ErrorCode.NOT_SUPPORTED) {
+      return;
+    }
+    logger.error("Failed to read component config", error);
+  });
 };
 
 // Other hardware
@@ -411,9 +417,15 @@ export const getComponentSettings = async (
         command: Request.GetValue,
         handler,
         config: { block, section, index },
-      }).catch((error) =>
-        logger.error("Failed to read component config", error),
-      );
+      }).catch((error) => {
+        // ErrorCode.NOT_SUPPORTED (13) is expected for boards/targets that don't
+        // implement every block/section; request-qeueue.ts already disables the
+        // corresponding control, so avoid spamming the console.
+        if (Number(error) === ErrorCode.NOT_SUPPORTED) {
+          return;
+        }
+        logger.error("Failed to read component config", error);
+      });
     },
   );
 
@@ -454,9 +466,12 @@ export const getSectionValues = async (
         command: Request.GetSectionValues,
         handler,
         config: { block, section },
-      }).catch((error) =>
-        logger.error("Failed to read component config", error),
-      );
+      }).catch((error) => {
+        if (Number(error) === ErrorCode.NOT_SUPPORTED) {
+          return;
+        }
+        logger.error("Failed to read component config", error);
+      });
     },
   );
 

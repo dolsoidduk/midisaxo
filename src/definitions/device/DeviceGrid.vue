@@ -90,6 +90,12 @@
         <span class="text-xl font-bold">{{ index - 1 }}</span>
       </DeviceGridButton>
     </div>
+    <div v-else-if="!segments && !loading && componentCount === 0" class="text-center text-gray-400 py-8">
+      이 섹션에서 사용할 수 있는 컴포넌트가 없습니다.
+      <div class="text-xs text-gray-500 mt-2">
+        (펌웨어가 해당 블록의 지원 개수를 0으로 보고했을 수 있습니다.)
+      </div>
+    </div>
     <template v-else-if="segments && segments.length">
       <div
         v-for="(segment, idx) in segments"

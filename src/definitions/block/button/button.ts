@@ -18,9 +18,6 @@ import ButtonIcon from "./ButtonIcon.vue";
 
 type FormState = Dictionary<number>;
 
-const CUSTOM_SYSEX_MAX_TOTAL_BYTES = 16;
-const CUSTOM_SYSEX_MAX_PAYLOAD_BYTES = CUSTOM_SYSEX_MAX_TOTAL_BYTES - 2;
-
 const sections: Dictionary<ISectionDefinition> = {
   Type: {
     showIf: (): boolean => true,
@@ -104,7 +101,6 @@ const sections: Dictionary<ISectionDefinition> = {
       { value: ButtonMessageType.ControlChange0Only, text: "CC/0 only" },
       { value: ButtonMessageType.BpmInc, text: "BPM Inc" },
       { value: ButtonMessageType.BpmDec, text: "BPM Dec" },
-      { value: ButtonMessageType.CustomSysEx, text: "Custom SysEx" },
     ],
     label: "Message type",
     helpText: ``,
@@ -127,8 +123,7 @@ const sections: Dictionary<ISectionDefinition> = {
   MidiId: {
     showIf: (formState: FormState): boolean =>
       !HideButtonMidiIdOnTypes.includes(formState.messageType) &&
-      formState.messageType !== ButtonMessageType.BankSelectProgramChange &&
-      formState.messageType !== ButtonMessageType.CustomSysEx,
+      formState.messageType !== ButtonMessageType.BankSelectProgramChange,
     key: "midiId",
     type: SectionType.Value,
     section: 2,
@@ -154,21 +149,6 @@ const sections: Dictionary<ISectionDefinition> = {
       "Program Change number (0-127). Some devices label programs as 1-128.",
     block: Block.Button,
   },
-
-  SysExVarPos: {
-    showIf: (formState: FormState): boolean =>
-      formState.messageType == ButtonMessageType.CustomSysEx,
-    key: "midiId",
-    type: SectionType.Value,
-    section: 2,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: CUSTOM_SYSEX_MAX_TOTAL_BYTES - 1,
-    label: "Variable byte index",
-    helpText:
-      "0 = 치환 안 함. 인덱스는 전체 SysEx 기준(F0=0, 첫 payload=1). 1~15 = 해당 바이트를 Value(0-127)로 치환.",
-    block: Block.Button,
-  },
   Preset: {
     showIf: (formState: FormState): boolean =>
       formState.messageType == ButtonMessageType.PresetChange,
@@ -186,8 +166,7 @@ const sections: Dictionary<ISectionDefinition> = {
   Value: {
     showIf: (formState: FormState): boolean =>
       !HideButtonVelocityOnTypes.includes(formState.messageType) &&
-      formState.messageType !== ButtonMessageType.BankSelectProgramChange &&
-      formState.messageType !== ButtonMessageType.CustomSysEx,
+      formState.messageType !== ButtonMessageType.BankSelectProgramChange,
     key: "value",
     type: SectionType.Value,
     section: 3,
@@ -212,132 +191,6 @@ const sections: Dictionary<ISectionDefinition> = {
     label: "Bank (0-16383)",
     helpText:
       "14-bit bank number. MSB = bank >> 7, LSB = bank & 0x7F. OpenDeck sends CC#0 (MSB), CC#32 (LSB), then Program Change.",
-    block: Block.Button,
-  },
-
-  SysExVarValue: {
-    showIf: (formState: FormState): boolean =>
-      formState.messageType == ButtonMessageType.CustomSysEx,
-    key: "value",
-    type: SectionType.Value,
-    section: 3,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: 127,
-    label: "Variable value (0-127)",
-    helpText:
-      "Variable byte index 위치에 써질 7-bit 값(0-127). (F0/F7 포함 인덱스)",
-    block: Block.Button,
-  },
-
-  SysExLength: {
-    showIf: (): boolean => false,
-    key: "sysExLength",
-    type: SectionType.Value,
-    section: 6,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: CUSTOM_SYSEX_MAX_PAYLOAD_BYTES,
-    label: "SysEx length (bytes)",
-    helpText: `SysEx payload length (between F0 and F7). Max ${CUSTOM_SYSEX_MAX_PAYLOAD_BYTES} (total message length is payload+2, max ${CUSTOM_SYSEX_MAX_TOTAL_BYTES}).`,
-    block: Block.Button,
-  },
-
-  SysExData0: {
-    showIf: (): boolean => false,
-    key: "sysExData0",
-    type: SectionType.Value,
-    section: 7,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: 16383,
-    label: "SysEx data word 0",
-    helpText:
-      "Packed payload bytes [b0 | (b1<<7)] (both bytes must be 00..7F).",
-    block: Block.Button,
-  },
-  SysExData1: {
-    showIf: (): boolean => false,
-    key: "sysExData1",
-    type: SectionType.Value,
-    section: 8,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: 16383,
-    label: "SysEx data word 1",
-    helpText: "Packed payload bytes [b2 | (b3<<7)].",
-    block: Block.Button,
-  },
-  SysExData2: {
-    showIf: (): boolean => false,
-    key: "sysExData2",
-    type: SectionType.Value,
-    section: 9,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: 16383,
-    label: "SysEx data word 2",
-    helpText: "Packed payload bytes [b4 | (b5<<7)].",
-    block: Block.Button,
-  },
-  SysExData3: {
-    showIf: (): boolean => false,
-    key: "sysExData3",
-    type: SectionType.Value,
-    section: 10,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: 16383,
-    label: "SysEx data word 3",
-    helpText: "Packed payload bytes [b6 | (b7<<7)].",
-    block: Block.Button,
-  },
-  SysExData4: {
-    showIf: (): boolean => false,
-    key: "sysExData4",
-    type: SectionType.Value,
-    section: 11,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: 16383,
-    label: "SysEx data word 4",
-    helpText: "Packed payload bytes [b8 | (b9<<7)].",
-    block: Block.Button,
-  },
-  SysExData5: {
-    showIf: (): boolean => false,
-    key: "sysExData5",
-    type: SectionType.Value,
-    section: 12,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: 16383,
-    label: "SysEx data word 5",
-    helpText: "Packed payload bytes [b10 | (b11<<7)].",
-    block: Block.Button,
-  },
-  SysExData6: {
-    showIf: (): boolean => false,
-    key: "sysExData6",
-    type: SectionType.Value,
-    section: 13,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: 16383,
-    label: "SysEx data word 6",
-    helpText: "Packed payload bytes [b12 | (b13<<7)].",
-    block: Block.Button,
-  },
-  SysExData7: {
-    showIf: (): boolean => false,
-    key: "sysExData7",
-    type: SectionType.Value,
-    section: 14,
-    component: FormInputComponent.Input,
-    min: 0,
-    max: 16383,
-    label: "SysEx data word 7",
-    helpText: "Packed payload bytes [b14 | (b15<<7)].",
     block: Block.Button,
   },
 

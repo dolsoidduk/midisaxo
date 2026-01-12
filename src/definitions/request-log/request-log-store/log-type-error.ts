@@ -26,9 +26,17 @@ export const addError = (params: ErrorParams): void => {
   });
 
   if (params.errorCode) {
-    const definition = getErrorDefinition(params.errorCode);
+    const errorCode = Number(params.errorCode);
+    const definition = getErrorDefinition(errorCode as ErrorCode);
+    // NOT_SUPPORTED is a normal/expected response when a board/target doesn't
+    // implement every possible config section. It is handled by disabling the
+    // control, so avoid spamming the console.
+    if (errorCode === ErrorCode.NOT_SUPPORTED) {
+      return;
+    }
+
     logger.error(definition.description, params.error);
   } else {
-    logger.error(definition.message, params.error);
+    logger.error(params.message, params.error);
   }
 };

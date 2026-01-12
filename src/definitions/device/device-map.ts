@@ -13,6 +13,8 @@ export const DeviceRoutes = [
     name: "device",
     component: Device,
     redirect: { name: "device-global" },
-    children: BlockRoutes,
+    children: [
+      ...BlockRoutes,
+    ],
   },
 ];

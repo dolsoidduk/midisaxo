@@ -262,7 +262,11 @@ const parseEventDataDoubleByte = (
   const { decodeDoubleByte, responseEmbedsRequest } = definition;
   let decoded = data;
   try {
-    if (decodeDoubleByte) {
+    // Only decode 2-byte packed values when the connected device uses the
+    // 2-byte protocol. Some requests are marked as decodeDoubleByte in the
+    // definitions but older/1-byte protocol devices will return single-byte
+    // values and decoding would fail (uneven length) and yield undefined.
+    if (decodeDoubleByte && deviceState.valueSize === 2) {
       const dataToDecode = responseEmbedsRequest
         ? removeEmbed(processed, definition, request)
         : data;
@@ -334,10 +338,6 @@ const processEventData = (
 };
 
 export const handleSysExEvent = (event: InputEventBase<"sysex">): void => {
-  if (procesInfoMessage(event.data)) {
-    return;
-  }
-
   // Note: MMC MIDI messages are sent as regular SYSEX events
   if (isEventMidiMMC(event)) {
     // Skip midi events to prevent delays when loading data
@@ -345,6 +345,27 @@ export const handleSysExEvent = (event: InputEventBase<"sysex">): void => {
       type: MidiEventTypeMMC[event.data[4]],
       data: [event.data[4]],
     });
+    return;
+  }
+
+  // Prevent unrelated SysEx (e.g. user-configured Custom SysEx, other devices)
+  // from being interpreted as OpenDeck request/response frames.
+  const isOpenDeckSysex =
+    event.data.length >= 4 &&
+    event.data[0] === 0xf0 &&
+    event.data[1] === openDeckManufacturerId[0] &&
+    event.data[2] === openDeckManufacturerId[1] &&
+    event.data[3] === openDeckManufacturerId[2];
+
+  if (!isOpenDeckSysex) {
+    requestLog.actions.addMidi({
+      type: "sysex",
+      data: event.data,
+    });
+    return;
+  }
+
+  if (procesInfoMessage(event.data)) {
     return;
   }
 

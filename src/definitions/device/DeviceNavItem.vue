@@ -9,9 +9,10 @@
   >
     <span class="icon-wrapper">
       <component :is="iconComponent"></component>
-      <span v-if="numberOfComponents[block]" class="icon-label">{{
-        numberOfComponents[block]
-      }}</span>
+      <span
+        v-if="numberOfComponents[block] !== undefined && numberOfComponents[block] !== null"
+        class="icon-label"
+      >{{ numberOfComponents[block] }}</span>
     </span>
     <span class="lg:inline-block text-sm label">
       {{ title }}

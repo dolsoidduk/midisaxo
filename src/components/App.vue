@@ -44,7 +44,7 @@
           </div>
         </Section>
 
-        <router-view v-else-if="isMidiSaxophonePage" />
+        <router-view v-else-if="isStandaloneFeaturePage" />
 
         <Section
           v-else-if="isConnecting"
@@ -96,6 +96,11 @@
               >
             </li>
             <li>
+              <router-link :to="{ name: 'midi-bank-changer' }"
+                >MIDI Bank Changer</router-link
+              >
+            </li>
+            <li>
               <a href="https://github.com/paradajz/OpenDeck"
                 >OpenDeck GitHub 저장소</a
               >
@@ -130,9 +135,13 @@ export default defineComponent({
       () => router.currentRoute.value.name === "home",
     );
 
-    const isMidiSaxophonePage = computed(
-      () => router.currentRoute.value.name === "midisaxophone",
-    );
+    const isStandaloneFeaturePage = computed(() => {
+      const name = router.currentRoute.value.name;
+      return (
+        name === "midisaxophone" ||
+        name === "midi-bank-changer"
+      );
+    });
 
     const { isConnected, isConnecting, isWebMidiSupported } = midiStoreMapped;
     const { supportedPresetsCount, isBootloaderMode } = deviceStoreMapped;
@@ -147,7 +156,7 @@ export default defineComponent({
 
     return {
       isHomePage,
-      isMidiSaxophonePage,
+      isStandaloneFeaturePage,
       outputId,
       isWebMidiSupported,
       isConnected,
