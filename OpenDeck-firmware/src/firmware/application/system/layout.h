@@ -97,19 +97,21 @@ namespace sys
                 io::buttons::Collection::SIZE(),
                 1,
                 17,
-            }
-                // sysex macro length section
-                {
-                    io::buttons::SYSEX_MACRO_COUNT,
-                    0,
-                    static_cast<uint16_t>(io::buttons::SYSEX_MACRO_MAX_LENGTH),
-                },
-                // sysex macro data bytes section
-                {
-                    static_cast<uint16_t>(io::buttons::SYSEX_MACRO_COUNT) * static_cast<uint16_t>(io::buttons::SYSEX_MACRO_MAX_LENGTH),
-                    0,
-                    255,
-                },
+            },
+
+            // sysex macro length section
+            {
+                io::buttons::SYSEX_MACRO_COUNT,
+                0,
+                static_cast<uint16_t>(io::buttons::SYSEX_MACRO_MAX_LENGTH),
+            },
+
+            // sysex macro data bytes section
+            {
+                static_cast<uint16_t>(io::buttons::SYSEX_MACRO_COUNT) * static_cast<uint16_t>(io::buttons::SYSEX_MACRO_MAX_LENGTH),
+                0,
+                255,
+            },
         };
 
         std::vector<lib::sysexconf::Section> _encoderSections = {
