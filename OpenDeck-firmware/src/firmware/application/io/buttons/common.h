@@ -82,6 +82,10 @@ namespace io::buttons
         AMOUNT
     };
 
-    static constexpr uint8_t SYSEX_MACRO_COUNT      = 16;
+    // Used as storage slots for SysEx data.
+    // UI maps each SysEx-configured button to its own slot (button index),
+    // so keep this at least as large as the number of buttons you want to support.
+    // Note: button VALUE is 7-bit (0-127), so this is capped at 128 slots.
+    static constexpr uint8_t SYSEX_MACRO_COUNT      = 128;
     static constexpr uint8_t SYSEX_MACRO_MAX_LENGTH = 32;
 }    // namespace io::buttons

@@ -147,7 +147,7 @@ export default defineComponent({
     const { supportedPresetsCount, isBootloaderMode } = deviceStoreMapped;
 
     onMounted(() => {
-      midiStoreMapped.loadMidi();
+      midiStoreMapped.startMidiConnectionWatcher();
     });
 
     onUnmounted(() => {

@@ -434,6 +434,32 @@ export const getComponentSettings = async (
   return settings;
 };
 
+export const getValue = async (
+  block: Block,
+  section: number,
+  index: number,
+): Promise<number> => {
+  await ensureConnection();
+
+  let result: number | null = null;
+
+  const handler = (res: number[]): void => {
+    result = res[0];
+  };
+
+  await sendMessage({
+    command: Request.GetValue,
+    handler,
+    config: { block, section, index },
+  });
+
+  if (result === null) {
+    throw new Error("Failed to read value");
+  }
+
+  return result;
+};
+
 export const setComponentSectionValue = async (
   config: IRequestConfig,
   handler: (val: any) => void,
@@ -500,6 +526,7 @@ export const deviceStoreActions = {
   startBackup,
   startRestore,
   getComponentSettings,
+  getValue,
   setComponentSectionValue,
   getSectionValues,
   getFilteredSectionsForBlock,

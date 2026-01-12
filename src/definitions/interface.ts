@@ -92,7 +92,9 @@ export enum ButtonMessageType {
   BpmInc = 27,
   BpmDec = 28,
   MmcPlayStop = 29,
-  CustomSysEx = 31,
+  // OpenDeck firmware: io::buttons::messageType_t::SYS_EX_MACRO
+  // Stored data excludes 0xF0/0xF7 and is referenced via the button VALUE (macro index).
+  CustomSysEx = 30,
 }
 
 export enum EncodingMode {
@@ -147,6 +149,7 @@ export const HideButtonVelocityOnTypes = [
   ButtonMessageType.ControlChange0Only,
   ButtonMessageType.BpmInc,
   ButtonMessageType.BpmDec,
+  ButtonMessageType.CustomSysEx,
 ];
 
 export const HideButtonMidiIdOnTypes = [
@@ -162,6 +165,7 @@ export const HideButtonMidiIdOnTypes = [
   ButtonMessageType.BpmInc,
   ButtonMessageType.BpmDec,
   ButtonMessageType.PresetChange,
+  ButtonMessageType.CustomSysEx,
 ];
 
 export const HideButtonMidiChannelOnTypes = [
