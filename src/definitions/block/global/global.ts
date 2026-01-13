@@ -108,6 +108,21 @@ const sections: Dictionary<ISectionDefinition> = {
     label: "색소폰 기본음 (0-127)",
     helpText: `레지스터 키 0에 대한 기본 MIDI 노트 번호입니다. 레지스터 키 인덱스는 이 값에 추가됩니다.`,
   },
+  SaxRegisterChromaticTranspose: {
+    showIf: (formState: FormState): boolean =>
+      !!formState.saxRegisterChromaticEnable,
+    block: Block.Global,
+    key: "saxRegisterChromaticTranspose",
+    type: SectionType.Setting,
+    section: 2,
+    // 0..48 where 24 == 0 semitones (range -24..+24)
+    settingIndex: 11,
+    min: 0,
+    max: 48,
+    component: FormInputComponent.Input,
+    label: "레지스터 트랜스포즈(반음) (-24..+24)",
+    helpText: `레지스터 크로매틱 모드에서 전송되는 최종 노트에 반음 단위 트랜스포즈를 적용합니다.\n\n값 범위는 0..48이고, 24가 0반음(기본값)입니다. 예) 12= -12반음, 36= +12반음`,
+  },
   SaxRegisterChromaticInputInvert: {
     showIf: (formState: FormState): boolean =>
       !!formState.saxRegisterChromaticEnable,
@@ -129,9 +144,7 @@ const sections: Dictionary<ISectionDefinition> = {
     settingIndex: 6,
     component: FormInputComponent.Toggle,
     label: "색소폰 브레스 컨트롤러 (MPXV7002DP)",
-    helpText: `이 펌웨어에서는 지원되지 않습니다.
-
-  활성화되면 선택된 아날로그 입력이 MIDI CC(호흡/표현)에 매핑됩니다.`,
+    helpText: `활성화되면 선택된 아날로그 입력이 MIDI CC(호흡/표현)에 매핑됩니다.`,
   },
   SaxBreathControllerAnalogIndex: {
     showIf: (formState: FormState): boolean =>

@@ -10,16 +10,66 @@
           야마하 YDS-150 키 시스템 지원 (크로매틱 순서로 키 레지스터 + 브레스 컨트롤러).
         </p>
 
-        <p v-if="!isConnected" class="text-sm mb-6">
-          디바이스가 연결되지 않았습니다. 설정을 변경하려면 먼저 연결하세요.
-        </p>
+        <div
+          v-if="!isConnected"
+          class="surface-neutral border rounded px-4 py-3 mb-6 text-sm"
+        >
+          <div class="text-gray-200 font-semibold">연결 안내</div>
+          <div class="mt-2 text-gray-300">
+            WebMIDI 권한(MIDI+SysEx)을 먼저 허용한 뒤 보드를 선택하세요.
+          </div>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <router-link
+              :to="{ name: 'home' }"
+              class="px-3 py-1 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
+            >
+              홈(보드 선택)으로 이동
+            </router-link>
+            <span class="text-gray-400">
+              → <strong>SysEx 권한 요청 + Reload</strong> 클릭 → 보드 선택
+            </span>
+          </div>
+          <div class="mt-2 text-xs text-gray-400">권장 브라우저: Chrome/Edge</div>
+        </div>
 
         <p v-else-if="!hasSaxSections" class="text-sm mb-6">
           이 UI 빌드에는 색소폰 설정 항목이 포함되어 있지 않습니다.
         </p>
 
+        <div class="surface-neutral border rounded px-4 py-3 mb-6 text-sm">
+          <div class="text-gray-200 font-semibold">설정 설명</div>
+          <div
+            v-if="isConnected && saxRegisterKeyMapSupport === 'unsupported'"
+            class="mt-2 text-gray-300"
+          >
+            이 펌웨어에서는 레지스터 키 매핑 저장을 지원하지 않습니다.
+          </div>
+          <div
+            class="mt-2 grid gap-3"
+            style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));"
+          >
+            <div
+              v-for="item in saxHelpItems"
+              :key="`help-${item.key}`"
+              class="text-xs"
+              :class="{ 'opacity-60': !item.isVisible }"
+            >
+              <div class="text-gray-200 font-semibold">
+                {{ item.label }}
+                <span v-if="item.rangeText" class="text-gray-400 font-normal">({{ item.rangeText }})</span>
+              </div>
+              <div v-if="item.disabledText" class="mt-1 text-red-400">
+                {{ item.disabledText }}
+              </div>
+              <div v-else-if="item.description" class="mt-1 text-gray-300 whitespace-pre-line">
+                {{ item.description }}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div
-          class="form-grid mb-8"
+          class="form-grid sax-settings-grid mb-8"
           :class="{ 'pointer-events-none opacity-50': !isConnected }"
         >
           <template v-for="section in saxSections">
@@ -28,9 +78,29 @@
               :key="section.key"
               :value="formData[section.key]"
               :field-definition="section"
+              :simple-layout="true"
               @modified="onSaxSettingChange"
             />
           </template>
+        </div>
+
+        <div
+          v-if="isConnected && formData.saxRegisterChromaticEnable"
+          class="mb-6"
+        >
+          <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+            <span>
+              트랜스포즈:
+              <strong class="text-gray-200">{{ saxTransposeSemitones >= 0 ? `+${saxTransposeSemitones}` : saxTransposeSemitones }}</strong>
+              <span class="text-gray-500">(반음)</span>
+            </span>
+            <div class="flex-grow"></div>
+            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(-24)">-24</Button>
+            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(-12)">-12</Button>
+            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(0)">0</Button>
+            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(12)">+12</Button>
+            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(24)">+24</Button>
+          </div>
         </div>
 
         <div
@@ -132,11 +202,67 @@
             </Button>
           </div>
 
+          <div v-if="fingeringSupport === 'supported'" class="surface-neutral border rounded px-3 py-2 mb-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                v-model="fingeringFilterText"
+                class="text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
+                style="min-width: 220px;"
+                placeholder="#인덱스, 키(예: 1,2,3), 노트(예: 60 또는 C4)"
+              />
+
+              <label class="text-xs text-gray-300 flex items-center gap-1">
+                <input type="checkbox" v-model="fingeringFilterOnlyEnabled" />
+                사용 중만
+              </label>
+
+              <label class="text-xs text-gray-300 flex items-center gap-1">
+                <input type="checkbox" v-model="fingeringFilterOnlyWithKeys" />
+                키 지정됨만
+              </label>
+
+              <label class="text-xs text-gray-300 flex items-center gap-1">
+                <input type="checkbox" v-model="fingeringFilterOnlyWithNote" />
+                노트 지정됨만
+              </label>
+
+              <div class="text-xs text-gray-300 flex items-center gap-1">
+                인덱스
+                <input
+                  v-model.number="fingeringFilterIndexFrom"
+                  type="number"
+                  min="0"
+                  :max="fingeringEntryCount - 1"
+                  class="w-16 text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
+                />
+                ~
+                <input
+                  v-model.number="fingeringFilterIndexTo"
+                  type="number"
+                  min="0"
+                  :max="fingeringEntryCount - 1"
+                  class="w-16 text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
+                />
+              </div>
+
+              <Button size="sm" variant="secondary" @click.prevent="resetFingeringFilters">
+                초기화
+              </Button>
+
+              <div class="flex-grow"></div>
+              <div class="text-xs text-gray-400">
+                표시: <strong class="text-gray-200">{{ visibleFingeringEntries.length }}</strong> / {{ fingeringEntryCount }}
+              </div>
+            </div>
+          </div>
+
           <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
             <div
-              v-for="entry in fingeringEntries"
+              v-for="entry in visibleFingeringEntries"
               :key="`fing-${entry.index}`"
+              :ref="setFingeringEntryEl(entry.index)"
               class="surface-neutral border rounded px-2 py-2"
+              :class="{ 'ring-2 ring-blue-500': activeFingeringEntryIndex === entry.index }"
             >
               <div class="flex items-center justify-between mb-2">
                 <div class="text-xs"><strong>#{{ entry.index }}</strong></div>
@@ -176,6 +302,7 @@
                 max="127"
                 :value="entry.note"
                 :disabled="!entry.enabled"
+                :ref="setFingeringNoteInputEl(entry.index)"
                 @change="onFingeringNoteChange(entry.index, $event)"
               />
             </div>
@@ -295,7 +422,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, ref, onMounted, watch } from "vue";
+import { defineComponent, computed, ref, onMounted, watch, nextTick } from "vue";
 import { Block, SectionType, BlockMap } from "../index";
 import { useDeviceForm } from "../../composables";
 import { midiStoreMapped, deviceStoreMapped, deviceStore } from "../../store";
@@ -320,12 +447,23 @@ export default defineComponent({
     );
     const fingeringLoading = ref(false);
 
+    const activeFingeringEntryIndex = ref<number | null>(null);
+    const fingeringEntryEls = new Map<number, HTMLElement>();
+    const fingeringNoteInputEls = new Map<number, HTMLInputElement>();
+
     const fingeringEntryCount = 128;
 
     const showRegisterPreviewAll = ref(false);
     const showFingeringTable = ref(false);
     const showKeyMapping = ref(false);
     const registerPreviewDefaultCount = 24;
+
+    const fingeringFilterText = ref("");
+    const fingeringFilterOnlyEnabled = ref(false);
+    const fingeringFilterOnlyWithKeys = ref(false);
+    const fingeringFilterOnlyWithNote = ref(false);
+    const fingeringFilterIndexFrom = ref(0);
+    const fingeringFilterIndexTo = ref(fingeringEntryCount - 1);
 
     const uiStateKey = "opendeck.midisaxophone.ui";
 
@@ -347,6 +485,25 @@ export default defineComponent({
           if (typeof parsed.showKeyMapping === "boolean") {
             showKeyMapping.value = parsed.showKeyMapping;
           }
+
+          if (typeof parsed.fingeringFilterText === "string") {
+            fingeringFilterText.value = parsed.fingeringFilterText;
+          }
+          if (typeof parsed.fingeringFilterOnlyEnabled === "boolean") {
+            fingeringFilterOnlyEnabled.value = parsed.fingeringFilterOnlyEnabled;
+          }
+          if (typeof parsed.fingeringFilterOnlyWithKeys === "boolean") {
+            fingeringFilterOnlyWithKeys.value = parsed.fingeringFilterOnlyWithKeys;
+          }
+          if (typeof parsed.fingeringFilterOnlyWithNote === "boolean") {
+            fingeringFilterOnlyWithNote.value = parsed.fingeringFilterOnlyWithNote;
+          }
+          if (typeof parsed.fingeringFilterIndexFrom === "number") {
+            fingeringFilterIndexFrom.value = Math.max(0, Math.min(fingeringEntryCount - 1, Math.floor(parsed.fingeringFilterIndexFrom)));
+          }
+          if (typeof parsed.fingeringFilterIndexTo === "number") {
+            fingeringFilterIndexTo.value = Math.max(0, Math.min(fingeringEntryCount - 1, Math.floor(parsed.fingeringFilterIndexTo)));
+          }
         }
       } catch {
         // ignore corrupted localStorage
@@ -364,6 +521,12 @@ export default defineComponent({
             showRegisterPreviewAll: showRegisterPreviewAll.value,
             showFingeringTable: showFingeringTable.value,
             showKeyMapping: showKeyMapping.value,
+            fingeringFilterText: fingeringFilterText.value,
+            fingeringFilterOnlyEnabled: fingeringFilterOnlyEnabled.value,
+            fingeringFilterOnlyWithKeys: fingeringFilterOnlyWithKeys.value,
+            fingeringFilterOnlyWithNote: fingeringFilterOnlyWithNote.value,
+            fingeringFilterIndexFrom: fingeringFilterIndexFrom.value,
+            fingeringFilterIndexTo: fingeringFilterIndexTo.value,
           }),
         );
       } catch {
@@ -384,6 +547,7 @@ export default defineComponent({
     const saxKeys = new Set([
       "saxRegisterChromaticEnable",
       "saxRegisterChromaticBaseNote",
+      "saxRegisterChromaticTranspose",
       "saxRegisterChromaticInputInvert",
       "saxBreathControllerEnable",
       "saxBreathControllerAnalogIndex",
@@ -399,6 +563,30 @@ export default defineComponent({
     });
 
     const hasSaxSections = computed(() => saxSections.value.length > 0);
+
+    const saxHelpItems = computed(() => {
+      return saxSections.value.map((section: any) => {
+        const disabled = deviceStoreMapped.isControlDisabled(section);
+        const disabledText = disabled ? "이 펌웨어/디바이스에서는 지원되지 않습니다." : "";
+
+        const min = typeof section.min === "number" ? section.min : undefined;
+        const max = typeof section.max === "number" ? section.max : undefined;
+        const rangeText =
+          typeof min === "number" && typeof max === "number" ? `${min} - ${max}` : "";
+
+        const description =
+          typeof section.helpText === "string" ? section.helpText.trim() : "";
+
+        return {
+          key: section.key,
+          label: section.label || section.key,
+          rangeText,
+          description,
+          disabledText,
+          isVisible: !!showField(section),
+        };
+      });
+    });
 
     const clampMidiNote = (value: number): number =>
       Math.max(0, Math.min(127, value));
@@ -621,6 +809,38 @@ export default defineComponent({
       return setFingeringKeysText(entryIndex, text);
     };
 
+    const setFingeringEntryEl = (entryIndex: number) => (el: unknown) => {
+      if (el && el instanceof HTMLElement) {
+        fingeringEntryEls.set(entryIndex, el);
+      } else {
+        fingeringEntryEls.delete(entryIndex);
+      }
+    };
+
+    const setFingeringNoteInputEl = (entryIndex: number) => (el: unknown) => {
+      if (el && el instanceof HTMLInputElement) {
+        fingeringNoteInputEls.set(entryIndex, el);
+      } else {
+        fingeringNoteInputEls.delete(entryIndex);
+      }
+    };
+
+    const focusFingeringEntry = async (entryIndex: number) => {
+      activeFingeringEntryIndex.value = entryIndex;
+      await nextTick();
+
+      const container = fingeringEntryEls.get(entryIndex);
+      if (container) {
+        container.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      const noteInput = fingeringNoteInputEls.get(entryIndex);
+      if (noteInput && !noteInput.disabled) {
+        noteInput.focus();
+        noteInput.select();
+      }
+    };
+
     const captureFingeringEntry = async (entryIndex: number) => {
       if (!isConnected.value || fingeringSupport.value !== "supported") {
         return;
@@ -636,6 +856,9 @@ export default defineComponent({
         // Global section 6: SAX_FINGERING_CAPTURE (write-only)
         await setGlobalValue(6, entryIndex, noteValue);
         await loadFingeringTable();
+
+        const nextIndex = Math.min(entryIndex + 1, fingeringEntryCount - 1);
+        await focusFingeringEntry(nextIndex);
       } finally {
         fingeringLoading.value = false;
       }
@@ -710,10 +933,14 @@ export default defineComponent({
     const registerKeys = computed(() => {
       const count = registerKeyCount.value;
       const base = clampMidiNote(Number(formData.saxRegisterChromaticBaseNote) || 0);
+
+      const transposeRaw = Math.max(0, Math.min(48, Math.floor(Number((formData as any).saxRegisterChromaticTranspose) || 24)));
+      const transpose = transposeRaw - 24;
+
       return Array.from({ length: count }, (_, index) => {
         const raw = saxRegisterKeyMapRaw.value && saxRegisterKeyMapRaw.value[index];
         const mappedIndex = raw && raw > 0 ? raw - 1 : index;
-        const note = clampMidiNote(base + mappedIndex);
+        const note = clampMidiNote(base + mappedIndex + transpose);
         return {
           index,
           mappedIndex,
@@ -722,6 +949,22 @@ export default defineComponent({
         };
       });
     });
+
+    const saxTransposeSemitones = computed(() => {
+      const raw = Math.max(0, Math.min(48, Math.floor(Number((formData as any).saxRegisterChromaticTranspose) || 24)));
+      return raw - 24;
+    });
+
+    const setSaxTranspose = (semitones: number) => {
+      const s = Math.max(-24, Math.min(24, Math.floor(Number(semitones) || 0)));
+      const raw = s + 24;
+      return onSaxSettingChange({
+        key: "saxRegisterChromaticTranspose",
+        value: raw,
+        section: 2,
+        settingIndex: 11,
+      } as any);
+    };
 
     const visibleRegisterKeys = computed(() => {
       if (showRegisterPreviewAll.value) {
@@ -817,6 +1060,19 @@ export default defineComponent({
     );
 
     watch(
+      () => [
+        fingeringFilterText.value,
+        fingeringFilterOnlyEnabled.value,
+        fingeringFilterOnlyWithKeys.value,
+        fingeringFilterOnlyWithNote.value,
+        fingeringFilterIndexFrom.value,
+        fingeringFilterIndexTo.value,
+      ],
+      () => saveUiState(),
+      { deep: false },
+    );
+
+    watch(
       () => isConnected.value,
       (connected) => {
         if (connected) {
@@ -856,6 +1112,60 @@ export default defineComponent({
       });
     });
 
+    const normalizeFilterText = (text: string): string =>
+      String(text || "")
+        .trim()
+        .toLowerCase();
+
+    const resetFingeringFilters = (): void => {
+      fingeringFilterText.value = "";
+      fingeringFilterOnlyEnabled.value = false;
+      fingeringFilterOnlyWithKeys.value = false;
+      fingeringFilterOnlyWithNote.value = false;
+      fingeringFilterIndexFrom.value = 0;
+      fingeringFilterIndexTo.value = fingeringEntryCount - 1;
+    };
+
+    const visibleFingeringEntries = computed(() => {
+      const q = normalizeFilterText(fingeringFilterText.value);
+      const from = Math.max(0, Math.min(fingeringEntryCount - 1, Math.floor(Number(fingeringFilterIndexFrom.value) || 0)));
+      const to = Math.max(0, Math.min(fingeringEntryCount - 1, Math.floor(Number(fingeringFilterIndexTo.value) || (fingeringEntryCount - 1))));
+      const rangeStart = Math.min(from, to);
+      const rangeEnd = Math.max(from, to);
+
+      const qNoSpaces = q.replace(/\s+/g, "");
+
+      return fingeringEntries.value.filter((entry) => {
+        if (entry.index < rangeStart || entry.index > rangeEnd) {
+          return false;
+        }
+        if (fingeringFilterOnlyEnabled.value && !entry.enabled) {
+          return false;
+        }
+        if (fingeringFilterOnlyWithKeys.value && !entry.mask) {
+          return false;
+        }
+        if (fingeringFilterOnlyWithNote.value && !entry.note) {
+          return false;
+        }
+
+        if (!qNoSpaces) {
+          return true;
+        }
+
+        const keysText = String(entry.keysText || "").toLowerCase();
+        const keysTextNoSpaces = keysText.replace(/\s+/g, "");
+        const noteName = midiNoteName(entry.note).toLowerCase();
+
+        return (
+          String(entry.index).includes(qNoSpaces.replace(/^#/, "")) ||
+          String(entry.note).includes(qNoSpaces) ||
+          noteName.includes(qNoSpaces) ||
+          keysTextNoSpaces.includes(qNoSpaces)
+        );
+      });
+    });
+
     return {
       formData,
       loading,
@@ -863,12 +1173,15 @@ export default defineComponent({
       showField,
       saxSections,
       hasSaxSections,
+      saxHelpItems,
       isConnected,
       registerKeyCount,
       registerKeys,
       visibleRegisterKeys,
       showRegisterPreviewAll,
       registerPreviewDefaultCount,
+      saxTransposeSemitones,
+      setSaxTranspose,
       showFingeringTable,
       showKeyMapping,
       saxRegisterKeyMapSupport,
@@ -887,6 +1200,14 @@ export default defineComponent({
       fingeringLoading,
       fingeringEntryCount,
       fingeringEntries,
+      visibleFingeringEntries,
+      fingeringFilterText,
+      fingeringFilterOnlyEnabled,
+      fingeringFilterOnlyWithKeys,
+      fingeringFilterOnlyWithNote,
+      fingeringFilterIndexFrom,
+      fingeringFilterIndexTo,
+      resetFingeringFilters,
       reloadFingering,
       captureFingeringEntry,
       onFingeringEnabledChange,
@@ -895,7 +1216,32 @@ export default defineComponent({
       setFingeringEnabled,
       setFingeringKeysText,
       setFingeringNote,
+      activeFingeringEntryIndex,
+      setFingeringEntryEl,
+      setFingeringNoteInputEl,
     };
   },
 });
 </script>
+
+<style scoped>
+.form-grid.sax-settings-grid {
+  padding-bottom: 1rem;
+  gap: 0.75rem 1rem;
+}
+
+.sax-settings-grid :deep(.form-field .label) {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.1;
+}
+
+.sax-settings-grid :deep(.form-field .instructions) {
+  font-size: 0.75rem;
+}
+
+.sax-settings-grid :deep(.form-field .error-message) {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+</style>
