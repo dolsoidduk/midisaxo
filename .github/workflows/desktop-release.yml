@@ -130,6 +130,13 @@ jobs:
               `chmod +x Midisaxo-*.AppImage && ./Midisaxo-*.AppImage`
 
             Web UI: https://dolsoidduk.github.io/midisaxo/
+
+            Firmware (OpenDeck fork): https://github.com/dolsoidduk/OpenDeck
+
+            Troubleshooting:
+            - WebMIDI requires a user gesture: click any UI button once.
+            - SysEx typically needs explicit permission: allow “MIDI + SysEx”.
+            - Chrome/Edge work best for WebMIDI.
           files: |
             artifacts/linux/release/*
             artifacts/windows/release/*
