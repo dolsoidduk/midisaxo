@@ -1,9 +1,18 @@
 name: Docker
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - '.devcontainer/Dockerfile.build'
+      - '.github/workflows/docker.yml'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/midisaxo-build
 
 jobs:
   x86-64:
@@ -28,13 +37,17 @@ jobs:
           platforms: linux/amd64
           file: .devcontainer/Dockerfile.build
           tags: |
-            ghcr.io/shanteacontrols/opendeckui:${{ github.sha }}-x86-64
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}-x86-64
   arm64:
     name: Build Docker Container / arm64
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Pull the repository
         uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to GitHub Container Registry
@@ -51,7 +64,7 @@ jobs:
           platforms: linux/arm64
           file: .devcontainer/Dockerfile.build
           tags: |
-            ghcr.io/shanteacontrols/opendeckui:${{ github.sha }}-arm64
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}-arm64
   create-manifests:
     name: Create Docker manifests
     runs-on: ubuntu-latest
@@ -69,11 +82,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: SHA manifest
         run: |
-          docker buildx imagetools create -t ghcr.io/shanteacontrols/opendeckui:${{ github.sha }} \
-          ghcr.io/shanteacontrols/opendeckui:${{ github.sha }}-x86-64 \
-          ghcr.io/shanteacontrols/opendeckui:${{ github.sha }}-arm64
+          docker buildx imagetools create -t ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          ${{ env.IMAGE_NAME }}:${{ github.sha }}-x86-64 \
+          ${{ env.IMAGE_NAME }}:${{ github.sha }}-arm64
       - name: latest manifest
         run: |
-          docker buildx imagetools create -t ghcr.io/shanteacontrols/opendeckui:latest \
-          ghcr.io/shanteacontrols/opendeckui:${{ github.sha }}-x86-64 \
-          ghcr.io/shanteacontrols/opendeckui:${{ github.sha }}-arm64
+          docker buildx imagetools create -t ${{ env.IMAGE_NAME }}:latest \
+          ${{ env.IMAGE_NAME }}:${{ github.sha }}-x86-64 \
+          ${{ env.IMAGE_NAME }}:${{ github.sha }}-arm64
