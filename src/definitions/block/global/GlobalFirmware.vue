@@ -5,8 +5,8 @@
     class="w-full"
   >
     <p class="mb-6 text-sm leading-5 text-gray-500">
-      Your device does not have bootloader support. <br />
-      To perform a manual firmware update please consult the
+      This device does not support the bootloader. <br />
+      For manual firmware updates, please consult the
       <a href="https://github.com/shanteacontrols/OpenDeck/wiki/Firmware-update"
         >wiki firmware update page</a
       >.
@@ -16,35 +16,35 @@
     <div class="form-grid">
       <div v-if="!isBootloaderMode" class="form-field">
         <Button :disabled="loading" @click.prevent="checkForUpdates">
-          Check for updates
+          Check for firmware updates
         </Button>
         <p class="help-text">
-          Check for newer firmware versions.
+          Checks for newer firmware versions.
         </p>
       </div>
 
       <div v-if="!isBootloaderMode && bootLoaderSupport" class="form-field">
         <Button @click.prevent="startBootLoaderMode">
-          Bootloader mode
+          Enter bootloader mode
         </Button>
         <p class="help-text">
-          Starting bootloader mode is required for firmware updates. Once in
-          bootloader mode the device can be updated using the SysEx file
-          downloaded via "Check for updates" button.
+          Bootloader mode is required for firmware updates. Once in bootloader
+          mode, you can update the device using the SysEx file downloaded via
+          “Check for firmware updates”.
         </p>
       </div>
 
       <div v-if="isBootloaderMode" class="form-field">
         <FormFileInput
           name="backup-file"
-          label="Update Firmware"
+          label="Update firmware"
           :disabled="!isBootloaderMode"
           @change="onFirmwareFileSelected"
         />
         <p class="help-text">
-          Select a firmware file to start board firmware update. UI might become
-          unresponsive while updating. To exit from bootloader mode reboot the
-          device manually.
+          Select a firmware file to start the update. The UI may be temporarily
+          unresponsive while updating. To exit bootloader mode, reboot the
+          device.
         </p>
       </div>
     </div>
