@@ -131,6 +131,17 @@ This repository can publish the configurator to GitHub Pages so the UI is always
 
 This fork uses the GitHub Actions workflow in `.github/workflows/pages.yml`.
 
+### Firmware repo setting (recommended)
+
+This UI checks firmware updates via the GitHub Releases API.
+
+To keep it strictly **Midisaxo-focused**, set a repository variable:
+
+- GitHub repo → **Settings → Secrets and variables → Actions → Variables**
+- Add variable: `FIRMWARE_REPO = dolsoidduk/OpenDeck`
+
+If this variable is not set, the build defaults to `dolsoidduk/OpenDeck`.
+
 Notes:
 
 - Browsers require a user gesture before WebMIDI can be enabled (you must click something in the UI first).
