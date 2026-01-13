@@ -29,7 +29,7 @@
         <div class="mt-2 flex flex-wrap gap-2">
           <a
             class="btn btn-xs"
-            href="https://github.com/dolsoidduk/OpenDeck/releases"
+            :href="`${GitHubFirmwareWebBaseUrl}/releases`"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -37,7 +37,7 @@
           </a>
           <a
             class="btn btn-xs"
-            href="https://github.com/shanteacontrols/OpenDeck/wiki/Flashing-the-OpenDeck-firmware"
+            :href="OpenDeckUpstreamWikiFlashingUrl"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -80,6 +80,10 @@
 import { defineComponent, ref } from "vue";
 import { deviceStoreMapped } from "../../../store";
 import { useConfirmPrompt } from "../../../composables";
+import {
+  GitHubFirmwareWebBaseUrl,
+  OpenDeckUpstreamWikiFlashingUrl,
+} from "../../interface";
 
 export default defineComponent({
   name: "GlobalHardware",
@@ -119,6 +123,8 @@ export default defineComponent({
       onFactoryResetClicked,
       valueSize,
       bootLoaderSupport,
+      GitHubFirmwareWebBaseUrl,
+      OpenDeckUpstreamWikiFlashingUrl,
       startReboot,
       onBackupClicked,
       onBackupFileSelected,

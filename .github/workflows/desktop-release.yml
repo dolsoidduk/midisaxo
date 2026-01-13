@@ -43,6 +43,8 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Build AppImage
+        env:
+          VITE_FIRMWARE_REPO: ${{ vars.FIRMWARE_REPO || 'dolsoidduk/OpenDeck' }}
         run: |
           npm run build
           npx electron-builder --linux AppImage --publish never
@@ -77,6 +79,8 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Build NSIS installer
+        env:
+          VITE_FIRMWARE_REPO: ${{ vars.FIRMWARE_REPO || 'dolsoidduk/OpenDeck' }}
         run: |
           npm run build
           npx electron-builder --win nsis --publish never

@@ -7,14 +7,14 @@
     <p class="mb-6 text-sm leading-5 text-gray-500">
       This device does not support the bootloader. <br />
       For manual firmware updates, please consult the
-      <a href="https://github.com/shanteacontrols/OpenDeck/wiki/Firmware-update">
+      <a :href="OpenDeckUpstreamWikiFirmwareUpdateUrl">
         wiki firmware update page
       </a>.
     </p>
     <div class="flex flex-wrap gap-2">
       <a
         class="btn btn-xs"
-        href="https://github.com/dolsoidduk/OpenDeck/releases"
+        :href="`${GitHubFirmwareWebBaseUrl}/releases`"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -22,7 +22,7 @@
       </a>
       <a
         class="btn btn-xs"
-        href="https://github.com/shanteacontrols/OpenDeck/wiki/Flashing-the-OpenDeck-firmware"
+        :href="OpenDeckUpstreamWikiFlashingUrl"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -106,7 +106,11 @@
 import { defineComponent, ref } from "vue";
 import { deviceStoreMapped } from "../../../store";
 import { IOpenDeckRelease } from "../../interface";
-import { GitHubFirmwareWebBaseUrl } from "../../interface";
+import {
+  GitHubFirmwareWebBaseUrl,
+  OpenDeckUpstreamWikiFirmwareUpdateUrl,
+  OpenDeckUpstreamWikiFlashingUrl,
+} from "../../interface";
 
 export default defineComponent({
   name: "GlobalFirmware",
@@ -140,6 +144,8 @@ export default defineComponent({
     return {
       firmwareFileName,
       GitHubFirmwareWebBaseUrl,
+      OpenDeckUpstreamWikiFirmwareUpdateUrl,
+      OpenDeckUpstreamWikiFlashingUrl,
       loading,
       isBootloaderMode,
       bootLoaderSupport,

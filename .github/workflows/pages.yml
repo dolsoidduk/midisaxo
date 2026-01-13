@@ -41,6 +41,7 @@ jobs:
         env:
           GITHUB_PAGES: "true"
           GITHUB_REPOSITORY: ${{ github.repository }}
+          VITE_FIRMWARE_REPO: ${{ vars.FIRMWARE_REPO || 'dolsoidduk/OpenDeck' }}
         run: npm run build
 
       - name: Configure Pages
