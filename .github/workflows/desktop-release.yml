@@ -29,6 +29,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
 
       - name: Use Node
         uses: actions/setup-node@v4
@@ -58,6 +61,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
 
       - name: Use Node
         uses: actions/setup-node@v4
@@ -92,8 +98,8 @@ jobs:
         id: tag
         shell: bash
         run: |
-          if [[ -n "${{ inputs.tag }}" ]]; then
-            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
           else
             # refs/tags/<tag>
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
