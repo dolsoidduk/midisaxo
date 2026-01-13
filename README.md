@@ -12,6 +12,28 @@ This repository hosts the **Midisaxo** configurator UI, based on the upstream Op
 2. Click any UI button once (required for WebMIDI permission).
 3. Allow **MIDI + SysEx** → select the OpenDeck MIDI output.
 
+## Resume (next time)
+
+Get back to a known-good state:
+
+```bash
+git fetch --all --tags
+git checkout session-2026-01-13
+```
+
+Start the UI locally:
+
+```bash
+npm install
+npm run dev
+```
+
+If you need any parked work from this session, check the backup branches:
+
+```bash
+git branch -a | grep 'backup/'
+```
+
 ## Midisaxo: rhythm / arranger controls
 
 If you are using OpenDeck as a MIDI controller for an arranger keyboard (e.g. Ketron MS60), you can map arranger functions such as **Intro / Variation / Fill / Ending / Start / Stop** to OpenDeck buttons.
