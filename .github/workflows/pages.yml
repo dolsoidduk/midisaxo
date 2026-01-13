@@ -3,6 +3,7 @@ name: Deploy UI (GitHub Pages)
 on:
   push:
     branches:
+      - master
       - midisaxo-save
   workflow_dispatch:
 
