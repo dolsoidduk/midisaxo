@@ -10,6 +10,15 @@
         tx:
           port: "0"
           index: 0
+    touchscreen:
+      pins:
+        rx:
+          port: "0"
+          index: 5
+        tx:
+          port: "0"
+          index: 4
+      components: 64
   i2c:
     display:
       pins:

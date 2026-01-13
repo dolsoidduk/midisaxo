@@ -61,9 +61,9 @@ namespace io::i2c::display
                 // 128x32
                 {
                     0,
+                    1,
                     2,
                     3,
-                    4,
                 },
                 // 128x64
                 {
@@ -288,13 +288,13 @@ namespace io::i2c::display
                 bool _dirty   = false;
             };
 
-            class BreathValue : public DisplayElement<4, 1, 11, false>
+            template<uint8_t row, uint8_t cc>
+            class BreathCCMeter : public DisplayElement<15, row, 0, false>
             {
                 public:
-                BreathValue()
+                BreathCCMeter()
                 {
-                    // Default placeholder.
-                    setText("B---");
+                    this->setText("%02d|-----------", static_cast<int>(cc));
 
                     // Show sax breath controller value (generated as a CONTROL_CHANGE event).
                     // We filter by componentIndex==0 to avoid catching generic analog components.
@@ -311,55 +311,34 @@ namespace io::i2c::display
                                                   return;
                                               }
 
-                                              if ((event.index != 2) && (event.index != 11))
+                                              if (event.index != cc)
                                               {
                                                   return;
                                               }
 
-                                              _hasValue  = true;
-                                              _lastValue = static_cast<uint8_t>(event.value);
+                                              const uint8_t value = static_cast<uint8_t>(event.value);
 
-                                              // If fully clipped, show a brief warning.
-                                              if (_lastValue >= 127)
+                                              static constexpr uint8_t BAR_WIDTH = 11;
+                                              uint8_t                 filled    = static_cast<uint8_t>((value * BAR_WIDTH + 63) / 127);
+
+                                              if (filled > BAR_WIDTH)
                                               {
-                                                  _clipUntilMs = 0; // will be set by tick() using current time
+                                                  filled = BAR_WIDTH;
                                               }
+
+                                              char temp[16] = {};
+                                              snprintf(temp, sizeof(temp), "%02d|", static_cast<int>(cc));
+
+                                              // temp[0..2] is now "NN|".
+                                              for (uint8_t i = 0; i < BAR_WIDTH; i++)
+                                              {
+                                                  temp[3 + i] = (i < filled) ? '#' : '-';
+                                              }
+
+                                              temp[3 + BAR_WIDTH] = '\0';
+                                              this->setText("%s", temp);
                                           });
                 }
-
-                void tick(uint32_t nowMs)
-                {
-                    if (!_hasValue)
-                    {
-                        setText("B---");
-                        return;
-                    }
-
-                    // Start clip window when first observed.
-                    if ((_lastValue >= 127) && (_clipUntilMs == 0))
-                    {
-                        _clipUntilMs = nowMs + CLIP_DISPLAY_MS;
-                    }
-
-                    if ((_clipUntilMs != 0) && (nowMs < _clipUntilMs))
-                    {
-                        setText("CLP ");
-                        return;
-                    }
-
-                    if ((_clipUntilMs != 0) && (nowMs >= _clipUntilMs))
-                    {
-                        _clipUntilMs = 0;
-                    }
-
-                    setText("B%03d", _lastValue);
-                }
-
-                private:
-                static constexpr uint32_t CLIP_DISPLAY_MS = 500;
-                bool                      _hasValue       = false;
-                uint8_t                   _lastValue      = 0;
-                uint32_t                  _clipUntilMs    = 0;
             };
 
             class SaxType : public DisplayElement<3, 2, 12, false>
@@ -448,9 +427,9 @@ namespace io::i2c::display
             MessageValueOut     _messageValueOut = MessageValueOut(_midiUpdater);
             Preset              _preset;
             BigNote             _bigNote;
-            BreathValue         _breathValue;
+            BreathCCMeter<1, 2>  _breathCc02Meter;
+            BreathCCMeter<2, 11> _breathCc11Meter;
             SaxType             _saxType;
-            TransposeSemis      _transposeSemis;
             InMessageIndicator  _inMessageIndicator;
             OutMessageIndicator _outMessageIndicator;
             uint32_t            _lastRefreshTime      = 0;
@@ -463,11 +442,12 @@ namespace io::i2c::display
                 &_messageTypeOut,
                 &_messageValueOut,
                 &_preset,
-                &_breathValue,
                 &_saxType,
-                &_transposeSemis,
                 &_inMessageIndicator,
                 &_outMessageIndicator,
+                // CC meters should draw last to override generic OUT message lines.
+                &_breathCc02Meter,
+                &_breathCc11Meter,
             };
 
             void update();

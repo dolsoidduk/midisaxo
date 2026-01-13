@@ -32,6 +32,13 @@ void Admin::customInitGlobal()
 {
     // set global channel to 1
     update(Config::Section::global_t::MIDI_SETTINGS, midi::setting_t::GLOBAL_CHANNEL, 1);
+
+    // Custom system setting index 11: sax transpose raw value 0..48 (= -24..+24 semis).
+    // Default to 0 semis (raw 24) on factory reset.
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 11, 24);
+
+    // One-time init flag for the sax transpose setting.
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 12, 1);
 }
 
 void Admin::customInitButtons()

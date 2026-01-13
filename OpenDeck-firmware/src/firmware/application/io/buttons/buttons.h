@@ -94,6 +94,10 @@ namespace io::buttons
         uint8_t   _lastLatchingState[Collection::SIZE() / 8 + 1] = {};
         uint8_t   _incDecValue[Collection::SIZE()]               = {};
 
+        // Cached sax transpose value (raw 0..48 which represents -24..+24 semitones).
+        // Synced from System via SYSTEM event (SAX_TRANSPOSE_CHANGED).
+        uint16_t  _saxTransposeRaw = 24;
+
         bool                   state(size_t index);
         bool                   state(size_t index, uint8_t& numberOfReadings, uint16_t& states);
         void                   fillDescriptor(size_t index, Descriptor& descriptor);

@@ -124,6 +124,38 @@ System::System(Hwa&        hwa,
                                                                     SAX_TRANSPOSE_SETTING_INDEX,
                                                                     updated);
                                   }
+
+                                  // Broadcast (updated) value so IO components can apply it immediately.
+                                  messaging::Event notifyEvent = {};
+                                  notifyEvent.systemMessage    = messaging::systemMessage_t::SAX_TRANSPOSE_CHANGED;
+                                  notifyEvent.value            = updated;
+                                  MidiDispatcher.notify(messaging::eventType_t::SYSTEM, notifyEvent);
+                              }
+                              break;
+
+                              case messaging::systemMessage_t::SAX_TRANSPOSE_SET_REQ:
+                              {
+                                  // Custom system setting index 11: sax transpose raw value 0..48 (= -24..+24 semis).
+                                  static constexpr size_t  SAX_TRANSPOSE_SETTING_INDEX = 11;
+                                  static constexpr uint16_t RAW_MIN                    = 0;
+                                  static constexpr uint16_t RAW_MAX                    = 48;
+
+                                  const uint16_t requested = core::util::CONSTRAIN(static_cast<uint16_t>(event.value), RAW_MIN, RAW_MAX);
+                                  uint16_t current         = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                                 SAX_TRANSPOSE_SETTING_INDEX);
+                                  current                  = core::util::CONSTRAIN(current, RAW_MIN, RAW_MAX);
+
+                                  if (requested != current)
+                                  {
+                                      _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                    SAX_TRANSPOSE_SETTING_INDEX,
+                                                                    requested);
+                                  }
+
+                                  messaging::Event notifyEvent = {};
+                                  notifyEvent.systemMessage    = messaging::systemMessage_t::SAX_TRANSPOSE_CHANGED;
+                                  notifyEvent.value            = requested;
+                                  MidiDispatcher.notify(messaging::eventType_t::SYSTEM, notifyEvent);
                               }
                               break;
 
@@ -220,6 +252,37 @@ bool System::init()
     }
 
     ensureSaxAnalogConfigured();
+
+    // Sync sax transpose (custom system setting index 11) to interested components.
+    {
+        static constexpr size_t  SAX_TRANSPOSE_SETTING_INDEX = 11;
+        static constexpr size_t  SAX_TRANSPOSE_INIT_FLAG_INDEX = 12;
+        static constexpr uint16_t RAW_MIN                    = 0;
+        static constexpr uint16_t RAW_MAX                    = 48;
+
+        // One-time migration/defaulting: if flag is not set, initialize to 0 semis (raw 24).
+        // This prevents a fresh/old DB default of 0 from being interpreted as -24 semis.
+        const uint16_t initFlag = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                             SAX_TRANSPOSE_INIT_FLAG_INDEX);
+        if (initFlag == 0)
+        {
+            _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                          SAX_TRANSPOSE_SETTING_INDEX,
+                                          static_cast<uint16_t>(24));
+            _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                          SAX_TRANSPOSE_INIT_FLAG_INDEX,
+                                          static_cast<uint16_t>(1));
+        }
+
+        uint16_t current = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                      SAX_TRANSPOSE_SETTING_INDEX);
+        current          = core::util::CONSTRAIN(current, RAW_MIN, RAW_MAX);
+
+        messaging::Event notifyEvent = {};
+        notifyEvent.systemMessage    = messaging::systemMessage_t::SAX_TRANSPOSE_CHANGED;
+        notifyEvent.value            = current;
+        MidiDispatcher.notify(messaging::eventType_t::SYSTEM, notifyEvent);
+    }
 
     _sysExConf.setLayout(_layout.layout());
     _sysExConf.setupCustomRequests(_layout.customRequests());

@@ -47,7 +47,7 @@ void Display::Elements::update()
     static constexpr uint8_t BIG_NOTE_X_END   = Display::COLUMN_PADDING + 7;    // 4 chars * 2 columns each
     bool                     redrawBigNote    = _bigNote.dirty();
 
-    _breathValue.tick(nowMs);
+    int8_t transposeSemisForTopBar = 0;
 
     // Sax transpose status (custom system setting index 11):
     // stored as 0..48 where 24 == 0 semitones.
@@ -70,7 +70,7 @@ void Display::Elements::update()
         }
 
         _saxType.setFromTransposeSemis(static_cast<int8_t>(semis));
-        _transposeSemis.setSemis(static_cast<int8_t>(semis));
+        transposeSemisForTopBar = static_cast<int8_t>(semis);
     }
 
     for (size_t i = 0; i < _elements.size(); i++)
@@ -129,8 +129,19 @@ void Display::Elements::update()
     // Small USB connection indicator next to the big note.
     // Draw this last so other elements can't overwrite it.
     {
-        static constexpr uint8_t USB_ICON_X = Display::COLUMN_PADDING + 8; // immediately after 2x2 note (8 columns)
+        // Move 2 columns left vs the default position.
+        // Safe because the big note uses 4 chars and the 4th one is always a space (note name is max 2 chars + octave 1).
+        static constexpr uint8_t USB_ICON_X = Display::COLUMN_PADDING + 6;
         u8x8_DrawString(&_display._u8x8, USB_ICON_X, 0, usbConnected ? "USB" : "   ");
+    }
+
+    // Always show sax transpose next to USB indicator (top row).
+    {
+        // Move 2 columns left vs the default position.
+        static constexpr uint8_t TRANSPOSE_X = Display::COLUMN_PADDING + 10;
+        char                     temp[5]    = {};
+        snprintf(temp, sizeof(temp), "T%+03d", static_cast<int>(transposeSemisForTopBar));
+        u8x8_DrawString(&_display._u8x8, TRANSPOSE_X, 0, temp);
     }
 
     _lastRefreshTime = nowMs;

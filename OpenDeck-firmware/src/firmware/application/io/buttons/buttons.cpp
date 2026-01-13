@@ -86,6 +86,14 @@ Buttons::Buttons(Hwa&      hwa,
                               }
                               break;
 
+                              case messaging::systemMessage_t::SAX_TRANSPOSE_CHANGED:
+                              {
+                                  _saxTransposeRaw = core::util::CONSTRAIN(static_cast<uint16_t>(event.value),
+                                                                          static_cast<uint16_t>(0),
+                                                                          static_cast<uint16_t>(48));
+                              }
+                              break;
+
                               default:
                                   break;
                               }
@@ -451,20 +459,76 @@ void Buttons::sendMessage(size_t index, bool state, Descriptor& descriptor)
         case messageType_t::SAX_TRANSPOSE_INC:
         case messageType_t::SAX_TRANSPOSE_DEC:
         {
-            uint16_t steps = descriptor.event.value;
-            if (steps == 0)
-            {
-                steps = 1;
-            }
+            const uint16_t steps = descriptor.event.value;
 
-            eventType                    = messaging::eventType_t::SYSTEM;
-            descriptor.event.message      = midi::messageType_t::INVALID;
-            descriptor.event.index        = 0;
-            descriptor.event.value        = steps;
-            descriptor.event.systemMessage =
-                (descriptor.messageType == messageType_t::SAX_TRANSPOSE_INC)
-                    ? messaging::systemMessage_t::SAX_TRANSPOSE_INC_REQ
-                    : messaging::systemMessage_t::SAX_TRANSPOSE_DEC_REQ;
+            const auto isOtherTransposePressed = [this, index](messageType_t otherType) -> bool
+            {
+                for (size_t i = 0; i < Collection::SIZE(); i++)
+                {
+                    if (i == index)
+                    {
+                        continue;
+                    }
+
+                    if (!this->state(i))
+                    {
+                        continue;
+                    }
+
+                    Descriptor otherDescriptor;
+                    fillDescriptor(i, otherDescriptor);
+
+                    if (otherDescriptor.messageType == otherType)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            };
+
+            eventType               = messaging::eventType_t::SYSTEM;
+            descriptor.event.message = midi::messageType_t::INVALID;
+            descriptor.event.index   = 0;
+
+            const messageType_t otherType = (descriptor.messageType == messageType_t::SAX_TRANSPOSE_INC)
+                                                ? messageType_t::SAX_TRANSPOSE_DEC
+                                                : messageType_t::SAX_TRANSPOSE_INC;
+
+            if (isOtherTransposePressed(otherType))
+            {
+                // Pressing both transpose buttons together resets transpose to 0 semis (C).
+                static constexpr uint16_t RAW_CENTER = 24;
+                _saxTransposeRaw                      = RAW_CENTER;
+                descriptor.event.value                = RAW_CENTER;
+                descriptor.event.systemMessage        = messaging::systemMessage_t::SAX_TRANSPOSE_SET_REQ;
+            }
+            else if (steps == 0)
+            {
+                // VALUE=0 means: reset transpose to 0 semis (C).
+                static constexpr uint16_t RAW_CENTER = 24;
+                _saxTransposeRaw                      = RAW_CENTER;
+                descriptor.event.value                = RAW_CENTER;
+                descriptor.event.systemMessage        = messaging::systemMessage_t::SAX_TRANSPOSE_SET_REQ;
+            }
+            else
+            {
+                // VALUE>=1 means: increment/decrement by N semitones.
+                const int32_t delta = (descriptor.messageType == messageType_t::SAX_TRANSPOSE_INC)
+                                          ? static_cast<int32_t>(steps)
+                                          : -static_cast<int32_t>(steps);
+
+                _saxTransposeRaw = static_cast<uint16_t>(
+                    core::util::CONSTRAIN(static_cast<int32_t>(_saxTransposeRaw) + delta,
+                                          static_cast<int32_t>(0),
+                                          static_cast<int32_t>(48)));
+
+                descriptor.event.value = steps;
+                descriptor.event.systemMessage =
+                    (descriptor.messageType == messageType_t::SAX_TRANSPOSE_INC)
+                        ? messaging::systemMessage_t::SAX_TRANSPOSE_INC_REQ
+                        : messaging::systemMessage_t::SAX_TRANSPOSE_DEC_REQ;
+            }
         }
         break;
 
@@ -547,6 +611,18 @@ void Buttons::sendMessage(size_t index, bool state, Descriptor& descriptor)
 
     if (send)
     {
+        // Apply sax transpose to outgoing NOTE events.
+        if ((eventType != messaging::eventType_t::SYSTEM) &&
+            ((descriptor.event.message == midi::messageType_t::NOTE_ON) || (descriptor.event.message == midi::messageType_t::NOTE_OFF)))
+        {
+            static constexpr int16_t RAW_CENTER = 24;
+            const int16_t semis                = static_cast<int16_t>(_saxTransposeRaw) - RAW_CENTER;
+
+            int32_t note = static_cast<int32_t>(descriptor.event.index) + static_cast<int32_t>(semis);
+            note         = core::util::CONSTRAIN(note, static_cast<int32_t>(0), static_cast<int32_t>(127));
+            descriptor.event.index = static_cast<uint16_t>(note);
+        }
+
         MidiDispatcher.notify(eventType, descriptor.event);
     }
 }
