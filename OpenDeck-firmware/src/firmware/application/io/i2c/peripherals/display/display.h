@@ -341,6 +341,87 @@ namespace io::i2c::display
                 }
             };
 
+            class PitchBendMeter : public DisplayElement<15, 3, 0, false>
+            {
+                public:
+                PitchBendMeter()
+                {
+                    setNeutral();
+
+                    auto handle = [this](const messaging::Event& event)
+                    {
+                        if (event.message != protocol::midi::messageType_t::PITCH_BEND)
+                        {
+                            return;
+                        }
+
+                        updateFromValue(static_cast<uint16_t>(event.value));
+                    };
+
+                    // Show most recent locally generated pitch bend (analog/buttons/encoders).
+                    MidiDispatcher.listen(messaging::eventType_t::ANALOG, handle);
+                    MidiDispatcher.listen(messaging::eventType_t::BUTTON, handle);
+                    MidiDispatcher.listen(messaging::eventType_t::ENCODER, handle);
+                }
+
+                private:
+                static constexpr uint8_t BAR_WIDTH = 12;
+
+                void setNeutral()
+                {
+                    // "PB|" + 12 chars = 15 total.
+                    char temp[16] = {};
+                    snprintf(temp, sizeof(temp), "PB|");
+
+                    for (uint8_t i = 0; i < BAR_WIDTH; i++)
+                    {
+                        temp[3 + i] = '-';
+                    }
+
+                    temp[3 + (BAR_WIDTH / 2)] = '^';
+                    temp[3 + BAR_WIDTH]       = '\0';
+                    setText("%s", temp);
+                }
+
+                void updateFromValue(uint16_t value)
+                {
+                    // 14-bit pitch bend (0..16383), center ~8192.
+                    // Fallback: treat 0..127 as 7-bit if encountered.
+                    uint8_t pos = 0;
+
+                    if (value <= 127)
+                    {
+                        pos = static_cast<uint8_t>((static_cast<uint32_t>(value) * (BAR_WIDTH - 1) + 63) / 127);
+                    }
+                    else
+                    {
+                        pos = static_cast<uint8_t>((static_cast<uint32_t>(value) * (BAR_WIDTH - 1) + 8191) / 16383);
+                    }
+
+                    if (pos >= BAR_WIDTH)
+                    {
+                        pos = BAR_WIDTH - 1;
+                    }
+
+                    const uint8_t center = BAR_WIDTH / 2;
+
+                    char temp[16] = {};
+                    snprintf(temp, sizeof(temp), "PB|");
+
+                    for (uint8_t i = 0; i < BAR_WIDTH; i++)
+                    {
+                        temp[3 + i] = '-';
+                    }
+
+                    // Always show the center reference.
+                    temp[3 + center] = (pos == center) ? '^' : '+';
+                    temp[3 + pos]    = '^';
+
+                    temp[3 + BAR_WIDTH] = '\0';
+                    setText("%s", temp);
+                }
+            };
+
             class SaxType : public DisplayElement<3, 2, 12, false>
             {
                 public:
@@ -429,6 +510,7 @@ namespace io::i2c::display
             BigNote             _bigNote;
             BreathCCMeter<1, 2>  _breathCc02Meter;
             BreathCCMeter<2, 11> _breathCc11Meter;
+            PitchBendMeter       _pitchBendMeter;
             SaxType             _saxType;
             InMessageIndicator  _inMessageIndicator;
             OutMessageIndicator _outMessageIndicator;
@@ -440,6 +522,7 @@ namespace io::i2c::display
                 // CC meters should draw last to override generic OUT message lines.
                 &_breathCc02Meter,
                 &_breathCc11Meter,
+                &_pitchBendMeter,
             };
 
             void update();
