@@ -615,7 +615,6 @@ export default defineComponent({
     const saxKeys = new Set([
       "saxRegisterChromaticEnable",
       "saxRegisterChromaticBaseNote",
-      "saxRegisterChromaticTranspose",
       "saxRegisterChromaticInputInvert",
       "saxBreathControllerEnable",
       "saxBreathControllerAnalogIndex",
