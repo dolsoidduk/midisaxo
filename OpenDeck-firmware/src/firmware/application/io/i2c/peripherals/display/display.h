@@ -46,7 +46,7 @@ namespace io::i2c::display
         private:
         static constexpr uint8_t MAX_ROWS         = 4;
         static constexpr uint8_t MAX_COLUMNS      = 16;
-        static constexpr uint8_t COLUMN_PADDING   = 0;
+        static constexpr uint8_t COLUMN_PADDING   = 1;
         static constexpr size_t  U8X8_BUFFER_SIZE = 32;
 
         using rowMapArray_t     = std::array<std::array<uint8_t, MAX_ROWS>, static_cast<uint8_t>(displayResolution_t::AMOUNT)>;
@@ -378,7 +378,7 @@ namespace io::i2c::display
                         temp[3 + i] = '-';
                     }
 
-                    temp[3 + (BAR_WIDTH / 2)] = 'o';
+                    temp[3 + ((BAR_WIDTH - 1) / 2)] = 'o';
                     temp[3 + BAR_WIDTH]       = '\0';
                     setText("%s", temp);
                 }
@@ -391,11 +391,11 @@ namespace io::i2c::display
 
                     if (value <= 127)
                     {
-                        pos = static_cast<uint8_t>((static_cast<uint32_t>(value) * (BAR_WIDTH - 1) + 63) / 127);
+                        pos = static_cast<uint8_t>((static_cast<uint32_t>(value) * (BAR_WIDTH - 1)) / 127);
                     }
                     else
                     {
-                        pos = static_cast<uint8_t>((static_cast<uint32_t>(value) * (BAR_WIDTH - 1) + 8191) / 16383);
+                        pos = static_cast<uint8_t>((static_cast<uint32_t>(value) * (BAR_WIDTH - 1)) / 16383);
                     }
 
                     if (pos >= BAR_WIDTH)
@@ -403,7 +403,7 @@ namespace io::i2c::display
                         pos = BAR_WIDTH - 1;
                     }
 
-                    const uint8_t center = BAR_WIDTH / 2;
+                    const uint8_t center = (BAR_WIDTH - 1) / 2;
 
                     char temp[16] = {};
                     snprintf(temp, sizeof(temp), "PB|");
