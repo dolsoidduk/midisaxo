@@ -147,6 +147,20 @@ const sections: Dictionary<ISectionDefinition> = {
     label: "브레스 아날로그 인덱스 (0-255)",
     helpText: `MPXV7002DP에 사용할 아날로그 입력 인덱스입니다. (인덱스 매핑은 타겟 설정에 따라 달라질 수 있습니다.)`,
   },
+  SaxBreathControllerMidPercent: {
+    showIf: (formState: FormState): boolean =>
+      !!formState.saxBreathControllerEnable,
+    block: Block.Global,
+    key: "saxBreathControllerMidPercent",
+    type: SectionType.Setting,
+    section: 2,
+    settingIndex: 10,
+    min: 0,
+    max: 100,
+    component: FormInputComponent.Input,
+    label: "브레스 오프셋(중앙값 %) (0-100)",
+    helpText: `무호흡(0 압력)일 때의 센서 기준점을 ADC 전체 범위 대비 %로 설정합니다.\n\n대부분의 MPXV7002DP는 50% 근처(Vcc/2)입니다. 값이 낮으면 더 작은 압력에서도 CC가 빨리 올라가고, 값이 높으면 반대입니다.`,
+  },
   SaxBreathControllerCC: {
     showIf: (formState: FormState): boolean =>
       !!formState.saxBreathControllerEnable,

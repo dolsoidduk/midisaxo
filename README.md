@@ -62,3 +62,17 @@ To package the configurator for offline usage, `make pkg` command can be used wi
 * Linux: `make pkg PLATFORM=linux`
 * Windows: `make PLATFORM=win32`
 * macOS: `make PLATFORM=darwin`
+
+## GitHub Pages (always-on UI)
+
+This repository can publish the configurator to GitHub Pages so the UI is always available online.
+
+1. Push to `master` (or run the workflow manually).
+2. In GitHub repo settings: **Settings → Pages → Build and deployment → Source = GitHub Actions**.
+3. Open the published URL (usually `https://<owner>.github.io/<repo>/`).
+
+Notes:
+
+- Browsers require a user gesture to connect to MIDI devices (you must click to connect).
+- WebMIDI support varies by browser; Chrome/Edge are typically the best.
+- SysEx access may require explicit permission in the browser.
