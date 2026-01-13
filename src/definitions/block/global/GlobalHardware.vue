@@ -3,41 +3,40 @@
     <div class="form-grid">
       <div class="form-field">
         <Button @click.prevent="startReboot">
-          Reboot
+          Reboot device
         </Button>
         <p class="help-text">
-          Rebooting the device will make the UI temporarily unavailable.
+          Rebooting the device will temporarily disconnect the UI.
         </p>
       </div>
 
       <div class="form-field">
         <Button @click.prevent="onFactoryResetClicked">
-          Reset to factory settings
+          Factory reset
         </Button>
         <p class="help-text">
-          Resets the device to its factory settings.
+          Resets the device to factory settings.
         </p>
       </div>
 
       <div v-if="bootLoaderSupport" class="form-field">
         <ButtonLink :to="{ name: 'device-firmware-update' }">
-          Firmware section
+          Firmware
         </ButtonLink>
         <p class="help-text">
-          Section used to reboot the device into bootloader mode and update the
-          firmware.
+          Opens the firmware page to enter bootloader mode and update firmware.
         </p>
       </div>
     </div>
   </Section>
-  <Section v-if="valueSize === 2" title="Backup & Restore" class="w-full">
+  <Section v-if="valueSize === 2" title="Backup & restore" class="w-full">
     <div class="form-grid">
       <div class="form-field">
         <Button @click.prevent="onBackupClicked">
           Backup
         </Button>
         <p class="help-text">
-          Download a backup of your configuration (incl presets).
+          Download a backup of your configuration (including presets).
         </p>
       </div>
       <div class="form-field">
@@ -47,7 +46,7 @@
           @change="onBackupFileSelected"
         />
         <p class="help-text">
-          Select a backup file to restore your device configuration.
+          Select a backup file to restore your configuration.
         </p>
       </div>
     </div>
