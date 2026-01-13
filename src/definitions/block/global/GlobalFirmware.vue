@@ -7,23 +7,23 @@
     <p class="mb-6 text-sm leading-5 text-gray-500">
       This device does not support the bootloader. <br />
       For manual firmware updates, please consult the
-      <a href="https://github.com/shanteacontrols/OpenDeck/wiki/Firmware-update"
-        >wiki firmware update page</a
-      >.
+      <a href="https://github.com/shanteacontrols/OpenDeck/wiki/Firmware-update">
+        wiki firmware update page
+      </a>.
       <br />
       Firmware downloads:
       <a
         href="https://github.com/dolsoidduk/OpenDeck/releases"
         target="_blank"
         rel="noopener noreferrer"
-        >OpenDeck (Midisaxo fork) releases</a
+        >OpenDeck (Midisaxo fork) releases</a>
       <br />
       Flashing guide:
       <a
         href="https://github.com/shanteacontrols/OpenDeck/wiki/Flashing-the-OpenDeck-firmware"
         target="_blank"
         rel="noopener noreferrer"
-        >OpenDeck wiki: flashing the firmware</a
+        >OpenDeck wiki: flashing the firmware</a>
     </p>
   </Section>
   <Section v-else title="Firmware update" class="w-full">
