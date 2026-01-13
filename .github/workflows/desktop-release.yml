@@ -111,7 +111,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          generate_release_notes: true
+          generate_release_notes: false
+          body: |
+            Desktop builds for Midisaxo.
+
+            - Windows: download `Midisaxo Setup *.exe` and run the installer.
+            - Linux: download `Midisaxo-*.AppImage`, then run:
+              `chmod +x Midisaxo-*.AppImage && ./Midisaxo-*.AppImage`
+
+            Web UI: https://dolsoidduk.github.io/midisaxo/
           files: |
             artifacts/linux/release/*
             artifacts/windows/release/*
