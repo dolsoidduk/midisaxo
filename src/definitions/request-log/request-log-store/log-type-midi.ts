@@ -89,8 +89,7 @@ export const addMidi = (params: MidiEventParams): void => {
 
   const { type, channel, data, controller } = params;
   const dataArray = data ? Array.from(data) : [];
-  const value =
-    params.value && type !== "controlchange" ? params.value : undefined;
+  const value = typeof params.value === "number" ? params.value : undefined;
   const note = ["noteon", "noteoff"].includes(type) ? data[1] : undefined;
   const controllerNumber = controller;
   const velocity = data && data.length > 2 ? data[2] : undefined;
