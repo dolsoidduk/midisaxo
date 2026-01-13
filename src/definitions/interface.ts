@@ -111,6 +111,10 @@ export enum ButtonMessageType {
   // OpenDeck firmware: io::buttons::messageType_t::SYS_EX_MACRO
   // Stored data excludes 0xF0/0xF7 and is referenced via the button VALUE (macro index).
   CustomSysEx = 30,
+
+  // Midisaxo custom: change sax transpose (system setting index 11)
+  SaxTransposeInc = 31,
+  SaxTransposeDec = 32,
 }
 
 export enum EncodingMode {
@@ -182,6 +186,8 @@ export const HideButtonMidiIdOnTypes = [
   ButtonMessageType.BpmDec,
   ButtonMessageType.PresetChange,
   ButtonMessageType.CustomSysEx,
+  ButtonMessageType.SaxTransposeInc,
+  ButtonMessageType.SaxTransposeDec,
 ];
 
 export const HideButtonMidiChannelOnTypes = [
@@ -202,6 +208,8 @@ export const HideButtonMidiChannelOnTypes = [
   ButtonMessageType.BpmInc,
   ButtonMessageType.BpmDec,
   ButtonMessageType.CustomSysEx,
+  ButtonMessageType.SaxTransposeInc,
+  ButtonMessageType.SaxTransposeDec,
 ];
 
 export const HideAnalogMidiIdOnTypes = [AnalogType.Button];

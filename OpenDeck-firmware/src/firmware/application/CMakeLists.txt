@@ -4,19 +4,19 @@ if(NOT "PROJECT_TARGET_USB_OVER_SERIAL_HOST" IN_LIST PROJECT_TARGET_DEFINES)
     list(APPEND FIRMWARE_TARGETS application)
 
     execute_process(
-        COMMAND sh "-c" "(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0) | cut -c 2- | cut -d. -f1"
+        COMMAND sh "-c" "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0); case \"$tag\" in v*.*.*) echo \"$tag\" | cut -c 2- | cut -d. -f1 ;; *) echo 0 ;; esac"
         OUTPUT_VARIABLE SW_VERSION_MAJOR
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 
     execute_process(
-        COMMAND sh "-c" "(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0) | cut -c 2- | cut -d. -f2"
+        COMMAND sh "-c" "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0); case \"$tag\" in v*.*.*) echo \"$tag\" | cut -c 2- | cut -d. -f2 ;; *) echo 0 ;; esac"
         OUTPUT_VARIABLE SW_VERSION_MINOR
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 
     execute_process(
-        COMMAND sh "-c" "(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0) | cut -c 2- | cut -d. -f3"
+        COMMAND sh "-c" "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0); case \"$tag\" in v*.*.*) echo \"$tag\" | cut -c 2- | cut -d. -f3 ;; *) echo 0 ;; esac"
         OUTPUT_VARIABLE SW_VERSION_REVISION
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )

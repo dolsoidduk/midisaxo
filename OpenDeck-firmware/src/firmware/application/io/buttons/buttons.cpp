@@ -448,6 +448,26 @@ void Buttons::sendMessage(size_t index, bool state, Descriptor& descriptor)
         }
         break;
 
+        case messageType_t::SAX_TRANSPOSE_INC:
+        case messageType_t::SAX_TRANSPOSE_DEC:
+        {
+            uint16_t steps = descriptor.event.value;
+            if (steps == 0)
+            {
+                steps = 1;
+            }
+
+            eventType                    = messaging::eventType_t::SYSTEM;
+            descriptor.event.message      = midi::messageType_t::INVALID;
+            descriptor.event.index        = 0;
+            descriptor.event.value        = steps;
+            descriptor.event.systemMessage =
+                (descriptor.messageType == messageType_t::SAX_TRANSPOSE_INC)
+                    ? messaging::systemMessage_t::SAX_TRANSPOSE_INC_REQ
+                    : messaging::systemMessage_t::SAX_TRANSPOSE_DEC_REQ;
+        }
+        break;
+
         case messageType_t::PRESET_CHANGE:
         {
             eventType                      = messaging::eventType_t::SYSTEM;
@@ -626,6 +646,8 @@ void Buttons::fillDescriptor(size_t index, Descriptor& descriptor)
     case messageType_t::BPM_INC:
     case messageType_t::BPM_DEC:
     case messageType_t::SYS_EX_MACRO:
+    case messageType_t::SAX_TRANSPOSE_INC:
+    case messageType_t::SAX_TRANSPOSE_DEC:
     {
         descriptor.type = type_t::MOMENTARY;
     }

@@ -87,6 +87,46 @@ System::System(Hwa&        hwa,
                               }
                               break;
 
+                              case messaging::systemMessage_t::SAX_TRANSPOSE_INC_REQ:
+                              case messaging::systemMessage_t::SAX_TRANSPOSE_DEC_REQ:
+                              {
+                                  // Custom system setting index 11: sax transpose raw value 0..48 (= -24..+24 semis).
+                                  static constexpr size_t  SAX_TRANSPOSE_SETTING_INDEX = 11;
+                                  static constexpr uint16_t RAW_MIN                    = 0;
+                                  static constexpr uint16_t RAW_MAX                    = 48;
+
+                                  uint16_t steps = event.value;
+                                  if (steps == 0)
+                                  {
+                                      steps = 1;
+                                  }
+
+                                  uint16_t current = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                               SAX_TRANSPOSE_SETTING_INDEX);
+                                  current          = core::util::CONSTRAIN(current, RAW_MIN, RAW_MAX);
+
+                                  uint16_t updated = current;
+
+                                  if (event.systemMessage == messaging::systemMessage_t::SAX_TRANSPOSE_INC_REQ)
+                                  {
+                                      updated = static_cast<uint16_t>(core::util::CONSTRAIN(static_cast<uint16_t>(current + steps), RAW_MIN, RAW_MAX));
+                                  }
+                                  else
+                                  {
+                                      updated = static_cast<uint16_t>(core::util::CONSTRAIN(static_cast<int32_t>(current) - static_cast<int32_t>(steps),
+                                                                                           static_cast<int32_t>(RAW_MIN),
+                                                                                           static_cast<int32_t>(RAW_MAX)));
+                                  }
+
+                                  if (updated != current)
+                                  {
+                                      _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                    SAX_TRANSPOSE_SETTING_INDEX,
+                                                                    updated);
+                                  }
+                              }
+                              break;
+
                               case messaging::systemMessage_t::PRESET_CHANGE_INC_REQ:
                               {
                                   _components.database().setPreset(_components.database().getPreset() + 1);

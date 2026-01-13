@@ -72,35 +72,32 @@
           class="form-grid sax-settings-grid mb-8"
           :class="{ 'pointer-events-none opacity-50': !isConnected }"
         >
-          <template v-for="section in saxSections">
-            <FormField
-              v-if="showField(section)"
-              :key="section.key"
-              :value="formData[section.key]"
-              :field-definition="section"
-              :simple-layout="true"
-              @modified="onSaxSettingChange"
-            />
-          </template>
-        </div>
+          <template v-for="section in saxSections" :key="section.key">
+            <div v-if="showField(section)" class="flex flex-col gap-1">
+              <FormField
+                v-if="section.key !== 'saxRegisterChromaticTranspose'"
+                :value="formData[section.key]"
+                :field-definition="section"
+                :simple-layout="true"
+                @modified="onSaxSettingChange"
+              />
 
-        <div
-          v-if="isConnected && formData.saxRegisterChromaticEnable"
-          class="mb-6"
-        >
-          <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-            <span>
-              트랜스포즈:
-              <strong class="text-gray-200">{{ saxTransposeSemitones >= 0 ? `+${saxTransposeSemitones}` : saxTransposeSemitones }}</strong>
-              <span class="text-gray-500">(반음)</span>
-            </span>
-            <div class="flex-grow"></div>
-            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(-24)">-24</Button>
-            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(-12)">-12</Button>
-            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(0)">0</Button>
-            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(12)">+12</Button>
-            <Button size="sm" variant="secondary" @click.prevent="setSaxTranspose(24)">+24</Button>
-          </div>
+              <div
+                v-if="isConnected && section.key === 'saxBreathControllerMidPercent'"
+                class="text-xs text-gray-300 whitespace-nowrap"
+              >
+                현재 출력:
+                <span class="ml-2 font-mono text-yellow-300">{{ breathCcStatusLine }}</span>
+                <span v-if="lastBreathCcTime" class="ml-2 text-gray-500">({{ lastBreathCcTime }})</span>
+                <button
+                  class="ml-2 px-1.5 py-0.5 border border-gray-700 rounded text-[10px] text-gray-200 hover:border-gray-500"
+                  @click.prevent="clearBreathActivity"
+                >
+                  clear
+                </button>
+              </div>
+            </div>
+          </template>
         </div>
 
         <div
@@ -422,7 +419,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, ref, onMounted, watch, nextTick } from "vue";
+import { defineComponent, computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { Block, SectionType, BlockMap } from "../index";
 import { useDeviceForm } from "../../composables";
 import { midiStoreMapped, deviceStoreMapped, deviceStore } from "../../store";
@@ -537,6 +534,77 @@ export default defineComponent({
     const { formData, loading, onSettingChange, showField } =
       useDeviceForm(Block.Global, SectionType.Setting);
 
+    const lastBreathCc2 = ref<number | null>(null);
+    const lastBreathCc11 = ref<number | null>(null);
+    const lastBreathCcTime = ref<string | null>(null);
+    const clearBreathActivity = (): void => {
+      lastBreathCc2.value = null;
+      lastBreathCc11.value = null;
+      lastBreathCcTime.value = null;
+    };
+
+    const breathCcStatusLine = computed((): string => {
+      const ccMode = Number((formData as any).saxBreathControllerCC);
+      const cc2 = lastBreathCc2.value;
+      const cc11 = lastBreathCc11.value;
+
+      const fmt = (value: number | null): string =>
+        value === null ? "---" : String(value).padStart(3, "0");
+
+      if (ccMode === 2) {
+        return `CC2 v${fmt(cc2)}`;
+      }
+
+      if (ccMode === 11) {
+        return `CC11 v${fmt(cc11)}`;
+      }
+
+      // 13 = CC2 + CC11, or unknown -> show both.
+      return `CC2 v${fmt(cc2)} | CC11 v${fmt(cc11)}`;
+    });
+
+    const attachBreathActivityListener = (input: any): (() => void) => {
+      if (!input || typeof input.addListener !== "function") {
+        return () => {};
+      }
+
+      const handler = (event: any) => {
+        const cc = Number(event?.controller?.number);
+        if (cc !== 2 && cc !== 11) {
+          return;
+        }
+
+        const value = Number(event?.value);
+        const channel = Number(event?.channel);
+        const now = new Date();
+        const time = now.toTimeString().slice(0, 8);
+
+        if (!Number.isFinite(value) || !Number.isFinite(channel)) {
+          return;
+        }
+
+        const normalizedValue = Math.max(0, Math.min(127, Math.floor(value)));
+        lastBreathCcTime.value = time;
+        if (cc === 2) {
+          lastBreathCc2.value = normalizedValue;
+        } else {
+          lastBreathCc11.value = normalizedValue;
+        }
+      };
+
+      input.addListener("controlchange", "all", handler);
+
+      return () => {
+        try {
+          input.removeListener("controlchange", "all", handler);
+        } catch {
+          // ignore
+        }
+      };
+    };
+
+    let detachBreathActivityListener: (() => void) | null = null;
+
     const onSaxSettingChange = (params: any) => {
       if (!isConnected.value) {
         return;
@@ -565,7 +633,9 @@ export default defineComponent({
     const hasSaxSections = computed(() => saxSections.value.length > 0);
 
     const saxHelpItems = computed(() => {
-      return saxSections.value.map((section: any) => {
+      return saxSections.value
+        .filter((section: any) => section.key !== "saxRegisterChromaticTranspose")
+        .map((section: any) => {
         const disabled = deviceStoreMapped.isControlDisabled(section);
         const disabledText = disabled ? "이 펌웨어/디바이스에서는 지원되지 않습니다." : "";
 
@@ -950,22 +1020,6 @@ export default defineComponent({
       });
     });
 
-    const saxTransposeSemitones = computed(() => {
-      const raw = Math.max(0, Math.min(48, Math.floor(Number((formData as any).saxRegisterChromaticTranspose) || 24)));
-      return raw - 24;
-    });
-
-    const setSaxTranspose = (semitones: number) => {
-      const s = Math.max(-24, Math.min(24, Math.floor(Number(semitones) || 0)));
-      const raw = s + 24;
-      return onSaxSettingChange({
-        key: "saxRegisterChromaticTranspose",
-        value: raw,
-        section: 2,
-        settingIndex: 11,
-      } as any);
-    };
-
     const visibleRegisterKeys = computed(() => {
       if (showRegisterPreviewAll.value) {
         return registerKeys.value;
@@ -1053,6 +1107,17 @@ export default defineComponent({
       loadFingeringTable();
     });
 
+    onMounted(() => {
+      // Keep a lightweight activity panel in this view regardless of the global Activity toggle.
+      detachBreathActivityListener?.();
+      detachBreathActivityListener = attachBreathActivityListener(deviceStore.state.input as any);
+    });
+
+    onUnmounted(() => {
+      detachBreathActivityListener?.();
+      detachBreathActivityListener = null;
+    });
+
     watch(
       () => [showRegisterPreviewAll.value, showFingeringTable.value, showKeyMapping.value],
       () => saveUiState(),
@@ -1078,6 +1143,8 @@ export default defineComponent({
         if (connected) {
           loadSaxRegisterKeyMap();
           loadFingeringTable();
+          detachBreathActivityListener?.();
+          detachBreathActivityListener = attachBreathActivityListener(deviceStore.state.input as any);
         } else {
           saxRegisterKeyMapRaw.value = null;
           saxRegisterKeyMapSupport.value = "unknown";
@@ -1085,7 +1152,21 @@ export default defineComponent({
           fingeringMaskHi10Enable.value = null;
           fingeringNote.value = null;
           fingeringSupport.value = "unknown";
+          clearBreathActivity();
+          detachBreathActivityListener?.();
+          detachBreathActivityListener = null;
         }
+      },
+    );
+
+    watch(
+      () => deviceStore.state.input,
+      (input) => {
+        if (!isConnected.value) {
+          return;
+        }
+        detachBreathActivityListener?.();
+        detachBreathActivityListener = attachBreathActivityListener(input as any);
       },
     );
 
@@ -1175,13 +1256,14 @@ export default defineComponent({
       hasSaxSections,
       saxHelpItems,
       isConnected,
+      clearBreathActivity,
+      breathCcStatusLine,
+      lastBreathCcTime,
       registerKeyCount,
       registerKeys,
       visibleRegisterKeys,
       showRegisterPreviewAll,
       registerPreviewDefaultCount,
-      saxTransposeSemitones,
-      setSaxTranspose,
       showFingeringTable,
       showKeyMapping,
       saxRegisterKeyMapSupport,

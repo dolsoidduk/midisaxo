@@ -101,6 +101,8 @@ const sections: Dictionary<ISectionDefinition> = {
       { value: ButtonMessageType.ControlChange0Only, text: "CC/0 only" },
       { value: ButtonMessageType.BpmInc, text: "BPM Inc" },
       { value: ButtonMessageType.BpmDec, text: "BPM Dec" },
+      { value: ButtonMessageType.SaxTransposeInc, text: "Transpose Inc" },
+      { value: ButtonMessageType.SaxTransposeDec, text: "Transpose Dec" },
       { value: ButtonMessageType.CustomSysEx, text: "SysEx (HEX)" },
     ],
     label: "Message type",

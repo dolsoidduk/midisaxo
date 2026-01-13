@@ -79,6 +79,8 @@ namespace io::buttons
         BPM_DEC,
         MMC_PLAY_STOP,
         SYS_EX_MACRO,
+        SAX_TRANSPOSE_INC,
+        SAX_TRANSPOSE_DEC,
         AMOUNT
     };
 

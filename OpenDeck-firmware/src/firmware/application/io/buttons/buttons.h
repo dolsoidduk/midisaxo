@@ -83,6 +83,8 @@ namespace io::buttons
             protocol::midi::messageType_t::INVALID,                         // BPM_DEC
             protocol::midi::messageType_t::MMC_PLAY,                        // MMC_PLAY_STOP - modified to stop when needed
             protocol::midi::messageType_t::SYS_EX,                           // SYS_EX_MACRO
+            protocol::midi::messageType_t::INVALID,                         // SAX_TRANSPOSE_INC
+            protocol::midi::messageType_t::INVALID,                         // SAX_TRANSPOSE_DEC
         };
 
         Hwa&      _hwa;
