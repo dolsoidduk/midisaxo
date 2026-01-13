@@ -1,12 +1,16 @@
-# OpenDeck configurator
+# Midisaxo configurator (OpenDeck UI fork)
 
-This repository contains source code for OpenDeck configurator. For more information on OpenDeck project, check the [OpenDeck repository](https://github.com/shanteacontrols/OpenDeck).
+This repository hosts the **Midisaxo** configurator UI, based on the upstream OpenDeck configurator.
 
-*Click the image below for a demo video of the [OpenDeck configurator](https://config.shanteacontrols.com)*
+- Midisaxo UI (GitHub Pages): https://dolsoidduk.github.io/midisaxo/
+- Upstream OpenDeck project: https://github.com/shanteacontrols/OpenDeck
+- Upstream online configurator: https://config.shanteacontrols.com
 
-[![Watch the video](https://img.youtube.com/vi/7X2LC0JMfAU/maxresdefault.jpg)](https://youtu.be/7X2LC0JMfAU)
+Upstream demo video (OpenDeck configurator):
 
-The configurator is always available online via [this link](https://config.shanteacontrols.com). Offline versions are available under [Releases section](https://github.com/shanteacontrols/OpenDeckUI/releases). Each release has attached 3 zip files. Download the appropriate one depending on your operating system:
+[![OpenDeck configurator demo video](https://img.youtube.com/vi/7X2LC0JMfAU/maxresdefault.jpg)](https://youtu.be/7X2LC0JMfAU)
+
+Offline versions are available under the upstream [Releases section](https://github.com/shanteacontrols/OpenDeckUI/releases). Each release has attached 3 zip files. Download the appropriate one depending on your operating system:
 
 * darwin-x64 -> Intel macOS
 * linux-x64 -> Linux x64
