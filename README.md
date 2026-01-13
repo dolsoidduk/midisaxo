@@ -85,6 +85,14 @@ The development version of the configurator with local server can be started wit
 
 This repo can be packaged as a cross-platform desktop app via Electron.
 
+### GitHub Releases (recommended)
+
+Push a tag like `v0.1.0` to trigger GitHub Actions to build and attach:
+- Windows single-file `.exe` (portable)
+- Windows portable `.zip`
+- Linux `.AppImage`
+- Linux portable `.tar.gz`
+
 ### Development (Electron)
 
 Run Vite + Electron together:
@@ -107,11 +115,35 @@ npm run dist:linux
 
 Output will be created under `release/`.
 
+Portable (extract and run):
+
+```bash
+npm run dist:linux:portable
+```
+
+This produces a `*.tar.gz` under `release/`.
+
 ### Package for Windows
 
 ```bash
 npm run dist:win
 ```
+
+Single-file executable (portable `.exe`):
+
+```bash
+npm run dist:win:exe
+```
+
+This produces an `.exe` under `release/` (e.g. `Midisaxo-0.1.1.exe`).
+
+Portable (extract and run):
+
+```bash
+npm run dist:win:portable
+```
+
+This produces a `*.zip` under `release/`.
 
 Notes:
 - Building Windows installers on Linux may require Wine. If it fails, run the command on a Windows machine.
