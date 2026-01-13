@@ -31,14 +31,14 @@
             href="https://github.com/dolsoidduk/OpenDeck/releases"
             target="_blank"
             rel="noopener noreferrer"
-            >OpenDeck (Midisaxo fork) releases</a
+            >OpenDeck (Midisaxo fork) releases</a>
           <br />
           Flashing guide:
           <a
             href="https://github.com/shanteacontrols/OpenDeck/wiki/Flashing-the-OpenDeck-firmware"
             target="_blank"
             rel="noopener noreferrer"
-            >OpenDeck wiki: flashing the firmware</a
+            >OpenDeck wiki: flashing the firmware</a>
         </p>
       </div>
     </div>
