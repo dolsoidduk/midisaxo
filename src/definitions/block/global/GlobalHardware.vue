@@ -25,21 +25,25 @@
         </ButtonLink>
         <p class="help-text">
           Opens the firmware page to enter bootloader mode and update firmware.
-          <br />
-          Firmware downloads:
+        </p>
+        <div class="mt-2 flex flex-wrap gap-2">
           <a
+            class="btn btn-xs"
             href="https://github.com/dolsoidduk/OpenDeck/releases"
             target="_blank"
             rel="noopener noreferrer"
-            >OpenDeck (Midisaxo fork) releases</a>
-          <br />
-          Flashing guide:
+          >
+            Firmware downloads
+          </a>
           <a
+            class="btn btn-xs"
             href="https://github.com/shanteacontrols/OpenDeck/wiki/Flashing-the-OpenDeck-firmware"
             target="_blank"
             rel="noopener noreferrer"
-            >OpenDeck wiki: flashing the firmware</a>
-        </p>
+          >
+            Flashing guide
+          </a>
+        </div>
       </div>
     </div>
   </Section>
