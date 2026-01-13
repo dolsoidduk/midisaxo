@@ -423,7 +423,7 @@ export const handleSysExEvent = (event: InputEventBase<"sysex">): void => {
 
   const { handler } = request;
   const isLastMultipartMessage =
-    handler(parsed || data) ||
+    handler(parsed !== undefined ? parsed : data) ||
     (request.command === Request.GetSectionValues && messagePart === 126);
 
   // For multipart responses, we expect handler to return true after  last message

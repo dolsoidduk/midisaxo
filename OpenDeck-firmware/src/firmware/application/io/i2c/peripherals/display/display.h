@@ -23,6 +23,7 @@ limitations under the License.
 #include "strings.h"
 #include "application/messaging/messaging.h"
 #include "application/system/config.h"
+#include "application/protocol/midi/common.h"
 
 #include "core/util/util.h"
 #include <u8x8.h>
@@ -36,7 +37,8 @@ namespace io::i2c::display
     {
         public:
         Display(Hwa&      hwa,
-                Database& database);
+                Database& database,
+                database::Admin& admin);
 
         bool init() override;
         void update() override;
@@ -44,6 +46,7 @@ namespace io::i2c::display
         private:
         static constexpr uint8_t MAX_ROWS         = 4;
         static constexpr uint8_t MAX_COLUMNS      = 16;
+        static constexpr uint8_t COLUMN_PADDING   = 1;
         static constexpr size_t  U8X8_BUFFER_SIZE = 32;
 
         using rowMapArray_t     = std::array<std::array<uint8_t, MAX_ROWS>, static_cast<uint8_t>(displayResolution_t::AMOUNT)>;
@@ -65,9 +68,9 @@ namespace io::i2c::display
                 // 128x64
                 {
                     0,
-                    2,
-                    4,
-                    6,
+                    3,
+                    5,
+                    7,
                 },
             },
         };
@@ -190,7 +193,7 @@ namespace io::i2c::display
                 MIDIUpdater& _midiUpdater;
             };
 
-            class Preset : public DisplayElement<3, 0, 13, false>
+            class Preset : public DisplayElement<3, 0, 12, false>
             {
                 public:
                 Preset()
@@ -208,6 +211,214 @@ namespace io::i2c::display
                 void setPreset(uint8_t preset)
                 {
                     setText("P%d", preset);
+                }
+            };
+
+            class BigNote
+            {
+                public:
+                BigNote()
+                {
+                    setFixed("----");
+
+                    // Emphasize most recent outgoing NOTE_ON.
+                    // "Outgoing" in OpenDeck terms means locally generated events (analog/buttons/encoders).
+                    auto handle = [this](const messaging::Event& event)
+                    {
+                        if (event.message != protocol::midi::messageType_t::NOTE_ON)
+                        {
+                            return;
+                        }
+
+                        if (event.value == 0)
+                        {
+                            return;
+                        }
+
+                        char temp[8] = {};
+                        snprintf(temp,
+                                 sizeof(temp),
+                                 "%s%d",
+                                 Strings::NOTE(protocol::midi::NOTE_TO_TONIC(event.index)),
+                                 protocol::midi::NOTE_TO_OCTAVE(event.index));
+
+                        char fixed[5] = { ' ', ' ', ' ', ' ', '\0' };
+                        for (size_t i = 0; (i < 4) && (temp[i] != '\0'); i++)
+                        {
+                            fixed[i] = temp[i];
+                        }
+
+                        setFixed(fixed);
+                    };
+
+                    MidiDispatcher.listen(messaging::eventType_t::ANALOG, handle);
+                    MidiDispatcher.listen(messaging::eventType_t::BUTTON, handle);
+                    MidiDispatcher.listen(messaging::eventType_t::ENCODER, handle);
+                }
+
+                const char* text() const
+                {
+                    return _text;
+                }
+
+                bool dirty() const
+                {
+                    return _dirty;
+                }
+
+                void clearDirty()
+                {
+                    _dirty = false;
+                }
+
+                private:
+                void setFixed(const char* text)
+                {
+                    if (strncmp(_text, text, sizeof(_text)) == 0)
+                    {
+                        return;
+                    }
+
+                    strncpy(_text, text, sizeof(_text) - 1);
+                    _text[sizeof(_text) - 1] = '\0';
+                    _dirty                    = true;
+                }
+
+                char _text[5] = {};
+                bool _dirty   = false;
+            };
+
+            class BreathValue : public DisplayElement<4, 1, 11, false>
+            {
+                public:
+                BreathValue()
+                {
+                    // Default placeholder.
+                    setText("B---");
+
+                    // Show sax breath controller value (generated as a CONTROL_CHANGE event).
+                    // We filter by componentIndex==0 to avoid catching generic analog components.
+                    MidiDispatcher.listen(messaging::eventType_t::ANALOG,
+                                          [this](const messaging::Event& event)
+                                          {
+                                              if (event.message != protocol::midi::messageType_t::CONTROL_CHANGE)
+                                              {
+                                                  return;
+                                              }
+
+                                              if (event.componentIndex != 0)
+                                              {
+                                                  return;
+                                              }
+
+                                              if ((event.index != 2) && (event.index != 11))
+                                              {
+                                                  return;
+                                              }
+
+                                              _hasValue  = true;
+                                              _lastValue = static_cast<uint8_t>(event.value);
+
+                                              // If fully clipped, show a brief warning.
+                                              if (_lastValue >= 127)
+                                              {
+                                                  _clipUntilMs = 0; // will be set by tick() using current time
+                                              }
+                                          });
+                }
+
+                void tick(uint32_t nowMs)
+                {
+                    if (!_hasValue)
+                    {
+                        setText("B---");
+                        return;
+                    }
+
+                    // Start clip window when first observed.
+                    if ((_lastValue >= 127) && (_clipUntilMs == 0))
+                    {
+                        _clipUntilMs = nowMs + CLIP_DISPLAY_MS;
+                    }
+
+                    if ((_clipUntilMs != 0) && (nowMs < _clipUntilMs))
+                    {
+                        setText("CLP ");
+                        return;
+                    }
+
+                    if ((_clipUntilMs != 0) && (nowMs >= _clipUntilMs))
+                    {
+                        _clipUntilMs = 0;
+                    }
+
+                    setText("B%03d", _lastValue);
+                }
+
+                private:
+                static constexpr uint32_t CLIP_DISPLAY_MS = 500;
+                bool                      _hasValue       = false;
+                uint8_t                   _lastValue      = 0;
+                uint32_t                  _clipUntilMs    = 0;
+            };
+
+            class SaxType : public DisplayElement<3, 2, 12, false>
+            {
+                public:
+                SaxType()
+                {
+                    // Default placeholder.
+                    setText("C  ");
+                }
+
+                void setFromTransposeSemis(int8_t semis)
+                {
+                    // Common sax transpositions (written -> concert):
+                    // - Bb soprano: +2
+                    // - Eb alto: +9
+                    // - Bb tenor: +14 (octave + M2)
+                    // - Eb bari: +21 (octave + M6)
+                    // Prefer player-friendly instrument labels; transposition is shown separately.
+                    switch (semis)
+                    {
+                    case 0:
+                        setText("C  ");
+                        break;
+
+                    case 2:
+                        setText("SOP");
+                        break;
+
+                    case 9:
+                        setText("ALT");
+                        break;
+
+                    case 14:
+                        setText("TEN");
+                        break;
+
+                    case 21:
+                        setText("BAR");
+                        break;
+
+                    default:
+                        setText("TRN");
+                        break;
+                    }
+                }
+            };
+
+            class TransposeSemis : public DisplayElement<4, 3, 11, false>
+            {
+                public:
+                TransposeSemis()
+                {
+                    setText("T+00");
+                }
+
+                void setSemis(int8_t semis)
+                {
+                    setText("T%+03d", semis);
                 }
             };
 
@@ -236,6 +447,10 @@ namespace io::i2c::display
             MessageTypeOut      _messageTypeOut;
             MessageValueOut     _messageValueOut = MessageValueOut(_midiUpdater);
             Preset              _preset;
+            BigNote             _bigNote;
+            BreathValue         _breathValue;
+            SaxType             _saxType;
+            TransposeSemis      _transposeSemis;
             InMessageIndicator  _inMessageIndicator;
             OutMessageIndicator _outMessageIndicator;
             uint32_t            _lastRefreshTime      = 0;
@@ -248,6 +463,9 @@ namespace io::i2c::display
                 &_messageTypeOut,
                 &_messageValueOut,
                 &_preset,
+                &_breathValue,
+                &_saxType,
+                &_transposeSemis,
                 &_inMessageIndicator,
                 &_outMessageIndicator,
             };
@@ -260,6 +478,7 @@ namespace io::i2c::display
 
         Hwa&                _hwa;
         Database&           _database;
+        database::Admin&    _admin;
         u8x8_t              _u8x8;
         Elements            _elements                     = Elements(*this);
         uint8_t             _u8x8Buffer[U8X8_BUFFER_SIZE] = {};

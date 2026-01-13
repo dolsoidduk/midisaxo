@@ -26,6 +26,11 @@ limitations under the License.
 
 #include "lib/sysexconf/sysexconf.h"
 
+namespace io::analog
+{
+    class Analog;
+}
+
 namespace sys
 {
     class System
@@ -101,8 +106,14 @@ namespace sys
         io::ioComponent_t         _componentIndex                                                        = io::ioComponent_t::AMOUNT;
         size_t                    _componentUpdateIndex[static_cast<uint8_t>(io::ioComponent_t::AMOUNT)] = {};
 
+        ::io::analog::Analog* _analog = nullptr;
+        uint16_t              _lastSaxBreathValue = 0xFFFF;
+
         io::ioComponent_t      checkComponents();
         void                   checkProtocols();
+        void                   updateSax();
+        void                   ensureSaxAnalogConfigured();
+        uint8_t                resolvedMidiChannel() const;
         void                   backup();
         void                   forceComponentRefresh();
         std::optional<uint8_t> sysConfigGet(sys::Config::Section::global_t section, size_t index, uint16_t& value);

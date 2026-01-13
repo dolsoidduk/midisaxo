@@ -17,13 +17,49 @@
       >
     </label>
 
-    <component
-      :is="fieldComponent"
-      v-if="!isDisabled"
-      :value="input"
-      v-bind="componentProps"
-      @changed="onValueChange"
-    />
+    <div v-if="!isDisabled" class="flex items-center gap-2">
+      <div v-if="isBreathOffsetField" class="flex flex-col gap-1">
+        <div class="flex items-center gap-2">
+          <component
+            :is="fieldComponent"
+            :value="input"
+            v-bind="componentProps"
+            @changed="onValueChange"
+          />
+          <span
+            v-if="extraInfoText"
+            class="text-xs text-gray-200 whitespace-nowrap px-2 py-1 rounded border border-gray-700 bg-gray-800 font-mono"
+          >
+            {{ extraInfoText }}
+          </span>
+        </div>
+
+        <input
+          class="w-56"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          :value="breathSliderValue"
+          @input="onBreathSliderInput"
+        />
+      </div>
+
+      <template v-else>
+        <component
+          :is="fieldComponent"
+          :value="input"
+          v-bind="componentProps"
+          @changed="onValueChange"
+        />
+        <span
+          v-if="extraInfoText"
+          class="text-xs text-gray-200 whitespace-nowrap px-2 py-1 rounded border border-gray-700 bg-gray-800 font-mono"
+        >
+          {{ extraInfoText }}
+        </span>
+      </template>
+    </div>
     <p v-else class="error-message text-red-500">
       <template v-if="isDisabled === ControlDisableType.NotSupported">
         이 디바이스에서는 지원되지 않습니다.
@@ -162,17 +198,36 @@ export default defineComponent({
 
     const valueRef = toRefs(props).value;
     const validators = getValidatorForDefinition(props.fieldDefinition);
+    const isBreathOffsetField = key === "saxBreathControllerMidPercent";
+    let pendingEmitTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const emitModified = (numericValue: number) => {
+      emit("modified", {
+        key,
+        value: numericValue,
+        section,
+        settingIndex, // defined for settings only
+        index: props.index, // defined for column view only
+        onLoad, // handles storing value to special store sections (ie active preset)
+      });
+    };
+
     const valueChangeHandler = (value: any) => {
-      if (Number(value) !== valueRef.value) {
-        emit("modified", {
-          key,
-          value: Number(value),
-          section,
-          settingIndex, // defined for settings only
-          index: props.index, // defined for column view only
-          onLoad, // handles storing value to special store sections (ie active preset)
-        });
+      const numericValue = Number(value);
+      if (numericValue === valueRef.value) {
+        return;
       }
+
+      // For breath offset tuning, react while typing but avoid spamming MIDI writes.
+      if (isBreathOffsetField) {
+        if (pendingEmitTimer) {
+          clearTimeout(pendingEmitTimer);
+        }
+        pendingEmitTimer = setTimeout(() => emitModified(numericValue), 250);
+        return;
+      }
+
+      emitModified(numericValue);
     };
     const { input, errors, onValueChange } = useInputValidator(
       valueRef,
@@ -180,17 +235,55 @@ export default defineComponent({
       valueChangeHandler,
     );
 
+    const extraInfoText = computed(() => {
+      // MIDI Saxophone: show a quick preview for breath controller offset
+      if (key !== "saxBreathControllerMidPercent") {
+        return "";
+      }
+
+      const raw = Number(input.value);
+      if (!Number.isFinite(raw)) {
+        return "";
+      }
+
+      const clamped = Math.max(0, Math.min(100, raw));
+      // OpenDeck UI help texts commonly assume 12-bit ADC range 0-4095
+      const adcMax = 4095;
+      const adcMid = Math.round((clamped / 100) * adcMax);
+      return `미리보기: 무호흡 기준 ADC ≈ ${adcMid} / ${adcMax} (${clamped}%)`;
+    });
+
     const componentProps = {
       label,
       helpText,
       name: key,
     } as any;
 
+    if (isBreathOffsetField) {
+      componentProps.updateOnInput = true;
+    }
+
     if (component === FormInputComponent.Select) {
       componentProps.options = options;
     }
 
     const { showMsbControls } = deviceStoreMapped;
+
+    const breathSliderValue = computed(() => {
+      if (!isBreathOffsetField) {
+        return 0;
+      }
+      const raw = Number(input.value);
+      if (!Number.isFinite(raw)) {
+        return 0;
+      }
+      return Math.max(0, Math.min(100, Math.round(raw)));
+    });
+
+    const onBreathSliderInput = (event: Event) => {
+      const value = (event.target as HTMLInputElement | null)?.value;
+      onValueChange(value as any);
+    };
 
     return {
       fieldComponent: props.fieldDefinition.component,
@@ -200,6 +293,10 @@ export default defineComponent({
       input,
       errors,
       onValueChange,
+      extraInfoText,
+      isBreathOffsetField,
+      breathSliderValue,
+      onBreathSliderInput,
       label,
       helpText,
       isDisabled,

@@ -185,6 +185,19 @@ void Analog::processReading(size_t index, uint16_t value)
     }
     break;
 
+    case type_t::RESERVED:
+    {
+        // Reserved inputs are used for internal features (no MIDI output),
+        // but we still want filtering + scaled value updates in _lastValue.
+        if (checkPotentiometerValue(index, analogDescriptor))
+        {
+            _lastValue[index] = analogDescriptor.newValue;
+        }
+
+        return;
+    }
+    break;
+
     default:
         break;
     }
@@ -194,6 +207,16 @@ void Analog::processReading(size_t index, uint16_t value)
         sendMessage(index, analogDescriptor);
         _lastValue[index] = analogDescriptor.newValue;
     }
+}
+
+uint16_t Analog::value(size_t index) const
+{
+    if (index >= Collection::SIZE())
+    {
+        return 0xFFFF;
+    }
+
+    return _lastValue[index];
 }
 
 bool Analog::checkPotentiometerValue(size_t index, Descriptor& descriptor)
@@ -318,6 +341,27 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
     case type_t::NRPN_7BIT:
     case type_t::NRPN_14BIT:
     {
+        if (descriptor.type == type_t::PITCH_BEND)
+        {
+            // Optional scaling for pitch bend amount.
+            // Dedicated sax targets reserve analog index 2 as a "pitch amount" pot.
+            // Value range is 0..127, where 127 means full scale.
+            static constexpr size_t   PITCH_AMOUNT_ANALOG_INDEX = 2;
+            static constexpr uint16_t PB_CENTER                 = 8192;
+
+            if (index != PITCH_AMOUNT_ANALOG_INDEX)
+            {
+                auto amount = _lastValue[PITCH_AMOUNT_ANALOG_INDEX];
+
+                if ((amount != 0xFFFF) && (amount <= 127) && (amount != 127))
+                {
+                    const int32_t delta      = static_cast<int32_t>(descriptor.event.value) - static_cast<int32_t>(PB_CENTER);
+                    const int32_t scaledDelta = (delta * static_cast<int32_t>(amount)) / 127;
+                    descriptor.event.value    = static_cast<uint16_t>(static_cast<int32_t>(PB_CENTER) + scaledDelta);
+                }
+            }
+        }
+
         send();
     }
     break;

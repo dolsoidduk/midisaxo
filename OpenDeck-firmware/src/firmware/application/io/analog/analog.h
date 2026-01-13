@@ -41,6 +41,8 @@ namespace io::analog
         size_t maxComponentUpdateIndex() override;
         void   reset(size_t index);
 
+        uint16_t value(size_t index) const;
+
         private:
         struct Descriptor
         {

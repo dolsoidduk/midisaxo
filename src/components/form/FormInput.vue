@@ -5,7 +5,8 @@
     :type="type"
     :name="name"
     :placeholder="placeholder"
-    @change="emit('changed', $event.target.value)"
+    @input="updateOnInput ? emitChanged($event) : null"
+    @change="emitChanged($event)"
   />
 </template>
 
@@ -18,6 +19,10 @@ export default defineComponent({
     value: {
       default: "",
       type: [String, Number],
+    },
+    updateOnInput: {
+      default: false,
+      type: Boolean,
     },
     name: {
       default: "",
@@ -35,6 +40,11 @@ export default defineComponent({
   setup(_, { emit }) {
     return {
       emit,
+      emitChanged: (event: Event) =>
+        emit(
+          "changed",
+          (event.target as HTMLInputElement | null)?.value,
+        ),
     };
   },
 });

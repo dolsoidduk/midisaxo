@@ -32,6 +32,40 @@ void Display::Elements::update()
         return;    // we don't need to update lcd in real time
     }
 
+    const auto nowMs = core::mcu::timing::ms();
+
+    // Large emphasized note display (2x2).
+    // Always takes priority over other row-0 text; we redraw it last if anything overlaps.
+    static constexpr uint8_t BIG_NOTE_X_START = Display::COLUMN_PADDING;
+    static constexpr uint8_t BIG_NOTE_X_END   = Display::COLUMN_PADDING + 7;    // 4 chars * 2 columns each
+    bool                     redrawBigNote    = _bigNote.dirty();
+
+    _breathValue.tick(nowMs);
+
+    // Sax transpose status (custom system setting index 11):
+    // stored as 0..48 where 24 == 0 semitones.
+    {
+        static constexpr size_t  SAX_TRANSPOSE_SETTING_INDEX = 11;
+        static constexpr int16_t ENCODED_CENTER              = 24;
+
+        const uint16_t encoded = static_cast<uint16_t>(
+            _display._admin.read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                 SAX_TRANSPOSE_SETTING_INDEX));
+        int16_t        semis   = static_cast<int16_t>(encoded) - ENCODED_CENTER;
+
+        if (semis < -24)
+        {
+            semis = -24;
+        }
+        else if (semis > 24)
+        {
+            semis = 24;
+        }
+
+        _saxType.setFromTransposeSemis(static_cast<int8_t>(semis));
+        _transposeSemis.setSemis(static_cast<int8_t>(semis));
+    }
+
     for (size_t i = 0; i < _elements.size(); i++)
     {
         auto element = _elements.at(i);
@@ -58,8 +92,17 @@ void Display::Elements::update()
             {
                 if (core::util::BIT_READ(change, index))
                 {
+                    // If anything updates in the area where the big note is rendered,
+                    // redraw the big note afterwards to keep it visible.
+                    const uint8_t drawX = static_cast<uint8_t>(element->COLUMN() + index + Display::COLUMN_PADDING);
+
+                    if ((element->ROW() == 0) && (drawX >= BIG_NOTE_X_START) && (drawX <= BIG_NOTE_X_END))
+                    {
+                        redrawBigNote = true;
+                    }
+
                     u8x8_DrawGlyph(&_display._u8x8,
-                                   element->COLUMN() + index,
+                                   drawX,
                                    Display::ROW_MAP[_display._resolution][element->ROW()],
                                    element->text()[index]);
                 }
@@ -69,7 +112,14 @@ void Display::Elements::update()
         }
     }
 
-    _lastRefreshTime = core::mcu::timing::ms();
+    if (redrawBigNote)
+    {
+        // Uses physical rows 0/1 intentionally (ROW_MAP skips some rows for spacing).
+        u8x8_Draw2x2String(&_display._u8x8, Display::COLUMN_PADDING, 0, _bigNote.text());
+        _bigNote.clearDirty();
+    }
+
+    _lastRefreshTime = nowMs;
 }
 
 /// Sets new message retention time.

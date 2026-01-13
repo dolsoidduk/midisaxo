@@ -28,7 +28,7 @@ export type IDeviceState = {
   valuesPerMessageRequest: number;
   boardName: string;
   firmwareFileName: string;
-  firmwareVersion: string;
+  firmwareVersion: string | null;
   bootLoaderSupport: boolean;
   activePreset: number;
   supportedPresetsCount: number;

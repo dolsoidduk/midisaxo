@@ -49,9 +49,21 @@ export const sections: Dictionary<ISectionDefinition> = {
         value: 1,
         text: "SSD1306",
       },
+      {
+        value: 2,
+        text: "SH1106",
+      },
+      {
+        value: 3,
+        text: "SSD1306 (vcomh0)",
+      },
+      {
+        value: 4,
+        text: "SSD1306 (alt0)",
+      },
     ],
     label: "Display controller",
-    helpText: ``,
+    helpText: `If the screen contents look horizontally shifted (common on some 128x64 modules like GME12864-77), keep the controller family but try SSD1306 (alt0) / SSD1306 (vcomh0). If that still doesn't help, try SH1106.`,
   },
   DisplayResolution: {
     showIf: (formState: FormState): boolean => formState.enableDisplay,

@@ -1,6 +1,21 @@
 import { IBoardDefinition } from "../interface";
 
 export const Boards: IBoardDefinition[] = [
+  // Custom Midisaxo targets (RP2040)
+  // PROJECT_TARGET_UID (midisaxo_pico) = 0x390e3e62
+  {
+    name: "Midisaxo Pico (RP2040)",
+    id: [57, 14, 62, 98],
+    oldId: [],
+    firmwareFileName: null,
+  },
+  // PROJECT_TARGET_UID (midisaxo_xiao_rp2040) = 0x16792753
+  {
+    name: "Midisaxo XIAO RP2040",
+    id: [22, 121, 39, 83],
+    oldId: [],
+    firmwareFileName: null,
+  },
   {
     name: "Arduino Leonardo",
     id: [1, 58, 76, 24],

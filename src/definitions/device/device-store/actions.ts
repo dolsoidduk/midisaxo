@@ -143,8 +143,34 @@ export const connectDeviceStoreToInput = async (
   });
   await sendMessage({
     command: Request.GetFirmwareVersion,
-    handler: (firmwareVersion: string) => setInfo({ firmwareVersion }),
+    handler: (firmwareVersion: string | null) => setInfo({ firmwareVersion }),
   });
+
+  // Some builds/targets respond to GetFirmwareVersion without payload.
+  // In that case, try the combined request which returns SW version + HW UID.
+  if (!deviceState.firmwareVersion) {
+    try {
+      await sendMessage({
+        command: Request.GetFirmwareVersionAndHardwareUid,
+        handler: (response: number[]) => {
+          const major = response?.[0];
+          const minor = response?.[1];
+          const revision = response?.[2];
+
+          if (
+            typeof major === "number" &&
+            typeof minor === "number" &&
+            typeof revision === "number"
+          ) {
+            setInfo({ firmwareVersion: `v${major}.${minor}.${revision}` });
+          }
+        },
+      });
+    } catch {
+      // Ignore: not all firmwares support this request.
+    }
+  }
+
   deviceState.connectionState = DeviceConnectionState.Open;
   deviceState.connectionPromise = (null as unknown) as Promise<any>;
   startDeviceConnectionWatcher();
@@ -222,7 +248,7 @@ export const startUpdatesCheck = async (
     response.json(),
   );
 
-  const currentVersion = deviceState.firmwareVersion;
+  const currentVersion = deviceState.firmwareVersion || "v0.0.0";
 
   return releases
     .filter(

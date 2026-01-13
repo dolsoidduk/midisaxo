@@ -28,7 +28,7 @@ namespace io::i2c
         public:
         BuilderPeripherals(Hwa& hwa, database::Admin& database)
             : _displayDatabase(database)
-            , _display(hwa, _displayDatabase)
+            , _display(hwa, _displayDatabase, database)
         {}
 
         private:

@@ -21,6 +21,9 @@ limitations under the License.
 #include "application/util/configurable/configurable.h"
 #include "application/util/conversion/conversion.h"
 #include "application/global/midi_program.h"
+#include "application/io/analog/analog.h"
+#include "application/io/analog/common.h"
+#include "application/protocol/midi/common.h"
 #include "bootloader/fw_selector/fw_selector.h"
 
 #include "core/mcu.h"
@@ -40,6 +43,8 @@ System::System(Hwa&        hwa,
           _sysExDataHandler,
           SYS_EX_MID)
 {
+    _analog = static_cast<::io::analog::Analog*>(_components.io().at(static_cast<size_t>(ioComponent_t::ANALOG)));
+
     MidiDispatcher.listen(messaging::eventType_t::MIDI_IN,
                           [this](const messaging::Event& event)
                           {
@@ -76,6 +81,12 @@ System::System(Hwa&        hwa,
                           {
                               switch (event.systemMessage)
                               {
+                              case messaging::systemMessage_t::PRESET_CHANGED:
+                              {
+                                  ensureSaxAnalogConfigured();
+                              }
+                              break;
+
                               case messaging::systemMessage_t::PRESET_CHANGE_INC_REQ:
                               {
                                   _components.database().setPreset(_components.database().getPreset() + 1);
@@ -168,6 +179,8 @@ bool System::init()
         }
     }
 
+    ensureSaxAnalogConfigured();
+
     _sysExConf.setLayout(_layout.layout());
     _sysExConf.setupCustomRequests(_layout.customRequests());
 
@@ -206,9 +219,215 @@ ioComponent_t System::run()
     _hwa.update();
     auto retVal = checkComponents();
     checkProtocols();
+    updateSax();
     _scheduler.update();
 
     return retVal;
+}
+
+uint8_t System::resolvedMidiChannel() const
+{
+    const uint8_t globalChannel = _components.database().read(database::Config::Section::global_t::MIDI_SETTINGS,
+                                                              midi::setting_t::GLOBAL_CHANNEL);
+    const uint8_t useGlobal     = _components.database().read(database::Config::Section::global_t::MIDI_SETTINGS,
+                                                              midi::setting_t::USE_GLOBAL_CHANNEL);
+
+    uint8_t channel = useGlobal ? globalChannel : 1;
+
+    if ((channel == 0) || (channel > 16) || (channel == midi::OMNI_CHANNEL))
+    {
+        channel = 1;
+    }
+
+    return channel;
+}
+
+void System::ensureSaxAnalogConfigured()
+{
+    // Custom system settings live in system block and are global across presets.
+    // When sax breath controller is enabled, reserve analog inputs for:
+    // - 0: trim pot
+    // - breathIndex: breath sensor
+    // - 2: pitch amount pot
+    static constexpr size_t SAX_BREATH_ENABLE_SETTING_INDEX      = 6;
+    static constexpr size_t SAX_BREATH_ANALOG_INDEX_SETTING_INDEX = 7;
+
+    const uint16_t enabled = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                         SAX_BREATH_ENABLE_SETTING_INDEX);
+
+    if (!enabled)
+    {
+        return;
+    }
+
+    const uint16_t breathIndexSetting = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                    SAX_BREATH_ANALOG_INDEX_SETTING_INDEX);
+
+    const size_t breathIndex = static_cast<size_t>(breathIndexSetting);
+
+    auto configReservedAnalog = [&](size_t index)
+    {
+        if (index >= ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS))
+        {
+            return;
+        }
+
+        _components.database().update(database::Config::Section::analog_t::ENABLE, index, 1);
+        _components.database().update(database::Config::Section::analog_t::INVERT, index, 0);
+        _components.database().update(database::Config::Section::analog_t::TYPE, index, static_cast<uint16_t>(::io::analog::type_t::RESERVED));
+        _components.database().update(database::Config::Section::analog_t::MIDI_ID, index, 0);
+        _components.database().update(database::Config::Section::analog_t::CHANNEL, index, 1);
+        _components.database().update(database::Config::Section::analog_t::LOWER_LIMIT, index, 0);
+        _components.database().update(database::Config::Section::analog_t::UPPER_LIMIT, index, 127);
+        _components.database().update(database::Config::Section::analog_t::LOWER_OFFSET, index, 0);
+        _components.database().update(database::Config::Section::analog_t::UPPER_OFFSET, index, 0);
+    };
+
+    static constexpr size_t TRIM_ANALOG_INDEX        = 0;
+    static constexpr size_t PITCH_AMOUNT_ANALOG_INDEX = 2;
+
+    configReservedAnalog(breathIndex);
+
+    if (breathIndex != TRIM_ANALOG_INDEX)
+    {
+        configReservedAnalog(TRIM_ANALOG_INDEX);
+    }
+
+    if (breathIndex != PITCH_AMOUNT_ANALOG_INDEX)
+    {
+        configReservedAnalog(PITCH_AMOUNT_ANALOG_INDEX);
+    }
+}
+
+void System::updateSax()
+{
+    if (_analog == nullptr)
+    {
+        return;
+    }
+
+    static constexpr size_t SAX_BREATH_ENABLE_SETTING_INDEX       = 6;
+    static constexpr size_t SAX_BREATH_ANALOG_INDEX_SETTING_INDEX  = 7;
+    static constexpr size_t SAX_BREATH_CC_SETTING_INDEX            = 8;
+    static constexpr size_t SAX_BREATH_MID_PERCENT_SETTING_INDEX   = 10;
+    static constexpr size_t TRIM_ANALOG_INDEX                      = 0;
+    static constexpr uint16_t UNKNOWN                               = 0xFFFF;
+    static constexpr int32_t TRIM_RANGE_PERCENT                     = 15;
+
+    const uint16_t enabled = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                         SAX_BREATH_ENABLE_SETTING_INDEX);
+
+    if (!enabled)
+    {
+        _lastSaxBreathValue = UNKNOWN;
+        return;
+    }
+
+    const size_t breathIndex = static_cast<size_t>(
+        _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                   SAX_BREATH_ANALOG_INDEX_SETTING_INDEX));
+
+    if (breathIndex >= ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS))
+    {
+        return;
+    }
+
+    // Force fast polling for dedicated sax inputs.
+    _analog->updateSingle(breathIndex);
+    if (breathIndex != TRIM_ANALOG_INDEX)
+    {
+        _analog->updateSingle(TRIM_ANALOG_INDEX);
+    }
+    _analog->updateSingle(2);
+
+    const uint16_t midPercentRaw = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                              SAX_BREATH_MID_PERCENT_SETTING_INDEX);
+    const uint16_t ccMode        = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                              SAX_BREATH_CC_SETTING_INDEX);
+
+    const uint16_t breathRaw = _analog->value(breathIndex);
+
+    if (breathRaw == UNKNOWN)
+    {
+        return;
+    }
+
+    int32_t midPercent = static_cast<int32_t>(core::util::CONSTRAIN(midPercentRaw, static_cast<uint16_t>(0), static_cast<uint16_t>(100)));
+
+    // Apply trim pot delta around base midPercent.
+    // trim pot is 0..127, centered at ~64.
+    if (breathIndex != TRIM_ANALOG_INDEX)
+    {
+        const uint16_t trimRaw = _analog->value(TRIM_ANALOG_INDEX);
+
+        if (trimRaw != UNKNOWN)
+        {
+            const int32_t centered = static_cast<int32_t>(trimRaw) - 64;
+            const int32_t delta    = (centered * TRIM_RANGE_PERCENT) / 64;
+            midPercent             = core::util::CONSTRAIN(midPercent + delta, static_cast<int32_t>(0), static_cast<int32_t>(100));
+        }
+    }
+
+    const uint16_t midValue = static_cast<uint16_t>((midPercent * 127 + 50) / 100);
+
+    uint16_t outValue = 0;
+
+    if (breathRaw > midValue)
+    {
+        const uint16_t denom = static_cast<uint16_t>(127 - midValue);
+        const uint16_t diff  = static_cast<uint16_t>(breathRaw - midValue);
+
+        if (denom > 0)
+        {
+            outValue = static_cast<uint16_t>((static_cast<uint32_t>(diff) * 127) / denom);
+        }
+        else
+        {
+            outValue = 0;
+        }
+    }
+
+    outValue = core::util::CONSTRAIN(outValue, static_cast<uint16_t>(0), static_cast<uint16_t>(127));
+
+    if ((_lastSaxBreathValue != UNKNOWN) && (outValue == _lastSaxBreathValue))
+    {
+        return;
+    }
+
+    _lastSaxBreathValue = outValue;
+
+    auto sendCC = [&](uint8_t cc)
+    {
+        messaging::Event event = {};
+        event.componentIndex   = 0;
+        event.channel          = resolvedMidiChannel();
+        event.index            = cc;
+        event.value            = outValue;
+        event.message          = midi::messageType_t::CONTROL_CHANGE;
+
+        MidiDispatcher.notify(messaging::eventType_t::ANALOG, event);
+    };
+
+    switch (ccMode)
+    {
+    case 2:
+        sendCC(2);
+        break;
+
+    case 11:
+        sendCC(11);
+        break;
+
+    case 13:
+        sendCC(2);
+        sendCC(11);
+        break;
+
+    default:
+        // fallback: CC2
+        sendCC(2);
+        break;
+    }
 }
 
 void System::backup()
@@ -630,13 +849,13 @@ std::optional<uint8_t> System::sysConfigGet(sys::Config::Section::global_t secti
         return std::nullopt;
     }
 
-    switch (index)
-    {
-    case static_cast<size_t>(sys::Config::systemSetting_t::DISABLE_FORCED_REFRESH_AFTER_PRESET_CHANGE):
-    case static_cast<size_t>(sys::Config::systemSetting_t::ENABLE_PRESET_CHANGE_WITH_PROGRAM_CHANGE_IN):
-        break;
+    // Handle only custom system settings here.
+    // Non-custom settings (ACTIVE_PRESET, PRESET_PRESERVE, etc) are handled by database::Admin.
+    const size_t customStart = static_cast<size_t>(database::Config::systemSetting_t::CUSTOM_SYSTEM_SETTING_START);
+    const size_t customEnd   = static_cast<size_t>(database::Config::systemSetting_t::CUSTOM_SYSTEM_SETTING_END);
 
-    default:
+    if ((index < customStart) || (index >= customEnd))
+    {
         return std::nullopt;
     }
 
@@ -658,19 +877,26 @@ std::optional<uint8_t> System::sysConfigSet(sys::Config::Section::global_t secti
         return std::nullopt;
     }
 
-    switch (index)
-    {
-    case static_cast<size_t>(sys::Config::systemSetting_t::DISABLE_FORCED_REFRESH_AFTER_PRESET_CHANGE):
-    case static_cast<size_t>(sys::Config::systemSetting_t::ENABLE_PRESET_CHANGE_WITH_PROGRAM_CHANGE_IN):
-        break;
+    const size_t customStart = static_cast<size_t>(database::Config::systemSetting_t::CUSTOM_SYSTEM_SETTING_START);
+    const size_t customEnd   = static_cast<size_t>(database::Config::systemSetting_t::CUSTOM_SYSTEM_SETTING_END);
 
-    default:
+    if ((index < customStart) || (index >= customEnd))
+    {
         return std::nullopt;
     }
 
     auto result = _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS, index, value)
                       ? sys::Config::Status::ACK
                       : sys::Config::Status::ERROR_WRITE;
+
+    // If sax/breath settings change, ensure reserved analog config in current preset.
+    if (result == sys::Config::Status::ACK)
+    {
+        if ((index == 6) || (index == 7))
+        {
+            ensureSaxAnalogConfigured();
+        }
+    }
 
     return result;
 }

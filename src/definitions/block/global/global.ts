@@ -158,7 +158,12 @@ const sections: Dictionary<ISectionDefinition> = {
     max: 255,
     component: FormInputComponent.Input,
     label: "브레스 아날로그 인덱스 (0-255)",
-    helpText: `MPXV7002DP에 사용할 아날로그 입력 인덱스입니다. (인덱스 매핑은 타겟 설정에 따라 달라질 수 있습니다.)`,
+    helpText: `MPXV7002DP에 사용할 아날로그 입력 인덱스입니다. (인덱스 매핑은 타겟 설정에 따라 달라질 수 있습니다.)
+
+RP2040 Pico + native ADC 3채널 추천 구성:
+- 0: 오프셋 트림(예약)
+- 1: 브레스 센서(권장)
+- 2: 피치 Amount(밴딩/비브라토 스케일, 예약)`,
   },
   SaxBreathControllerMidPercent: {
     showIf: (formState: FormState): boolean =>

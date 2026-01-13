@@ -1,0 +1,78 @@
+---
+  mcu: "rp2040"
+  usb: true
+  uart:
+    dinMIDI:
+      pins:
+        rx:
+          port: "0"
+          index: 1
+        tx:
+          port: "0"
+          index: 0
+  i2c:
+    display:
+      pins:
+        sda:
+          port: "0"
+          index: 16
+        scl:
+          port: "0"
+          index: 17
+  buttons:
+    type: "shiftRegister"
+    shiftRegisters: 4
+    encoders: false
+    pins:
+      data:
+        port: "0"
+        index: 2
+      clock:
+        port: "0"
+        index: 3
+      latch:
+        port: "0"
+        index: 6
+
+  # MIDI Saxophone (RP2040 Pico) analog mapping (native ADC):
+  # - Analog index 0: Offset trim potentiometer (reserved)
+  # - Analog index 1: MPXV7002DP breath sensor
+  # - Analog index 2: Pitch amount (bend/vibrato scale)
+  analog:
+    type: "native"
+    inputVoltage: "3.3"
+    pins:
+    -
+      port: "0"
+      index: 26
+    -
+      port: "0"
+      index: 27
+    -
+      port: "0"
+      index: 28
+  leds:
+    external:
+      type: "native"
+      pins:
+      -
+        port: "0"
+        index: 14
+      -
+        port: "0"
+        index: 15
+      -
+        port: "0"
+        index: 22
+      -
+        port: "0"
+        index: 21
+      -
+        port: "0"
+        index: 20
+      -
+        port: "0"
+        index: 19
+      -
+        port: "0"
+        index: 18

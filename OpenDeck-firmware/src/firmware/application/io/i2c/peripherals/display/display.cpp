@@ -32,9 +32,11 @@ using namespace io::i2c::display;
 using namespace protocol;
 
 Display::Display(Hwa&      hwa,
-                 Database& database)
+                 Database& database,
+                 database::Admin& admin)
     : _hwa(hwa)
     , _database(database)
+    , _admin(admin)
 {
     ConfigHandler.registerConfig(
         sys::Config::block_t::I2C,
@@ -60,6 +62,15 @@ bool Display::init()
         return false;
     }
 
+    // If display is disabled in config, treat this peripheral as a no-op.
+    // This must not fail the whole I2C subsystem (and consequently the whole firmware init).
+    if (!_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::ENABLE))
+    {
+        _initialized       = false;
+        _startupInfoShown  = true;
+        return true;
+    }
+
     bool addressFound = false;
 
     for (size_t address = 0; address < I2C_ADDRESS.size(); address++)
@@ -74,44 +85,44 @@ bool Display::init()
 
     if (!addressFound)
     {
-        return false;
+        // Display not present (or wrong address) should not prevent firmware startup.
+        _initialized      = false;
+        _startupInfoShown = true;
+        return true;
     }
 
-    if (_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::ENABLE))
+    auto controller = static_cast<displayController_t>(_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::CONTROLLER));
+    auto resolution = static_cast<displayResolution_t>(_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::RESOLUTION));
+
+    if (initU8X8(_selectedI2Caddress, controller, resolution))
     {
-        auto controller = static_cast<displayController_t>(_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::CONTROLLER));
-        auto resolution = static_cast<displayResolution_t>(_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::RESOLUTION));
+        _resolution  = resolution;
+        _initialized = true;
 
-        if (initU8X8(_selectedI2Caddress, controller, resolution))
+        if (!_startupInfoShown)
         {
-            _resolution  = resolution;
-            _initialized = true;
-
-            if (!_startupInfoShown)
+            if (_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::DEVICE_INFO_MSG) && !_startupInfoShown)
             {
-                if (_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::DEVICE_INFO_MSG) && !_startupInfoShown)
-                {
-                    displayWelcomeMessage();
-                    u8x8_ClearDisplay(&_u8x8);
-                }
+                displayWelcomeMessage();
+                u8x8_ClearDisplay(&_u8x8);
             }
+        }
 
-            _elements._midiUpdater.useAlternateNote(_database.read(database::Config::Section::i2c_t::DISPLAY,
-                                                                   setting_t::MIDI_NOTES_ALTERNATE));
-            _elements._preset.setPreset(_database.getPreset());
-            _elements.setRetentionTime(_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::EVENT_TIME) * 1000);
-        }
-        else
-        {
-            _initialized = false;
-            return false;
-        }
+        _elements._midiUpdater.useAlternateNote(_database.read(database::Config::Section::i2c_t::DISPLAY,
+                                                               setting_t::MIDI_NOTES_ALTERNATE));
+        _elements._preset.setPreset(_database.getPreset());
+        _elements.setRetentionTime(_database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::EVENT_TIME) * 1000);
+    }
+    else
+    {
+        // Misconfigured/unsupported display should not prevent firmware startup.
+        _initialized = false;
     }
 
     // make sure welcome message on startup isn't shown anymore when init is called
     _startupInfoShown = true;
 
-    return _initialized;
+    return true;
 }
 
 bool Display::initU8X8(uint8_t i2cAddress, displayController_t controller, displayResolution_t resolution)
@@ -165,6 +176,33 @@ bool Display::initU8X8(uint8_t i2cAddress, displayController_t controller, displ
     if ((resolution == displayResolution_t::R128X64) && (controller == displayController_t::SSD1306))
     {
         _u8x8.display_cb        = u8x8_d_ssd1306_128x64_noname;
+        _u8x8.cad_cb            = u8x8_cad_ssd13xx_i2c;
+        _u8x8.byte_cb           = i2cHWA;
+        _u8x8.gpio_and_delay_cb = gpioDelay;
+        _rows                   = 4;
+        success                 = true;
+    }
+    else if ((resolution == displayResolution_t::R128X64) && (controller == displayController_t::SSD1306_VCOMH0))
+    {
+        _u8x8.display_cb        = u8x8_d_ssd1306_128x64_vcomh0;
+        _u8x8.cad_cb            = u8x8_cad_ssd13xx_i2c;
+        _u8x8.byte_cb           = i2cHWA;
+        _u8x8.gpio_and_delay_cb = gpioDelay;
+        _rows                   = 4;
+        success                 = true;
+    }
+    else if ((resolution == displayResolution_t::R128X64) && (controller == displayController_t::SSD1306_ALT0))
+    {
+        _u8x8.display_cb        = u8x8_d_ssd1306_128x64_alt0;
+        _u8x8.cad_cb            = u8x8_cad_ssd13xx_i2c;
+        _u8x8.byte_cb           = i2cHWA;
+        _u8x8.gpio_and_delay_cb = gpioDelay;
+        _rows                   = 4;
+        success                 = true;
+    }
+    else if ((resolution == displayResolution_t::R128X64) && (controller == displayController_t::SH1106))
+    {
+        _u8x8.display_cb        = u8x8_d_sh1106_128x64_noname;
         _u8x8.cad_cb            = u8x8_cad_ssd13xx_i2c;
         _u8x8.byte_cb           = i2cHWA;
         _u8x8.gpio_and_delay_cb = gpioDelay;
@@ -227,7 +265,11 @@ void Display::update()
 /// returns: Center position of text on display.
 uint8_t Display::getTextCenter(uint8_t textSize)
 {
-    return MAX_COLUMNS / 2 - (textSize / 2);
+    const uint8_t usable = (MAX_COLUMNS > (2 * COLUMN_PADDING))
+                               ? static_cast<uint8_t>(MAX_COLUMNS - (2 * COLUMN_PADDING))
+                               : 0;
+
+    return COLUMN_PADDING + (usable / 2) - (textSize / 2);
 }
 
 void Display::displayWelcomeMessage()
@@ -333,7 +375,7 @@ std::optional<uint8_t> Display::sysConfigSet(sys::Config::Section::i2c_t section
 
         case setting_t::CONTROLLER:
         {
-            if ((value <= static_cast<uint8_t>(displayController_t::AMOUNT)) && (value >= 0))
+            if (value < static_cast<uint8_t>(displayController_t::AMOUNT))
             {
                 initAction = common::initAction_t::INIT;
             }
@@ -342,7 +384,7 @@ std::optional<uint8_t> Display::sysConfigSet(sys::Config::Section::i2c_t section
 
         case setting_t::RESOLUTION:
         {
-            if ((value <= static_cast<uint8_t>(displayResolution_t::AMOUNT)) && (value >= 0))
+            if (value < static_cast<uint8_t>(displayResolution_t::AMOUNT))
             {
                 initAction = common::initAction_t::INIT;
             }

@@ -88,8 +88,21 @@ export const requestDefinitions: Dictionary<IRequestDefinition> = {
     specialRequestId: 86, // Hex: 56
     isConnectionInfoRequest: true,
     decodeDoubleByte: true,
-    parser: (response: number[]): string =>
-      "v" + response[0] + "." + response[1] + "." + response[2],
+    parser: (response: number[]): string | null => {
+      const major = response[0];
+      const minor = response[1];
+      const revision = response[2];
+
+      if (
+        typeof major !== "number" ||
+        typeof minor !== "number" ||
+        typeof revision !== "number"
+      ) {
+        return null;
+      }
+
+      return `v${major}.${minor}.${revision}`;
+    },
   },
   [Request.IdentifyBoard]: {
     key: Request.IdentifyBoard,
@@ -103,6 +116,7 @@ export const requestDefinitions: Dictionary<IRequestDefinition> = {
     type: RequestType.Custom,
     isConnectionInfoRequest: true,
     specialRequestId: 67, // Hex: 43
+    decodeDoubleByte: true,
   },
   [Request.GetNumberOfSupportedComponents]: {
     key: Request.GetNumberOfSupportedComponents,

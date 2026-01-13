@@ -38,6 +38,9 @@ namespace io::i2c::display
     {
         INVALID,
         SSD1306,
+        SH1106,
+        SSD1306_VCOMH0,
+        SSD1306_ALT0,
         AMOUNT
     };
 
