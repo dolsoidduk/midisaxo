@@ -437,14 +437,6 @@ namespace io::i2c::display
             bool                _messageDisplayedIn   = false;
             bool                _messageDisplayedOut  = false;
             elementsVec_t       _elements             = {
-                &_messageTypeIn,
-                &_messageValueIn,
-                &_messageTypeOut,
-                &_messageValueOut,
-                &_preset,
-                &_saxType,
-                &_inMessageIndicator,
-                &_outMessageIndicator,
                 // CC meters should draw last to override generic OUT message lines.
                 &_breathCc02Meter,
                 &_breathCc11Meter,
