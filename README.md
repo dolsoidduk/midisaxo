@@ -28,6 +28,13 @@ npm install
 npm run dev
 ```
 
+Build/test the firmware (from the OpenDeck repo root):
+
+```bash
+make TARGET=midisaxo -j
+make TARGET=midisaxo test TEST_EXECUTE=0
+```
+
 If you need any parked work from this session, check the backup branches:
 
 ```bash
