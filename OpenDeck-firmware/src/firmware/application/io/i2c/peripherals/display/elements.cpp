@@ -130,7 +130,7 @@ void Display::Elements::update()
     // Draw this last so other elements can't overwrite it.
     {
         static constexpr uint8_t USB_ICON_X = Display::COLUMN_PADDING + 8; // immediately after 2x2 note (8 columns)
-        u8x8_DrawGlyph(&_display._u8x8, USB_ICON_X, 0, usbConnected ? 'U' : ' ');
+        u8x8_DrawString(&_display._u8x8, USB_ICON_X, 0, usbConnected ? "USB" : "   ");
     }
 
     _lastRefreshTime = nowMs;
