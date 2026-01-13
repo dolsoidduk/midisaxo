@@ -378,7 +378,7 @@ namespace io::i2c::display
                         temp[3 + i] = '-';
                     }
 
-                    temp[3 + (BAR_WIDTH / 2)] = '^';
+                    temp[3 + (BAR_WIDTH / 2)] = 'o';
                     temp[3 + BAR_WIDTH]       = '\0';
                     setText("%s", temp);
                 }
@@ -414,8 +414,8 @@ namespace io::i2c::display
                     }
 
                     // Always show the center reference.
-                    temp[3 + center] = (pos == center) ? '^' : '+';
-                    temp[3 + pos]    = '^';
+                    temp[3 + center] = (pos == center) ? 'o' : '+';
+                    temp[3 + pos]    = 'o';
 
                     temp[3 + BAR_WIDTH] = '\0';
                     setText("%s", temp);
