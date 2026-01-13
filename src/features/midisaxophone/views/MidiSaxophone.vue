@@ -11,6 +11,30 @@
         </p>
 
         <div
+          v-if="!isConnected"
+          class="surface-neutral border rounded px-4 py-3 mb-6 text-sm"
+        >
+          <div class="text-gray-200 font-semibold">연결 안내</div>
+          <div class="mt-2 text-gray-300">
+            GitHub Pages에서는 먼저 WebMIDI 권한(MIDI+SysEx)을 허용해야 합니다.
+          </div>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <router-link
+              :to="{ name: 'home' }"
+              class="px-3 py-1 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
+            >
+              홈(보드 선택)으로 이동
+            </router-link>
+            <span class="text-gray-400">
+              → <strong>SysEx 권한 요청 + Reload</strong> 클릭 → 보드 선택
+            </span>
+          </div>
+          <div class="mt-2 text-xs text-gray-400">
+            권장 브라우저: Chrome/Edge
+          </div>
+        </div>
+
+        <div
           v-if="isConnected && formData.saxRegisterChromaticEnable"
           class="mb-8"
         >
