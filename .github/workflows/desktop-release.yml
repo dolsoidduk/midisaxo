@@ -132,6 +132,7 @@ jobs:
             Web UI: https://dolsoidduk.github.io/midisaxo/
 
             Firmware (OpenDeck fork): https://github.com/dolsoidduk/OpenDeck
+            Firmware downloads (Releases): https://github.com/dolsoidduk/OpenDeck/releases
 
             Troubleshooting:
             - WebMIDI requires a user gesture: click any UI button once.
