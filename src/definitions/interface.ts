@@ -18,11 +18,11 @@ export const openDeckManufacturerId = [0, 83, 67]; // Hex [00 53 43]
 export const ComponentInfoRequestID = 73;
 
 export const GitHubTagsUrl =
-  "https://api.github.com/repos/paradajz/OpenDeck/tags";
+  "https://api.github.com/repos/shanteacontrols/OpenDeck/tags";
 export const GitHubContentsUrl =
-  "https://api.github.com/repos/paradajz/OpenDeck/contents";
+  "https://api.github.com/repos/shanteacontrols/OpenDeck/contents";
 export const GitHubReleasesUrl =
-  "https://api.github.com/repos/paradajz/OpenDeck/releases";
+  "https://api.github.com/repos/shanteacontrols/OpenDeck/releases";
 
 export enum MessageStatus {
   Request = 0,

@@ -7,7 +7,7 @@
     <p class="mb-6 text-sm leading-5 text-gray-500">
       Your device does not have bootloader support. <br />
       To perform a manual firmware update please consult the
-      <a href="https://github.com/paradajz/OpenDeck/wiki/Firmware-update"
+      <a href="https://github.com/shanteacontrols/OpenDeck/wiki/Firmware-update"
         >wiki firmware update page</a
       >.
     </p>
@@ -67,7 +67,7 @@
         class="release-description text-gray-200"
       >
         <a
-          :href="`https://github.com/paradajz/OpenDeck/releases/tag/${update.tag_name}`"
+          :href="`https://github.com/shanteacontrols/OpenDeck/releases/tag/${update.tag_name}`"
           >{{ update.tag_name }}</a
         >
         <a

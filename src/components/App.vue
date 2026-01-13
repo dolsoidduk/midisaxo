@@ -117,7 +117,7 @@
               >
             </li>
             <li>
-              <a href="https://github.com/paradajz/OpenDeck"
+              <a href="https://github.com/dolsoidduk/OpenDeck"
                 >OpenDeck GitHub 저장소</a
               >
             </li>
