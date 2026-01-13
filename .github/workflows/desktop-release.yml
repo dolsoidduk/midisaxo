@@ -134,6 +134,7 @@ jobs:
             Firmware (OpenDeck fork): https://github.com/dolsoidduk/OpenDeck
             Firmware downloads (same tag, if published): https://github.com/dolsoidduk/OpenDeck/releases/tag/${{ steps.tag.outputs.tag }}
             Firmware downloads (all): https://github.com/dolsoidduk/OpenDeck/releases
+            Note: if the “same tag” link is missing/404, use “all” releases.
 
             Firmware flashing:
             - Guide: https://github.com/shanteacontrols/OpenDeck/wiki/Flashing-the-OpenDeck-firmware
