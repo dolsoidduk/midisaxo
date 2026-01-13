@@ -52,6 +52,8 @@
         <p class="help-text">
           Download a backup of your configuration (including presets).
           Backups are saved as a file by your browser (usually in Downloads).
+          Consider storing backups in a cloud folder (Drive/Dropbox) or a
+          versioned project folder.
         </p>
       </div>
       <div class="form-field">
@@ -62,6 +64,8 @@
         />
         <p class="help-text">
           Select a backup file to restore your configuration.
+          Tip: restore backups created for the same device and a compatible
+          firmware version.
         </p>
       </div>
     </div>
