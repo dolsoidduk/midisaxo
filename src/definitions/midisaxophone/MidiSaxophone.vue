@@ -10,58 +10,107 @@
           야마하 YDS-150 키 시스템 지원 (크로매틱 순서로 키 레지스터 + 브레스 컨트롤러).
         </p>
 
+        <p v-if="!isConnected" class="text-sm mb-6">
+          디바이스가 연결되지 않았습니다. 설정을 변경하려면 먼저 연결하세요.
+        </p>
+
+        <p v-else-if="!hasSaxSections" class="text-sm mb-6">
+          이 UI 빌드에는 색소폰 설정 항목이 포함되어 있지 않습니다.
+        </p>
+
+        <div
+          class="form-grid mb-8"
+          :class="{ 'pointer-events-none opacity-50': !isConnected }"
+        >
+          <template v-for="section in saxSections">
+            <FormField
+              v-if="showField(section)"
+              :key="section.key"
+              :value="formData[section.key]"
+              :field-definition="section"
+              @modified="onSaxSettingChange"
+            />
+          </template>
+        </div>
+
         <div
           v-if="isConnected && formData.saxRegisterChromaticEnable"
-          class="mb-8"
+          class="mb-6"
         >
-          <h4 class="heading mb-2">레지스터 키 맵(미리보기)</h4>
-          <p class="text-sm mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="heading mb-0">레지스터 키 맵(미리보기)</h4>
+            <div class="flex-grow"></div>
+            <Button
+              v-if="registerKeys.length > registerPreviewDefaultCount"
+              size="sm"
+              variant="secondary"
+              @click.prevent="showRegisterPreviewAll = !showRegisterPreviewAll"
+            >
+              {{ showRegisterPreviewAll ? "처음만" : "전체" }}
+            </Button>
+          </div>
+          <p class="text-sm mb-3">
             레지스터 키 인덱스(디지털 입력)와 실제 전송되는 노트 번호를 보여줍니다.
           </p>
 
           <Hero
             v-if="!registerKeyCount"
-            custom="h-32"
+            custom="h-20"
             title="레지스터 키 수를 확인할 수 없습니다. (버튼 컴포넌트 수가 0이거나 아직 로드되지 않았습니다.)"
           />
 
-          <div v-else class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
+          <div v-else class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
             <div
-              v-for="key in registerKeys"
+              v-for="key in visibleRegisterKeys"
               :key="key.index"
-              class="surface-neutral border rounded px-4 py-3"
+              class="surface-neutral border rounded px-2 py-2"
             >
-              <div class="text-sm">
+              <div class="text-xs">
                 <strong>키 {{ key.index }}</strong>
               </div>
-              <div class="text-xs text-gray-400 mt-1">
+              <div class="text-xs text-gray-400 mt-0.5">
                 레지스터 키: <strong>{{ key.mappedIndex }}</strong>
               </div>
-              <div class="text-sm mt-1">
+              <div class="text-xs mt-0.5">
                 노트: <strong>{{ key.note }}</strong>
                 <span v-if="key.noteName">({{ key.noteName }})</span>
               </div>
             </div>
           </div>
+
+          <p
+            v-if="!showRegisterPreviewAll && registerKeys.length > registerPreviewDefaultCount"
+            class="text-xs text-gray-400 mt-2"
+          >
+            {{ registerKeys.length }}개 중 {{ registerPreviewDefaultCount }}개만 표시 중
+          </p>
         </div>
 
         <div
           v-if="isConnected && formData.saxRegisterChromaticEnable"
-          class="mb-8"
+          class="mb-6"
           :class="{ 'pointer-events-none opacity-50': fingeringLoading }"
         >
-          <h4 class="heading mb-2">핑거링 테이블 (24키)</h4>
-          <p class="text-sm mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="heading mb-0">핑거링 테이블 (26키)</h4>
+            <div class="flex-grow"></div>
+            <Button size="sm" variant="secondary" @click.prevent="showFingeringTable = !showFingeringTable">
+              {{ showFingeringTable ? "접기" : "펼치기" }}
+            </Button>
+          </div>
+          <p class="text-sm mb-3">
             키 조합(눌린 키 목록) → 노트(0-127)를 테이블로 지정합니다. 매칭은 “가장 많은 키가 일치하는 항목”이 우선입니다.
           </p>
 
+          <div v-if="showFingeringTable">
+
           <Hero
             v-if="fingeringSupport === 'unsupported'"
-            custom="h-32"
+            custom="h-20"
             title="이 펌웨어에서는 핑거링 테이블을 지원하지 않습니다."
           />
 
-          <div v-else class="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-4">
+          <div v-else class="flex flex-wrap items-center gap-2 text-xs text-gray-400 mb-3">
             <span>
               펌웨어 지원:
               <strong class="text-gray-200">
@@ -83,27 +132,37 @@
             </Button>
           </div>
 
-          <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+          <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
             <div
               v-for="entry in fingeringEntries"
               :key="`fing-${entry.index}`"
-              class="surface-neutral border rounded px-4 py-3"
+              class="surface-neutral border rounded px-2 py-2"
             >
-              <div class="flex items-center justify-between mb-3">
-                <div class="text-sm"><strong>#{{ entry.index }}</strong></div>
-                <label class="text-xs text-gray-400">
-                  <input
-                    type="checkbox"
-                    :checked="entry.enabled"
-                    @change="onFingeringEnabledChange(entry.index, $event)"
-                  />
-                  사용
-                </label>
+              <div class="flex items-center justify-between mb-2">
+                <div class="text-xs"><strong>#{{ entry.index }}</strong></div>
+                <div class="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    :disabled="!isConnected || fingeringSupport !== 'supported'"
+                    @click.prevent="captureFingeringEntry(entry.index)"
+                  >
+                    현재 눌림 캡처
+                  </Button>
+                  <label class="text-xs text-gray-400">
+                    <input
+                      type="checkbox"
+                      :checked="entry.enabled"
+                      @change="onFingeringEnabledChange(entry.index, $event)"
+                    />
+                    사용
+                  </label>
+                </div>
               </div>
 
-              <label class="text-xs text-gray-400 block mb-1">눌린 키 목록 (0-23, 예: 0,3,5)</label>
+              <label class="text-xs text-gray-400 block mb-1">눌린 키 (0-25)</label>
               <input
-                class="w-full"
+                class="w-full text-sm px-2 py-1"
                 :value="entry.keysText"
                 :disabled="!entry.enabled"
                 @change="onFingeringKeysChange(entry.index, $event)"
@@ -111,7 +170,7 @@
 
               <label class="text-xs text-gray-400 block mt-3 mb-1">노트 (0-127)</label>
               <input
-                class="w-full"
+                class="w-full text-sm px-2 py-1"
                 type="number"
                 min="0"
                 max="127"
@@ -121,19 +180,28 @@
               />
             </div>
           </div>
+          </div>
         </div>
 
         <div
           v-if="isConnected && formData.saxRegisterChromaticEnable"
-          class="mb-8"
+          class="mb-6"
           :class="{ 'pointer-events-none opacity-50': keyMapLoading }"
         >
-          <h4 class="heading mb-2">레지스터 키 매핑</h4>
-          <p class="text-sm mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="heading mb-0">레지스터 키 매핑</h4>
+            <div class="flex-grow"></div>
+            <Button size="sm" variant="secondary" @click.prevent="showKeyMapping = !showKeyMapping">
+              {{ showKeyMapping ? "접기" : "펼치기" }}
+            </Button>
+          </div>
+          <p class="text-sm mb-3">
             각 키(디지털 입력)가 어떤 레지스터 키 번호(0부터)로 동작할지 지정합니다. 기본값은 “자기 인덱스 그대로”입니다.
           </p>
 
-          <div class="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-4">
+          <div v-if="showKeyMapping">
+
+          <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400 mb-3">
             <span>
               펌웨어 지원:
               <strong class="text-gray-200">
@@ -171,13 +239,13 @@
 
           <Hero
             v-if="saxRegisterKeyMapSupport === 'unsupported'"
-            custom="h-32"
+            custom="h-20"
             title="이 펌웨어에서는 레지스터 키 매핑 저장을 지원하지 않습니다."
           />
 
           <p
             v-else-if="duplicateMappedKeys.length"
-            class="text-sm mb-4"
+            class="text-sm mb-3"
           >
             중복된 레지스터 키 매핑이 있습니다 (같은 레지스터 키를 여러 키가 사용):
             <strong>{{ duplicateMappedKeys.join(', ') }}</strong>
@@ -192,19 +260,19 @@
             </span>
           </p>
 
-          <div v-else class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+          <div v-else class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
             <div
               v-for="key in registerKeys"
               :key="`map-${key.index}`"
-              class="surface-neutral border rounded px-4 py-3"
+              class="surface-neutral border rounded px-2 py-2"
             >
-              <div class="text-sm mb-2">
+              <div class="text-xs mb-1">
                 <strong>키 {{ key.index }}</strong>
               </div>
 
               <label class="text-xs text-gray-400 block mb-1">레지스터 키 번호</label>
               <select
-                class="w-full"
+                class="w-full text-sm px-2 py-1"
                 :value="getKeyMapSelectValue(key.index)"
                 @change="onKeyMapChange(key.index, $event)"
               >
@@ -219,29 +287,7 @@
               </select>
             </div>
           </div>
-        </div>
-
-        <p v-if="!isConnected" class="text-sm mb-6">
-          디바이스가 연결되지 않았습니다. 설정을 변경하려면 먼저 연결하세요.
-        </p>
-
-        <p v-else-if="!hasSaxSections" class="text-sm mb-6">
-          이 UI 빌드에는 색소폰 설정 항목이 포함되어 있지 않습니다.
-        </p>
-
-        <div
-          class="form-grid"
-          :class="{ 'pointer-events-none opacity-50': !isConnected }"
-        >
-          <template v-for="section in saxSections">
-            <FormField
-              v-if="showField(section)"
-              :key="section.key"
-              :value="formData[section.key]"
-              :field-definition="section"
-              @modified="onSaxSettingChange"
-            />
-          </template>
+          </div>
         </div>
       </div>
     </Section>
@@ -276,6 +322,55 @@ export default defineComponent({
 
     const fingeringEntryCount = 128;
 
+    const showRegisterPreviewAll = ref(false);
+    const showFingeringTable = ref(false);
+    const showKeyMapping = ref(false);
+    const registerPreviewDefaultCount = 24;
+
+    const uiStateKey = "opendeck.midisaxophone.ui";
+
+    const loadUiState = (): void => {
+      try {
+        const raw = typeof window !== "undefined" ? window.localStorage.getItem(uiStateKey) : null;
+        if (!raw) {
+          return;
+        }
+
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          if (typeof parsed.showRegisterPreviewAll === "boolean") {
+            showRegisterPreviewAll.value = parsed.showRegisterPreviewAll;
+          }
+          if (typeof parsed.showFingeringTable === "boolean") {
+            showFingeringTable.value = parsed.showFingeringTable;
+          }
+          if (typeof parsed.showKeyMapping === "boolean") {
+            showKeyMapping.value = parsed.showKeyMapping;
+          }
+        }
+      } catch {
+        // ignore corrupted localStorage
+      }
+    };
+
+    const saveUiState = (): void => {
+      try {
+        if (typeof window === "undefined") {
+          return;
+        }
+        window.localStorage.setItem(
+          uiStateKey,
+          JSON.stringify({
+            showRegisterPreviewAll: showRegisterPreviewAll.value,
+            showFingeringTable: showFingeringTable.value,
+            showKeyMapping: showKeyMapping.value,
+          }),
+        );
+      } catch {
+        // ignore quota / private mode
+      }
+    };
+
     const { formData, loading, onSettingChange, showField } =
       useDeviceForm(Block.Global, SectionType.Setting);
 
@@ -292,6 +387,7 @@ export default defineComponent({
       "saxRegisterChromaticInputInvert",
       "saxBreathControllerEnable",
       "saxBreathControllerAnalogIndex",
+      "saxBreathControllerMidPercent",
       "saxBreathControllerCC",
     ]);
 
@@ -390,7 +486,12 @@ export default defineComponent({
       await loadFingeringTable();
     };
 
-    const parseKeysToMask24 = (text: string): number => {
+    const fingeringKeyCount = 26;
+    const fingeringHiBits = Math.max(0, fingeringKeyCount - 14);
+    const fingeringHiMask = (1 << fingeringHiBits) - 1;
+    const fingeringEnableBit = 1 << fingeringHiBits;
+
+    const parseKeysToMask = (text: string): number => {
       if (!text) {
         return 0;
       }
@@ -405,7 +506,7 @@ export default defineComponent({
           continue;
         }
         const idx = Math.floor(n);
-        if (idx < 0 || idx > 23) {
+        if (idx < 0 || idx > fingeringKeyCount - 1) {
           continue;
         }
         mask |= 1 << idx;
@@ -413,9 +514,9 @@ export default defineComponent({
       return mask >>> 0;
     };
 
-    const mask24ToKeysText = (mask: number): string => {
+    const maskToKeysText = (mask: number): string => {
       const keys: number[] = [];
-      for (let i = 0; i < 24; i++) {
+      for (let i = 0; i < fingeringKeyCount; i++) {
         if ((mask >>> i) & 1) {
           keys.push(i);
         }
@@ -425,8 +526,8 @@ export default defineComponent({
 
     const splitMaskTo14BitParts = (mask: number) => {
       const lo14 = mask & 0x3fff;
-      const hi10 = (mask >>> 14) & 0x03ff;
-      return { lo14, hi10 };
+      const hi = (mask >>> 14) & fingeringHiMask;
+      return { lo14, hi };
     };
 
     const setGlobalValue = async (section: number, index: number, value: number) => {
@@ -446,8 +547,8 @@ export default defineComponent({
         return;
       }
       const current = (fingeringMaskHi10Enable.value && fingeringMaskHi10Enable.value[entryIndex]) || 0;
-      const hi10 = current & 0x03ff;
-      const next = enabled ? (hi10 | (1 << 10)) : hi10;
+      const hi = current & fingeringHiMask;
+      const next = enabled ? (hi | fingeringEnableBit) : hi;
       fingeringLoading.value = true;
       try {
         await setGlobalValue(4, entryIndex, next);
@@ -491,11 +592,11 @@ export default defineComponent({
       if (!isConnected.value || fingeringSupport.value !== "supported") {
         return;
       }
-      const mask = parseKeysToMask24(text);
-      const { lo14, hi10 } = splitMaskTo14BitParts(mask);
+      const mask = parseKeysToMask(text);
+      const { lo14, hi } = splitMaskTo14BitParts(mask);
       const currentHiEn = (fingeringMaskHi10Enable.value && fingeringMaskHi10Enable.value[entryIndex]) || 0;
-      const enabledBit = currentHiEn & (1 << 10);
-      const nextHiEn = (hi10 & 0x03ff) | enabledBit;
+      const enabledBit = currentHiEn & fingeringEnableBit;
+      const nextHiEn = (hi & fingeringHiMask) | enabledBit;
 
       fingeringLoading.value = true;
       try {
@@ -518,6 +619,26 @@ export default defineComponent({
       const target = event && (event.target as unknown as HTMLInputElement);
       const text = target && typeof target.value !== "undefined" ? String(target.value) : "";
       return setFingeringKeysText(entryIndex, text);
+    };
+
+    const captureFingeringEntry = async (entryIndex: number) => {
+      if (!isConnected.value || fingeringSupport.value !== "supported") {
+        return;
+      }
+
+      // If note is already set, send it along so capture updates note+mask in one go.
+      // If note isn't available yet, use >=128 to keep existing note in firmware.
+      const currentNote = fingeringNote.value ? fingeringNote.value[entryIndex] : undefined;
+      const noteValue = typeof currentNote === "number" ? currentNote : 128;
+
+      fingeringLoading.value = true;
+      try {
+        // Global section 6: SAX_FINGERING_CAPTURE (write-only)
+        await setGlobalValue(6, entryIndex, noteValue);
+        await loadFingeringTable();
+      } finally {
+        fingeringLoading.value = false;
+      }
     };
 
     const reloadKeyMap = async () => {
@@ -602,6 +723,13 @@ export default defineComponent({
       });
     });
 
+    const visibleRegisterKeys = computed(() => {
+      if (showRegisterPreviewAll.value) {
+        return registerKeys.value;
+      }
+      return registerKeys.value.slice(0, registerPreviewDefaultCount);
+    });
+
     const keyMapOptions = computed(() => {
       const count = registerKeyCount.value;
       const options = Array.from({ length: count }, (_, idx) => ({
@@ -677,9 +805,16 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      loadUiState();
       loadSaxRegisterKeyMap();
       loadFingeringTable();
     });
+
+    watch(
+      () => [showRegisterPreviewAll.value, showFingeringTable.value, showKeyMapping.value],
+      () => saveUiState(),
+      { deep: false },
+    );
 
     watch(
       () => isConnected.value,
@@ -705,17 +840,17 @@ export default defineComponent({
 
       return Array.from({ length: fingeringEntryCount }, (_, index) => {
         const lo14 = Number(lo[index] || 0) & 0x3fff;
-        const hiEnVal = Number(hiEn[index] || 0) & 0x7ff;
-        const hi10 = hiEnVal & 0x03ff;
-        const enabled = (hiEnVal & (1 << 10)) !== 0;
-        const mask = (lo14 | (hi10 << 14)) >>> 0;
+        const hiEnVal = Number(hiEn[index] || 0) & (fingeringHiMask | fingeringEnableBit);
+        const hi = hiEnVal & fingeringHiMask;
+        const enabled = (hiEnVal & fingeringEnableBit) !== 0;
+        const mask = (lo14 | (hi << 14)) >>> 0;
         const note = Math.max(0, Math.min(127, Math.floor(Number(noteArr[index] || 0))));
 
         return {
           index,
           enabled,
           mask,
-          keysText: mask24ToKeysText(mask),
+          keysText: maskToKeysText(mask),
           note,
         };
       });
@@ -731,6 +866,11 @@ export default defineComponent({
       isConnected,
       registerKeyCount,
       registerKeys,
+      visibleRegisterKeys,
+      showRegisterPreviewAll,
+      registerPreviewDefaultCount,
+      showFingeringTable,
+      showKeyMapping,
       saxRegisterKeyMapSupport,
       keyMapLoading,
       keyMapOptions,
@@ -748,6 +888,7 @@ export default defineComponent({
       fingeringEntryCount,
       fingeringEntries,
       reloadFingering,
+      captureFingeringEntry,
       onFingeringEnabledChange,
       onFingeringKeysChange,
       onFingeringNoteChange,
