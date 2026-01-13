@@ -25,6 +25,20 @@
         </ButtonLink>
         <p class="help-text">
           Opens the firmware page to enter bootloader mode and update firmware.
+          <br />
+          Firmware downloads:
+          <a
+            href="https://github.com/dolsoidduk/OpenDeck/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+            >OpenDeck (Midisaxo fork) releases</a
+          <br />
+          Flashing guide:
+          <a
+            href="https://github.com/shanteacontrols/OpenDeck/wiki/Flashing-the-OpenDeck-firmware"
+            target="_blank"
+            rel="noopener noreferrer"
+            >OpenDeck wiki: flashing the firmware</a
         </p>
       </div>
     </div>
@@ -37,6 +51,7 @@
         </Button>
         <p class="help-text">
           Download a backup of your configuration (including presets).
+          Backups are saved as a file by your browser (usually in Downloads).
         </p>
       </div>
       <div class="form-field">
