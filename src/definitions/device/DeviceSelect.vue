@@ -43,6 +43,15 @@
         <button
           type="button"
           class="px-2 py-1 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
+          :disabled="isReloadingWebMidi || !nativeSupported"
+          @click="requestSysexAndReload"
+          title="브라우저에서 SysEx 권한(sysex=true)을 먼저 요청한 뒤 WebMIDI를 다시 로드합니다."
+        >
+          SysEx 권한 요청 + Reload
+        </button>
+        <button
+          type="button"
+          class="px-2 py-1 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
           @click="showMidiDebug = !showMidiDebug"
         >
           {{ showMidiDebug ? "Hide MIDI debug" : "Show MIDI debug" }}
@@ -203,6 +212,29 @@ export default defineComponent({
       typeof navigator !== "undefined" && typeof (navigator as any).requestMIDIAccess === "function",
     );
 
+    const refreshMidiPermissions = () => {
+      midiPermission.value = "";
+      midiSysexPermission.value = "";
+      midiPermissionError.value = "";
+
+      const permissions = (navigator as any)?.permissions;
+      if (!permissions?.query) {
+        return;
+      }
+
+      Promise.all([
+        permissions.query({ name: "midi", sysex: false }),
+        permissions.query({ name: "midi", sysex: true }),
+      ])
+        .then(([midi, midiSysex]: any[]) => {
+          midiPermission.value = String(midi?.state || "");
+          midiSysexPermission.value = String(midiSysex?.state || "");
+        })
+        .catch((err: any) => {
+          midiPermissionError.value = String(err?.message || err || "unknown error");
+        });
+    };
+
     const copyMidiDiagnostic = async () => {
       const webmidiDebug = unref(midiStoreMapped.debug);
       const payload = {
@@ -241,7 +273,7 @@ export default defineComponent({
       window.prompt("Copy MIDI diagnostic:", text);
     };
 
-    const requestNativeMidiAccess = (sysex: boolean) => {
+    const requestNativeMidiAccess = async (sysex: boolean) => {
       nativeError.value = null;
       nativeSysex.value = sysex;
       nativeAccess.value = null;
@@ -267,39 +299,39 @@ export default defineComponent({
         nativeOutputs.value = Array.from(access.outputs?.values?.() || []).map(toSummary);
       };
 
-      (navigator as any).requestMIDIAccess({ sysex })
-        .then((access: any) => {
-          nativeAccess.value = access;
-          updateSnapshot(access);
+      try {
+        const access = await (navigator as any).requestMIDIAccess({ sysex });
+        nativeAccess.value = access;
+        updateSnapshot(access);
+        refreshMidiPermissions();
 
-          access.onstatechange = (evt: any) => {
-            const port = evt?.port;
-            nativeStateChanges.value = [
-              {
-                ts: new Date().toISOString(),
-                id: port?.id || "",
-                name: port?.name || "",
-                state: port?.state || "",
-                connection: port?.connection || "",
-                type: port?.type || "",
-                manufacturer: port?.manufacturer || "",
-              },
-              ...nativeStateChanges.value,
-            ].slice(0, 20);
+        access.onstatechange = (evt: any) => {
+          const port = evt?.port;
+          nativeStateChanges.value = [
+            {
+              ts: new Date().toISOString(),
+              id: port?.id || "",
+              name: port?.name || "",
+              state: port?.state || "",
+              connection: port?.connection || "",
+              type: port?.type || "",
+              manufacturer: port?.manufacturer || "",
+            },
+            ...nativeStateChanges.value,
+          ].slice(0, 20);
 
-            // Keep the live port list in sync with hotplug events.
-            try {
-              updateSnapshot(access);
-            } catch {
-              // ignore
-            }
-          };
-        })
-        .catch((err: any) => {
-          nativeError.value = String(err?.message || err || "unknown error");
-          nativeInputs.value = [];
-          nativeOutputs.value = [];
-        });
+          // Keep the live port list in sync with hotplug events.
+          try {
+            updateSnapshot(access);
+          } catch {
+            // ignore
+          }
+        };
+      } catch (err) {
+        nativeError.value = String((err as any)?.message || err || "unknown error");
+        nativeInputs.value = [];
+        nativeOutputs.value = [];
+      }
     };
 
     const nativeHasOnlyGenericThrough = computed(() => {
@@ -327,6 +359,21 @@ export default defineComponent({
       }
     };
 
+    const requestSysexAndReload = async () => {
+      if (isReloadingWebMidi.value) {
+        return;
+      }
+
+      isReloadingWebMidi.value = true;
+      try {
+        // Must be called from a user gesture (button click), so keep it here.
+        await requestNativeMidiAccess(true);
+        await midiStoreMapped.reloadMidi();
+      } finally {
+        isReloadingWebMidi.value = false;
+      }
+    };
+
     onMounted(() => {
       midiStoreMapped
         .loadMidi()
@@ -347,20 +394,7 @@ export default defineComponent({
 
       // Permissions API (optional): helps distinguish granted vs prompt/denied.
       // Some browsers may not implement this for MIDI.
-      const permissions = (navigator as any)?.permissions;
-      if (permissions?.query) {
-        Promise.all([
-          permissions.query({ name: "midi", sysex: false }),
-          permissions.query({ name: "midi", sysex: true }),
-        ])
-          .then(([midi, midiSysex]: any[]) => {
-            midiPermission.value = String(midi?.state || "");
-            midiSysexPermission.value = String(midiSysex?.state || "");
-          })
-          .catch((err: any) => {
-            midiPermissionError.value = String(err?.message || err || "unknown error");
-          });
-      }
+      refreshMidiPermissions();
     });
 
 
@@ -370,6 +404,7 @@ export default defineComponent({
       isSecureContext: window.isSecureContext,
       isReloadingWebMidi,
       reloadWebMidi,
+      requestSysexAndReload,
       showMidiDebug,
       nativeSupported,
       nativeHasOnlyGenericThrough,
