@@ -2,14 +2,14 @@
   <div class="request-log section">
     <div class="section-heading clearfix">
       <h3 class="section-heading-inner">
-        <span class="mr-6">Activity</span>
+        <span class="mr-6">활동</span>
         <FormToggle class="mr-8" :value="showRequestLog" @changed="toggleLog" />
         <button
           v-if="showRequestLog && stack.length"
           class="btn btn-xs mr-6"
           @click="clear"
         >
-          clear
+          지우기
         </button>
         <span v-if="showRequestLog" class="float-right mt-1 clearfix">
           <span class="inline-block mr-6">
@@ -18,7 +18,7 @@
               class="toggle-sm labeled"
               @changed="toggleHexValues"
             >
-              hex
+              HEX
             </FormToggle>
           </span>
 

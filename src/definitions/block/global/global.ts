@@ -371,7 +371,7 @@ const sections: Dictionary<ISectionDefinition> = {
 
 export const GlobalBlock: IBlockDefinition = {
   block: Block.Global,
-  title: "Global",
+  title: "전역",
   routeName: "device-global",
   iconComponent: markRaw(GlobalIcon),
   sections,

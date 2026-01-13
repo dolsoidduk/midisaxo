@@ -17,12 +17,25 @@
       >
     </label>
 
+    <div
+      v-if="!isDisabled && isTableStaticView && !isTableEditing"
+      class="form-table-static"
+      role="button"
+      tabindex="0"
+      @click="enableTableEditing"
+      @keydown.enter.prevent="enableTableEditing"
+      @keydown.space.prevent="enableTableEditing"
+    >
+      <span class="form-table-static-value">{{ displayValue }}</span>
+    </div>
+
     <component
       :is="fieldComponent"
-      v-if="!isDisabled"
+      v-else-if="!isDisabled"
       :value="input"
       v-bind="componentProps"
       @changed="onValueChange"
+      @blur="disableTableEditing"
     />
     <p v-else class="error-message text-red-500">
       <template v-if="isDisabled === ControlDisableType.NotSupported">
@@ -50,7 +63,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, toRefs, computed } from "vue";
+import { defineComponent, toRefs, computed, ref } from "vue";
 import {
   FormInputComponent,
   ISectionDefinition,
@@ -192,6 +205,47 @@ export default defineComponent({
 
     const { showMsbControls } = deviceStoreMapped;
 
+    const isElectron = (): boolean => {
+      try {
+        return typeof navigator !== "undefined" &&
+          typeof navigator.userAgent === "string" &&
+          navigator.userAgent.includes("Electron");
+      } catch (_) {
+        return false;
+      }
+    };
+
+    // Only apply this workaround to the table-view rows.
+    // (In single-component forms, index is undefined.)
+    const isTableStaticView = computed(() =>
+      props.index !== undefined && isElectron(),
+    );
+
+    const isTableEditing = ref(false);
+    const enableTableEditing = () => {
+      isTableEditing.value = true;
+    };
+    const disableTableEditing = () => {
+      isTableEditing.value = false;
+    };
+
+    const displayValue = computed(() => {
+      const v = input.value;
+
+      if (component === FormInputComponent.Toggle) {
+        return Number(v) ? "ON" : "OFF";
+      }
+
+      if (component === FormInputComponent.Select) {
+        const opt = Array.isArray(options)
+          ? options.find((o) => Number(o.value) === Number(v))
+          : undefined;
+        return opt ? opt.text : String(v ?? "");
+      }
+
+      return v === null || v === undefined ? "" : String(v);
+    });
+
     return {
       fieldComponent: props.fieldDefinition.component,
       showMsbControls,
@@ -209,6 +263,11 @@ export default defineComponent({
       max,
       max2Byte,
       ControlDisableType,
+      isTableStaticView,
+      isTableEditing,
+      enableTableEditing,
+      disableTableEditing,
+      displayValue,
     };
   },
 });

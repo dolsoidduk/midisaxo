@@ -17,3 +17,17 @@
 .form-field .error-message {
   @apply mt-3 text-sm text-red-500;
 }
+
+/*
+ * Linux/Electron workaround: some GPU/compositor paths can fail to paint
+ * form control text until the first focus/click. Force explicit text fill
+ * color and promote controls to their own layer.
+ */
+.form-input,
+.form-select,
+textarea.form-input {
+  -webkit-text-fill-color: currentColor;
+  opacity: 1;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}

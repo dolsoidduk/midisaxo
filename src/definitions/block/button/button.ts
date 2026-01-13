@@ -31,15 +31,14 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Select,
     colspan: 2,
     options: [
-      { value: 0, text: "Momentary" },
-      { value: 1, text: "Latching" },
+      { value: 0, text: "모멘터리" },
+      { value: 1, text: "래칭" },
     ],
-    label: "Type",
+    label: "타입",
     helpText: `
-      Button type can be momentary, which means that configured MIDI message is sent as soon as
-      button is released, or latching, which means that MIDI message is sent on
-      second button press. All buttons are configured as momentary by
-      default. Depending on message type this setting can be ignored.`,
+      버튼 타입이 모멘터리인 경우 버튼을 놓는 순간 설정된 MIDI 메시지가 전송됩니다.
+      래칭인 경우에는 두 번째 버튼 누름에서 메시지가 전송됩니다.
+      기본값은 모멘터리이며, 메시지 타입에 따라 이 설정이 무시될 수 있습니다.`,
   },
   MidiMessage: {
     key: "messageType",
@@ -106,7 +105,7 @@ const sections: Dictionary<ISectionDefinition> = {
       { value: ButtonMessageType.BpmDec, text: "BPM Dec" },
       { value: ButtonMessageType.CustomSysEx, text: "Custom SysEx" },
     ],
-    label: "Message type",
+    label: "메시지 타입",
     helpText: ``,
     block: Block.Button,
   },
@@ -120,9 +119,9 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 1,
     max: 17,
-    label: "MIDI channel",
+    label: "MIDI 채널",
     helpText:
-      "Setting the channel to value 17 will cause sending of data on each MIDI channel.",
+      "채널을 17로 설정하면 모든 MIDI 채널(1~16)로 데이터를 전송합니다.",
   },
   MidiId: {
     showIf: (formState: FormState): boolean =>
@@ -149,9 +148,9 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 127,
-    label: "Program (PC)",
+    label: "프로그램(PC)",
     helpText:
-      "Program Change number (0-127). Some devices label programs as 1-128.",
+      "Program Change 번호(0-127). 일부 장치는 프로그램을 1-128로 표기합니다.",
     block: Block.Button,
   },
 
@@ -178,9 +177,9 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 9,
-    label: "Preset",
+    label: "프리셋",
     helpText:
-      "Preset to switch to once the button is pressed. Numbering starts from 0, so value 0 will load preset 1.",
+      "버튼을 눌렀을 때 전환할 프리셋입니다. 번호는 0부터 시작하므로 값 0은 프리셋 1을 로드합니다.",
     block: Block.Button,
   },
   Value: {
@@ -194,9 +193,9 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 1,
     max: 127,
-    label: "Value",
+    label: "값",
     helpText:
-      "Velocity for notes, control value for CC, increment/decrement value for Multi Value message types or offset for Program Change.",
+      "노트의 Velocity, CC의 컨트롤 값, Multi Value 타입의 증감값 또는 Program Change의 오프셋입니다.",
     block: Block.Button,
   },
 
@@ -209,7 +208,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 16383,
-    label: "Bank (0-16383)",
+    label: "뱅크(0-16383)",
     helpText:
       "14-bit bank number. MSB = bank >> 7, LSB = bank & 0x7F. OpenDeck sends CC#0 (MSB), CC#32 (LSB), then Program Change.",
     block: Block.Button,
@@ -238,7 +237,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: CUSTOM_SYSEX_MAX_PAYLOAD_BYTES,
-    label: "SysEx length (bytes)",
+    label: "SysEx 길이(바이트)",
     helpText: `SysEx payload length (between F0 and F7). Max ${CUSTOM_SYSEX_MAX_PAYLOAD_BYTES} (total message length is payload+2, max ${CUSTOM_SYSEX_MAX_TOTAL_BYTES}).`,
     block: Block.Button,
   },
@@ -251,7 +250,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 16383,
-    label: "SysEx data word 0",
+    label: "SysEx 데이터 워드 0",
     helpText:
       "Packed payload bytes [b0 | (b1<<7)] (both bytes must be 00..7F).",
     block: Block.Button,
@@ -264,7 +263,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 16383,
-    label: "SysEx data word 1",
+    label: "SysEx 데이터 워드 1",
     helpText: "Packed payload bytes [b2 | (b3<<7)].",
     block: Block.Button,
   },
@@ -276,7 +275,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 16383,
-    label: "SysEx data word 2",
+    label: "SysEx 데이터 워드 2",
     helpText: "Packed payload bytes [b4 | (b5<<7)].",
     block: Block.Button,
   },
@@ -288,7 +287,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 16383,
-    label: "SysEx data word 3",
+    label: "SysEx 데이터 워드 3",
     helpText: "Packed payload bytes [b6 | (b7<<7)].",
     block: Block.Button,
   },
@@ -300,7 +299,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 16383,
-    label: "SysEx data word 4",
+    label: "SysEx 데이터 워드 4",
     helpText: "Packed payload bytes [b8 | (b9<<7)].",
     block: Block.Button,
   },
@@ -312,7 +311,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 16383,
-    label: "SysEx data word 5",
+    label: "SysEx 데이터 워드 5",
     helpText: "Packed payload bytes [b10 | (b11<<7)].",
     block: Block.Button,
   },
@@ -324,7 +323,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 16383,
-    label: "SysEx data word 6",
+    label: "SysEx 데이터 워드 6",
     helpText: "Packed payload bytes [b12 | (b13<<7)].",
     block: Block.Button,
   },
@@ -336,7 +335,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Input,
     min: 0,
     max: 16383,
-    label: "SysEx data word 7",
+    label: "SysEx 데이터 워드 7",
     helpText: "Packed payload bytes [b14 | (b15<<7)].",
     block: Block.Button,
   },
@@ -349,15 +348,15 @@ const sections: Dictionary<ISectionDefinition> = {
     section: 5,
     component: FormInputComponent.Select,
     options: [],
-    label: "Sax register key map",
-    helpText: "0 = default/identity; otherwise mappedIndex+1",
+    label: "색소폰 레지스터 키 맵",
+    helpText: "0 = 기본(그대로); 그 외 = mappedIndex+1",
     block: Block.Button,
   },
 };
 
 export const ButtonBlock: IBlockDefinition = {
   block: Block.Button,
-  title: "Button",
+  title: "버튼",
   routeName: "device-buttons",
   iconComponent: markRaw(ButtonIcon),
   componentCountResponseIndex: 0,

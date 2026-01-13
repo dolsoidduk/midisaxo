@@ -1,0 +1,55 @@
+name: Build Offline Packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-zips:
+    name: Build linux/win32 ZIPs
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: opendeckui/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            make \
+            zip \
+            wine64
+
+      - name: Install electron-packager
+        run: npm install -g electron-packager
+
+      - name: Ensure wine64 wrapper exists
+        run: |
+          if ! command -v wine64 >/dev/null 2>&1; then
+            sudo ln -sf "$(command -v wine)" /usr/local/bin/wine64
+          fi
+
+      - name: Build offline packages
+        working-directory: opendeckui
+        run: |
+          make clean
+          make pkg-npm PLATFORM=linux
+          make pkg-npm PLATFORM=win32
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendeckui-offline-zips
+          path: |
+            opendeckui/build/*.zip
+          if-no-files-found: error

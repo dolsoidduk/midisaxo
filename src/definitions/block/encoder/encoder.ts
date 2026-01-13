@@ -250,7 +250,7 @@ const sections: Dictionary<ISectionDefinition> = {
 
 export const EncoderBlock: IBlockDefinition = {
   block: Block.Encoder,
-  title: "Encoder",
+  title: "엔코더",
   routeName: "device-encoders",
   iconComponent: markRaw(EncoderIcon),
   componentCountResponseIndex: 1,
@@ -269,7 +269,7 @@ export const EncoderBlock: IBlockDefinition = {
           props: {
             block: Block.Encoder,
             routeName: "device-encoders-form",
-            title: "Encoder",
+            title: "엔코더",
           },
         },
         {

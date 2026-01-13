@@ -19,3 +19,40 @@ registerComponentMap(deviceComponents);
 
 app.use(router);
 app.mount("#app");
+
+// Workaround: On some Linux/Electron setups, the first paint can miss text
+// until the first user interaction (click/resize). Trigger a tiny reflow and
+// a resize event after the initial render to force the compositor to repaint.
+try {
+  const forceRepaint = () => {
+    const el = document.body as HTMLElement | null;
+    if (!el) {
+      return;
+    }
+
+    const prevTransform = el.style.transform;
+    el.style.transform = "translateZ(0)";
+    // Force synchronous layout
+    void el.offsetHeight;
+    el.style.transform = prevTransform;
+
+    window.dispatchEvent(new Event("resize"));
+  };
+
+  const scheduleForceRepaint = () => {
+    requestAnimationFrame(() => requestAnimationFrame(forceRepaint));
+  };
+
+  // Run once on boot
+  scheduleForceRepaint();
+
+  // Run after navigation (the issue can reappear when re-entering a view)
+  router.afterEach(() => {
+    scheduleForceRepaint();
+  });
+
+  // Also run when the window gains focus
+  window.addEventListener("focus", scheduleForceRepaint);
+} catch (_) {
+  // ignore
+}

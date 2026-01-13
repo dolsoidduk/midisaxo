@@ -3,7 +3,7 @@
     <h1 class="w-full section-heading">
       <div class="section-heading-inner flex">
         <router-link class="mr-6" :to="{ name: blockDefinition.routeName }">
-          <h2>{{ blockDefinition.title }}s</h2>
+          <h2>{{ blockDefinition.title }}</h2>
         </router-link>
         <span class="mr-6">&rsaquo;</span>
         <div class="mr-6 text-gray-400">
@@ -35,7 +35,7 @@
       <div class="form-grid" :class="`lg:grid-cols-${gridCols}`">
         <div v-if="showRawMidiHex" :class="`col-span-${gridCols}`">
           <div class="form-field" :class="{ error: !!rawMidiError }">
-            <label class="label">
+            <label class="label text-promoted">
               MIDI (HEX)
               <small class="instructions">Note/CC/PC/RealTime 지원</small>
             </label>
@@ -256,7 +256,29 @@ export default defineComponent({
         ButtonMessageType.CustomSysEx,
     );
 
-    const showRawMidiHex = computed(() => true);
+    const showRawMidiHex = computed(() => {
+      const t = Number(deviceForm.formData.messageType);
+      if (!Number.isFinite(t)) {
+        return false;
+      }
+
+      if (isCustomSysEx.value) {
+        return false;
+      }
+
+      return [
+        ButtonMessageType.Note,
+        ButtonMessageType.ControlChange,
+        ButtonMessageType.ProgramChange,
+        ButtonMessageType.BankSelectProgramChange,
+        ButtonMessageType.RealTimeClock,
+        ButtonMessageType.RealTimeStart,
+        ButtonMessageType.RealTimeContinue,
+        ButtonMessageType.RealTimeStop,
+        ButtonMessageType.RealTimeActiveSensing,
+        ButtonMessageType.RealTimeSystemReset,
+      ].includes(t);
+    });
 
     const deviceLabel = computed(() => {
       const parts: string[] = [];

@@ -29,8 +29,25 @@
 .form-table-row .label {
   @apply text-xs leading-tight text-gray-500 mb-0;
 }
+.form-table-row .label.text-promoted {
+  @apply text-gray-100 font-bold;
+}
+
+/* Improve form control contrast inside tables (dark theme) */
+.form-table-row .form-input,
+.form-table-row .form-select {
+  @apply bg-gray-900 border-gray-700 text-gray-100;
+}
 .form-table-row .error-message {
   @apply text-xs mt-1;
+}
+
+/*
+ * Table view workaround (Linux/Electron): show values as plain text by default
+ * so they're always visible even when input text fails to paint.
+ */
+.form-table-row .form-table-static {
+  @apply mt-1 py-1 px-2 border border-gray-700 bg-gray-900 text-gray-100 text-sm rounded;
 }
 
 @screen md {
@@ -43,18 +60,6 @@
 }
 
 @screen lg {
-  .form-table {
-    @apply table py-3;
-  }
-  .form-table-row {
-    @apply table-row relative;
-  }
-  .form-table-row > div {
-    @apply table-cell py-2;
-  }
-  .form-table-row > div:first-child {
-    @apply surface-elevated border-none h-full align-bottom pb-4;
-  }
   .form-table-row .label {
     @apply h-6 mb-1;
   }

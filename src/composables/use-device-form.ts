@@ -116,8 +116,9 @@ export const useDeviceForm = (
       .setComponentSectionValue(config, onSuccess)
       .catch((error) => {
         logger.error("ERROR WHILE SAVING SETTING DATA", error);
-        // Try reloading the formData to reinit without failed fields
-        return loadData();
+        // Don't auto-reload on error (can hang on devices that don't reply).
+        delay(100).then(() => (loading.value = false));
+        return;
       });
   };
 

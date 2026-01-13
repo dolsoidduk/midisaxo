@@ -30,10 +30,16 @@ import {
 import { clearRequestLog } from "../../request-log/request-log-store/actions";
 import { ensureConnection } from "./actions";
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 2500;
+const CONNECTION_INFO_TIMEOUT_MS = 8000;
+const MULTIPART_REQUEST_TIMEOUT_MS = 15000;
+const SYSTEM_OPERATION_TIMEOUT_MS = 120000;
+
 interface IRequestParams {
   command: Request;
   config?: IRequestConfig;
   payload?: number[];
+  timeoutMs?: number;
   handler: (data: any) => void;
 }
 
@@ -51,6 +57,7 @@ export interface IQueuedRequest {
   promiseReject: (code?: ErrorCode) => void;
   config?: IRequestConfig;
   payload: number[];
+  timeoutMs?: number;
   handler: (data: any) => void;
   responseCount: number;
   responseData?: number[];
@@ -187,6 +194,41 @@ const startRequest = async (id: number) => {
     request.time.started = new Date();
     requestQueue.activeRequestId.value = id;
     request.state = RequestState.Sent;
+
+    // Update UI with what we're currently waiting for.
+    // This helps avoid the "it just freezes" feeling during connection.
+    try {
+      deviceState.lastRequestErrorContext = `while waiting for ${request.command}`;
+    } catch (_) {
+      // ignore
+    }
+
+    // Fail requests after a timeout if no response arrives.
+    // Without this, any missing/missed response can leave the UI stuck in a pending state forever.
+    if (!reqDef.expectsNoResponse) {
+      const timeoutMs =
+        typeof request.timeoutMs === "number"
+          ? request.timeoutMs
+          : reqDef.isSystemOperation
+            ? SYSTEM_OPERATION_TIMEOUT_MS
+            : reqDef.hasMultiPartResponse
+              ? MULTIPART_REQUEST_TIMEOUT_MS
+              : reqDef.isConnectionInfoRequest
+                ? CONNECTION_INFO_TIMEOUT_MS
+                : DEFAULT_REQUEST_TIMEOUT_MS;
+
+      // Some requests intentionally stream for a long time; keep legacy behavior.
+      if (![Request.Backup, Request.FirmwareUpdate].includes(request.command)) {
+        delay(timeoutMs).then(() => {
+          if (
+            request.state === RequestState.Sent &&
+            requestQueue.activeRequestId.value === request.id
+          ) {
+            onRequestFail(request, ErrorCode.UI_QUEUE_REQ_TIMED_OUT);
+          }
+        });
+      }
+    }
 
     if (reqDef.expectsNoResponse) {
       requestQueue.activeRequestId.value = null;
@@ -437,6 +479,14 @@ const onRequestFail = (request: IQueuedRequest, messageStatus: number) => {
   request.errorMessage = errorDefinition.description;
   request.promiseReject(errorDefinition.code);
 
+  // Surface context for connection failures (helps diagnose protocol mismatch).
+  // Example: "Request sent but timed out" + "while waiting for GetValueSize".
+  try {
+    deviceState.lastRequestErrorContext = `while waiting for ${request.command}`;
+  } catch (_) {
+    // ignore
+  }
+
   requestLog.actions.addError({
     errorCode: errorDefinition.code,
     requestId: request.id,
@@ -515,7 +565,7 @@ const prepareRequestPayload = (
 };
 
 export const sendMessage = async (params: IRequestParams): Promise<any> => {
-  const { command, handler, config, payload } = params;
+  const { command, handler, config, payload, timeoutMs } = params;
   const definition = getDefinition(command);
 
   return new Promise((resolve, reject) => {
@@ -524,6 +574,7 @@ export const sendMessage = async (params: IRequestParams): Promise<any> => {
       payload: payload || prepareRequestPayload(definition, config),
       handler,
       config,
+      timeoutMs,
       promiseResolve: resolve,
       promiseReject: reject,
     });

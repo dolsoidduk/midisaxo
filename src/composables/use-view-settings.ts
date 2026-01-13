@@ -21,9 +21,40 @@ interface IViewSettings {
 
 export const useViewSettings = (block: Block): IViewSettings => {
   const viewSetting = computed(() => deviceStore.state.viewSettings[block]);
-  const componentCount = computed(
-    () => deviceStore.state.numberOfComponents[block] || 0,
-  );
+  const FALLBACK_COMPONENT_COUNT = 16;
+
+  const componentCount = computed(() => {
+    const reported: any = (deviceStore.state.numberOfComponents as any)?.[block];
+
+    if (typeof reported === "number" && Number.isFinite(reported)) {
+      // Positive counts are always trustworthy.
+      if (reported > 0) {
+        return reported;
+      }
+
+      // If firmware version couldn't be read during connect, we are likely
+      // running against a variant/target that doesn't fully support the
+      // connection-info custom requests. In that case, a reported 0 count
+      // is more often "unknown" than "not present".
+      if (reported === 0 && deviceStore.state.firmwareVersion === "v0.0.0") {
+        const blockDef = BlockMap[block];
+        if (blockDef && blockDef.componentCountResponseIndex !== undefined) {
+          return FALLBACK_COMPONENT_COUNT;
+        }
+      }
+
+      // Otherwise, respect explicit 0.
+      return reported;
+    }
+
+    // Only apply fallback to blocks that are component-based.
+    const blockDef = BlockMap[block];
+    if (!blockDef || blockDef.componentCountResponseIndex === undefined) {
+      return 0;
+    }
+
+    return FALLBACK_COMPONENT_COUNT;
+  });
 
   const pages = computed(() =>
     Math.ceil(componentCount.value / viewSetting.value.itemsPerPage),
@@ -60,7 +91,27 @@ export const useViewSettings = (block: Block): IViewSettings => {
     }
 
     const rawMidiHex: ISectionDefinition = {
-      showIf: (): boolean => true,
+      showIf: (formState: any): boolean => {
+        const t = Number(formState?.messageType);
+        if (!Number.isFinite(t)) {
+          return false;
+        }
+
+        // Only show the helper for message types that can be represented as
+        // simple 3-byte MIDI messages (or realtime 1-byte).
+        return [
+          ButtonMessageType.Note,
+          ButtonMessageType.ControlChange,
+          ButtonMessageType.ProgramChange,
+          ButtonMessageType.BankSelectProgramChange,
+          ButtonMessageType.RealTimeClock,
+          ButtonMessageType.RealTimeStart,
+          ButtonMessageType.RealTimeContinue,
+          ButtonMessageType.RealTimeStop,
+          ButtonMessageType.RealTimeActiveSensing,
+          ButtonMessageType.RealTimeSystemReset,
+        ].includes(t);
+      },
       block: Block.Button,
       key: "rawMidiHex",
       type: SectionType.Value,

@@ -3,7 +3,7 @@
     <h1 class="w-full section-heading">
       <div class="section-heading-inner flex">
         <router-link class="mr-6" :to="{ name: blockDefinition.routeName }">
-          <h2>{{ blockDefinition.title }}s</h2>
+          <h2>{{ blockDefinition.title }}</h2>
         </router-link>
         <span class="mr-6">&rsaquo;</span>
         <div class="mr-6 text-gray-400">
@@ -16,7 +16,7 @@
           <Siblinks
             param-key="index"
             :current="index"
-            :total="numberOfComponents[block]"
+            :total="componentCount || numberOfComponents[block]"
             :params="{ outputId }"
           />
         </div>
@@ -47,7 +47,7 @@ import { defineComponent, computed } from "vue";
 import { SectionType, Block } from "../../definitions";
 import { deviceStoreMapped } from "../../store";
 import router from "../../router";
-import { useDeviceForm } from "../../composables";
+import { useDeviceForm, useViewSettings } from "../../composables";
 
 export default defineComponent({
   name: "DeviceForm",
@@ -67,9 +67,12 @@ export default defineComponent({
       Number(router.currentRoute.value.params.index),
     );
 
+    const { componentCount } = useViewSettings(props.block);
+
     return {
       outputId,
       numberOfComponents,
+      componentCount,
       index,
       ...useDeviceForm(props.block, SectionType.Value, index),
     };

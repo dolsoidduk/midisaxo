@@ -210,7 +210,7 @@ const sections: Dictionary<ISectionDefinition> = {
 
 export const AnalogBlock: IBlockDefinition = {
   block: Block.Analog,
-  title: "Analog",
+  title: "아날로그",
   routeName: "device-analogs",
   iconComponent: markRaw(AnalogIcon),
   componentCountResponseIndex: 2,
