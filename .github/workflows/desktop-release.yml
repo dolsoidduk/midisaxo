@@ -132,7 +132,17 @@ jobs:
             Web UI: https://dolsoidduk.github.io/midisaxo/
 
             Firmware (OpenDeck fork): https://github.com/dolsoidduk/OpenDeck
-            Firmware downloads (Releases): https://github.com/dolsoidduk/OpenDeck/releases
+            Firmware downloads (same tag, if published): https://github.com/dolsoidduk/OpenDeck/releases/tag/${{ steps.tag.outputs.tag }}
+            Firmware downloads (all): https://github.com/dolsoidduk/OpenDeck/releases
+
+            Firmware flashing:
+            - Guide: https://github.com/shanteacontrols/OpenDeck/wiki/Flashing-the-OpenDeck-firmware
+            - CLI scripts: https://github.com/dolsoidduk/OpenDeck/tree/master/scripts/flashing
+              (bootloader via MIDI DFU: `opendeck.sh`, STM32 SWD: `stlink.sh`, USB DFU: `dfu.sh`, nRF52: `nrfjprog.sh`)
+
+            Drivers/tools:
+            - Windows: STM32CubeProgrammer / ST-LINK driver may be required (STM32 targets).
+            - Linux: `dfu-util` (DFU) and `amidi` (MIDI DFU) are commonly used.
 
             Troubleshooting:
             - WebMIDI requires a user gesture: click any UI button once.
