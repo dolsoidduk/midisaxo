@@ -43,9 +43,9 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Build AppImage
-        env:
-          ELECTRON_BUILDER_PUBLISH: never
-        run: npm run dist:linux
+        run: |
+          npm run build
+          npx electron-builder --linux AppImage --publish never
 
       - name: Upload linux artifacts
         uses: actions/upload-artifact@v4
@@ -77,9 +77,9 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Build NSIS installer
-        env:
-          ELECTRON_BUILDER_PUBLISH: never
-        run: npm run dist:win
+        run: |
+          npm run build
+          npx electron-builder --win nsis --publish never
 
       - name: Upload windows artifacts
         uses: actions/upload-artifact@v4
