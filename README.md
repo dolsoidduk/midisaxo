@@ -71,8 +71,10 @@ This repository can publish the configurator to GitHub Pages so the UI is always
 2. In GitHub repo settings: **Settings → Pages → Build and deployment → Source = GitHub Actions**.
 3. Open the published URL (usually `https://<owner>.github.io/<repo>/`).
 
+Quick start: open in **Chrome/Edge** → click a UI button (user gesture) → allow **MIDI + SysEx** when prompted → select the OpenDeck MIDI output.
+
 Notes:
 
-- Browsers require a user gesture to connect to MIDI devices (you must click to connect).
+- Browsers require a user gesture before WebMIDI can be enabled (you must click something in the UI first).
 - WebMIDI support varies by browser; Chrome/Edge are typically the best.
-- SysEx access may require explicit permission in the browser.
+- SysEx access usually requires explicit permission (allow SysEx / sysex=true).
