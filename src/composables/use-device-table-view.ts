@@ -32,20 +32,25 @@ export const useDeviceTableView = (
   const loadData = async () => {
     // Old protocol doesn't support table view
     if (deviceStore.state.valueSize !== 2 || !tableViewActive.value) {
+      loading.value = false;
       return;
     }
 
     loading.value = true;
 
-    const fetchedValues = await deviceStore.actions.getSectionValues(block);
-    Object.keys(fetchedValues).forEach((key) => {
-      fetchedValues[key].forEach((value: number, index: number) => {
-        if (!columnViewData[index]) {
-          columnViewData[index] = { ...defaultData };
-        }
-        columnViewData[index][key] = value;
+    try {
+      const fetchedValues = await deviceStore.actions.getSectionValues(block);
+      Object.keys(fetchedValues).forEach((key) => {
+        fetchedValues[key].forEach((value: number, index: number) => {
+          if (!columnViewData[index]) {
+            columnViewData[index] = { ...defaultData };
+          }
+          columnViewData[index][key] = value;
+        });
       });
-    });
+    } catch (error) {
+      logger.error("ERROR WHILE LOADING TABLE VIEW DATA", error);
+    }
 
     // prevent initial value change from writing to device
     delay(100).then(() => (loading.value = false));
@@ -80,8 +85,9 @@ export const useDeviceTableView = (
       .setComponentSectionValue(config, onSuccess)
       .catch((error) => {
         logger.error("ERROR WHILE SAVING SETTING DATA", error);
-        // Try reloading the data to reinit without failed fields
-        return loadData();
+        // Don't auto-reload on error (can hang on devices that don't reply).
+        delay(100).then(() => (loading.value = false));
+        return;
       });
   };
 

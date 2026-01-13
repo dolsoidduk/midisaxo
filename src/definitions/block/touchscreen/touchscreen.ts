@@ -193,7 +193,7 @@ const sections: Dictionary<ISectionDefinition> = {
 
 export const TouchscreenBlock: IBlockDefinition = {
   block: Block.Touchscreen,
-  title: "Touchscreen",
+  title: "터치스크린",
   routeName: "device-touchscreens",
   iconComponent: markRaw(TouchscreenIcon),
   componentCountResponseIndex: 4,

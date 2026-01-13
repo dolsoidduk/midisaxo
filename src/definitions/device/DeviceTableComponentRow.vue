@@ -17,7 +17,7 @@
         class="form-field"
         :class="{ error: !!rawMidiError }"
       >
-        <label class="label">
+        <label class="label text-promoted">
           MIDI (HEX)
           <small class="instructions">Note/CC/PC/RealTime</small>
         </label>

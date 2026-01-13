@@ -7,6 +7,7 @@ const midiEventNames = [
   "controlchange",
   "programchange",
   "pitchbend",
+  "sysex",
   "clock",
   "start",
   "continue",

@@ -24,6 +24,8 @@ export type IDeviceState = {
   isBootloaderMode: boolean;
   connectionState: DeviceConnectionState;
   connectionPromise?: Promise<any>;
+  lastConnectionError: string;
+  lastRequestErrorContext: string;
   valueSize: number;
   valuesPerMessageRequest: number;
   boardName: string;

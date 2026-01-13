@@ -176,6 +176,20 @@ export const useGridSegments = (
         break;
     }
 
-    return segments.map(addGridSegmentIndexArray);
+    // Convert to index arrays and drop any invalid/empty segments.
+    // If counts are unknown (often 0 during early/failed connection-info),
+    // the segmentation math can produce negative endIndex, leading to
+    // "segments exist but nothing renders".
+    return segments
+      .map(addGridSegmentIndexArray)
+      .filter((seg) => {
+        if (!seg) return false;
+        if (!Number.isFinite(seg.startIndex) || !Number.isFinite(seg.endIndex)) {
+          return false;
+        }
+        if (seg.startIndex < 0) return false;
+        if (seg.endIndex < seg.startIndex) return false;
+        return Array.isArray(seg.indexArray) && seg.indexArray.length > 0;
+      });
   });
 };

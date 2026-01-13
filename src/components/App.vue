@@ -1,24 +1,36 @@
 <template>
   <div class="app">
     <nav class="app-header">
-      <router-link :to="{ name: 'home' }" class="app-brand">
+      <router-link
+        :to="{ name: 'home', query: { select: '1' } }"
+        class="app-brand"
+      >
         OpenDeck Configurator
       </router-link>
 
-      <span v-if="!isHomePage && boardName" class="app-board-info">
-        <template v-if="isBootloaderMode">OpenDeck DFU mode</template>
-        <template v-else>
-          <small>Board</small>
-          <strong>{{ boardName }}</strong>
+      <span class="app-board-info">
+        <router-link
+          :to="{ name: 'home', query: { select: '1' } }"
+          class="btn btn-xs"
+        >
+          장치 선택
+        </router-link>
 
-          <template v-if="firmwareVersion !== null">
-            <small>Firmware</small>
-            <strong>{{ firmwareVersion }}</strong>
-          </template>
+        <template v-if="!isHomePage && boardName">
+          <template v-if="isBootloaderMode">OpenDeck DFU mode</template>
+          <template v-else>
+            <small>보드</small>
+            <strong>{{ boardName }}</strong>
 
-          <template v-if="supportedPresetsCount > 1">
-            <small>Preset</small>
-            <strong>{{ activePreset + 1 }}</strong>
+            <template v-if="firmwareVersion !== null">
+              <small>펌웨어</small>
+              <strong>{{ firmwareVersion }}</strong>
+            </template>
+
+            <template v-if="supportedPresetsCount > 1">
+              <small>프리셋</small>
+              <strong>{{ activePreset + 1 }}</strong>
+            </template>
           </template>
         </template>
       </span>
@@ -29,8 +41,8 @@
         <Section v-if="!isWebMidiSupported" class="h-screen">
           <div class="max-w-screen-sm mx-auto px-4 pt-24 sm:px-6 lg:px-8">
             <p class="">
-              This browser does not support WebMIDI.<br />Please use a Chrome
-              based browser:
+              이 브라우저는 WebMIDI를 지원하지 않습니다.<br />Chrome 기반 브라우저를
+              사용해주세요:
             </p>
             <p class="mt-4">
               <a href="https://www.google.com/chrome/index.html"
@@ -46,41 +58,45 @@
 
         <router-view v-else-if="isMidiSaxophonePage" />
 
-        <Section
-          v-else-if="isConnecting"
-          class="h-screen"
-          title="Establishing connection"
-        >
-          <div
-            class="lg:text-center max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8"
-          >
-            <p>WebMidi connecting</p>
-          </div>
-          <div class="absolute flex inset-0 opacity-75 bg-gray-900">
-            <Spinner class="self-center" />
-          </div>
-        </Section>
+        <div v-else>
+          <Hero v-if="isConnecting" custom="py-10" title="WebMIDI 연결 중">
+            <div class="surface-neutral border px-8 pt-6 rounded">
+              <p>잠시만 기다려주세요. 포트 목록을 계속 표시합니다.</p>
+              <div class="mt-4">
+                <Spinner />
+              </div>
+            </div>
+          </Hero>
 
-        <Section
-          v-else-if="!isConnected"
-          class="h-screen"
-          title="Problem connecting"
-        >
-          <div
-            class="lg:text-center max-w-screen-xl mx-auto px-4 pt-24 sm:px-6 lg:px-8"
+          <Hero
+            v-else-if="!isConnected"
+            custom="py-16"
+            title="WebMIDI 연결 실패"
           >
-            <p>WebMidi failed to conect</p>
-          </div>
-        </Section>
+            <div class="surface-neutral border px-8 pt-6 rounded">
+              <p>
+                미디 장치 선택(출력 선택)은 별도 메뉴가 아니라 홈 화면에서
+                합니다. 상단의 <strong>장치 선택</strong> 버튼으로 돌아갈 수
+                있습니다.
+              </p>
+              <p class="mt-4">
+                이 메시지는 WebMIDI 초기화가 실패했을 때 표시됩니다.
+              </p>
+              <div class="mt-6 flex flex-wrap gap-3">
+                <Button class="btn-primary" @click="retryMidi">다시 시도</Button>
+              </div>
+            </div>
+          </Hero>
 
-        <router-view v-else />
+          <router-view />
+        </div>
       </div>
     </div>
 
     <div class="app-footer">
       <div class="app-footer-wrap">
         <nav class="app-about">
-          <h3 class="heading">About</h3>
+          <h3 class="heading">소개</h3>
           <p class="text-sm">
             OpenDeck Configurator는 OpenDeck 펌웨어를 실행하는 모든 MIDI 장치를 위한
             WebMIDI 기반 구성 도구입니다. OpenDeck은 프로토타입 제작 및 맞춤형 MIDI
@@ -88,7 +104,7 @@
           </p>
         </nav>
         <nav class="app-resources">
-          <h3 class="heading">Resources</h3>
+          <h3 class="heading">리소스</h3>
           <ul class="list">
             <li>
               <router-link :to="{ name: 'midisaxophone' }"
@@ -106,6 +122,10 @@
               >
             </li>
           </ul>
+
+          <p v-if="buildId" class="text-xs mt-4 faded">
+            Build: <strong class="text-promoted">{{ buildId }}</strong>
+          </p>
         </nav>
       </div>
     </div>
@@ -120,6 +140,10 @@ import router from "../router";
 export default defineComponent({
   name: "App",
   setup() {
+    const buildId =
+      (window as any)?.__OPENDECK_BUILD_ID__ ||
+      (import.meta as any)?.env?.VITE_BUILD_ID ||
+      "";
     const {
       outputId,
       boardName,
@@ -137,13 +161,30 @@ export default defineComponent({
     const { isConnected, isConnecting, isWebMidiSupported } = midiStoreMapped;
     const { supportedPresetsCount, isBootloaderMode } = deviceStoreMapped;
 
+
     onMounted(() => {
-      midiStoreMapped.loadMidi();
+      // Let the first frame paint before starting WebMIDI initialization.
+      // This reduces the chance of an initially blank/invisible UI until user clicks.
+      requestAnimationFrame(() => {
+        midiStoreMapped.loadMidi();
+      });
     });
 
     onUnmounted(() => {
       midiStoreMapped.stopMidiConnectionWatcher();
     });
+
+
+    const retryMidi = async (): Promise<void> => {
+      try {
+        await midiStoreMapped.loadMidi();
+      } catch (_) {
+        // keep UI responsive; Hero message already explains the state
+      } finally {
+        await midiStoreMapped.assignInputs();
+        midiStoreMapped.startMidiConnectionWatcher();
+      }
+    };
 
     return {
       isHomePage,
@@ -157,6 +198,8 @@ export default defineComponent({
       activePreset,
       supportedPresetsCount,
       isBootloaderMode,
+      retryMidi,
+      buildId,
     };
   },
 });

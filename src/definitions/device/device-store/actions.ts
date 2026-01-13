@@ -26,6 +26,7 @@ import {
   DeviceConnectionState,
   ControlDisableType,
 } from "./interface";
+import { ErrorCode, getErrorDefinition } from "../../error";
 import { deviceState, defaultState, IViewSettingState } from "./state";
 import { sendMessage, handleSysExEvent, resetQueue } from "./request-qeueue";
 import {
@@ -54,7 +55,11 @@ const resetDeviceStore = async (): void => {
     detachMidiEventHandlers(deviceState.input);
   }
 
+  const lastConnectionError = deviceState.lastConnectionError;
+  const lastRequestErrorContext = deviceState.lastRequestErrorContext;
   Object.assign(deviceState, defaultState);
+  deviceState.lastConnectionError = lastConnectionError;
+  deviceState.lastRequestErrorContext = lastRequestErrorContext;
 };
 
 const setInfo = (data: Partial<IDeviceState>): void => {
@@ -116,7 +121,9 @@ export const connectDeviceStoreToInput = async (
   deviceState.outputId = outputId;
   deviceState.input = input as Input;
   deviceState.output = output as Output;
-  deviceState.valueSize = valueSize;
+  // Start from handshake-derived valueSize if available; we'll query the real valueSize from the board.
+  // Some firmware variants may not reply to GetValueSize; in that case we fall back to the handshake.
+  deviceState.valueSize = valueSize || 1;
   deviceState.valuesPerMessageRequest = null;
   deviceState.firmwareVersion = null;
 
@@ -135,21 +142,68 @@ export const connectDeviceStoreToInput = async (
     return;
   }
 
-  await sendMessage({
-    command: Request.GetValuesPerMessage,
-    handler: (valuesPerMessageRequest: number) =>
-      setInfo({ valuesPerMessageRequest }),
-  });
-  await sendMessage({
-    command: Request.GetFirmwareVersion,
-    handler: (firmwareVersion: string) => setInfo({ firmwareVersion }),
-  });
+  // Determine protocol value size (1-byte vs 2-byte) first.
+  // If it times out, keep the handshake-derived valueSize.
+  try {
+    await sendMessage({
+      command: Request.GetValueSize,
+      handler: (valueSize: number) => setInfo({ valueSize }),
+    });
+  } catch (err) {
+    // UI_QUEUE_REQ_TIMED_OUT / HANDSHAKE can happen on some targets; continue with fallback.
+    logger.warn("[Device] GetValueSize failed; continuing with fallback valueSize", {
+      err,
+      fallbackValueSize: deviceState.valueSize,
+    });
+  }
+
+  // Determine how many values the device can return per request.
+  // Some custom/older firmware variants don't implement this request.
+  // If it times out, fall back to 1 and continue.
+  try {
+    await sendMessage({
+      command: Request.GetValuesPerMessage,
+      handler: (valuesPerMessageRequest: number) =>
+        setInfo({ valuesPerMessageRequest }),
+    });
+  } catch (err) {
+    setInfo({ valuesPerMessageRequest: 1 });
+    logger.warn(
+      "[Device] GetValuesPerMessage failed; continuing with fallback valuesPerMessageRequest",
+      {
+        err,
+        fallbackValuesPerMessageRequest: deviceState.valuesPerMessageRequest,
+      },
+    );
+  }
+  // Firmware version is useful but not strictly required to open the UI.
+  // Some custom targets may not implement this custom request.
+  try {
+    await sendMessage({
+      command: Request.GetFirmwareVersion,
+      handler: (firmwareVersion: string) => setInfo({ firmwareVersion }),
+    });
+  } catch (err) {
+    // Keep a sane semver-like value to avoid breaking semver comparisons.
+    setInfo({ firmwareVersion: "v0.0.0" });
+    logger.warn("[Device] GetFirmwareVersion failed; continuing with fallback firmwareVersion", {
+      err,
+      fallbackFirmwareVersion: deviceState.firmwareVersion,
+    });
+  }
   deviceState.connectionState = DeviceConnectionState.Open;
   deviceState.connectionPromise = (null as unknown) as Promise<any>;
   startDeviceConnectionWatcher();
 
-  // These requests won't run until connection promise is finished
-  await loadDeviceInfo();
+  // These requests won't run until connection promise is finished.
+  // They are best-effort: missing responses shouldn't prevent UI entry.
+  try {
+    await loadDeviceInfo();
+  } catch (err) {
+    logger.warn("[Device] loadDeviceInfo failed; continuing", err);
+  }
+
+  scheduleDeviceInfoRetry();
 };
 
 const connectDevice = async (outputId: string): Promise<void> => {
@@ -161,9 +215,27 @@ const connectDevice = async (outputId: string): Promise<void> => {
     return deviceState.connectionPromise;
   }
   deviceState.connectionState = DeviceConnectionState.Pending;
+  deviceState.lastConnectionError = null;
+  deviceState.lastRequestErrorContext = null;
 
   // All subsequent connect attempts should receive the same promise as response
-  deviceState.connectionPromise = connectDeviceStoreToInput(outputId);
+  deviceState.connectionPromise = connectDeviceStoreToInput(outputId).catch(
+    (err) => {
+      const message =
+        typeof err === "number"
+          ? getErrorDefinition(err as ErrorCode).description
+          : (err as any)?.message ??
+            (typeof err === "string" ? err : String(err));
+      deviceState.connectionState = DeviceConnectionState.Closed;
+      deviceState.connectionPromise = (null as unknown) as Promise<any>;
+      const ctx = deviceState.lastRequestErrorContext
+        ? `\n${deviceState.lastRequestErrorContext}`
+        : "";
+      deviceState.lastConnectionError =
+        (message || "장치 연결에 실패했습니다. (SysEx 핸드셰이크 실패)") + ctx;
+      throw err;
+    },
+  );
 
   return deviceState.connectionPromise;
 };
@@ -171,6 +243,11 @@ const connectDevice = async (outputId: string): Promise<void> => {
 export const closeConnection = (): Promise<void> => {
   stopDeviceConnectionWatcher();
   resetDeviceStore();
+};
+
+export const clearLastConnectionError = (): void => {
+  deviceState.lastConnectionError = null;
+  deviceState.lastRequestErrorContext = null;
 };
 
 export const ensureConnection = async (): Promise<void> => {
@@ -319,20 +396,29 @@ const sendMessageAndRebootUi = async (
 };
 
 const loadDeviceInfo = async (): Promise<void> => {
-  await sendMessage({
-    command: Request.IdentifyBoard,
-    handler: (value: number[]) => {
-      const board = getBoardDefinition(value);
-      const boardName = (board && board.name) || "Custom OpenDeck board";
-      const firmwareFileName = board && board.firmwareFileName;
+  try {
+    await sendMessage({
+      command: Request.IdentifyBoard,
+      handler: (value: number[]) => {
+        const board = getBoardDefinition(value);
+        const boardName = (board && board.name) || "Custom OpenDeck board";
+        const firmwareFileName = board && board.firmwareFileName;
 
-      setInfo({ boardName, firmwareFileName });
-    },
-  });
-  await sendMessage({
-    command: Request.GetNumberOfSupportedComponents,
-    handler: (numberOfComponents: array[]) => setInfo({ numberOfComponents }),
-  });
+        setInfo({ boardName, firmwareFileName });
+      },
+    });
+  } catch (err) {
+    logger.warn("[Device] IdentifyBoard failed; continuing", err);
+  }
+
+  try {
+    await sendMessage({
+      command: Request.GetNumberOfSupportedComponents,
+      handler: (numberOfComponents: array[]) => setInfo({ numberOfComponents }),
+    });
+  } catch (err) {
+    logger.warn("[Device] GetNumberOfSupportedComponents failed; continuing", err);
+  }
   try {
     if (deviceState.valueSize === 2) {
       await sendMessage({
@@ -348,10 +434,57 @@ const loadDeviceInfo = async (): Promise<void> => {
     setInfo({ bootLoaderSupport: false });
   }
 
-  await sendMessage({
-    command: Request.GetNumberOfSupportedPresets,
-    handler: (supportedPresetsCount: number) =>
-      setInfo({ supportedPresetsCount }),
+  try {
+    await sendMessage({
+      command: Request.GetNumberOfSupportedPresets,
+      handler: (supportedPresetsCount: number) =>
+        setInfo({ supportedPresetsCount }),
+    });
+  } catch (err) {
+    logger.warn("[Device] GetNumberOfSupportedPresets failed; continuing", err);
+    setInfo({ supportedPresetsCount: 0 as any });
+  }
+};
+
+const hasAnyComponentCounts = (): boolean => {
+  try {
+    const counts: any = deviceState.numberOfComponents;
+    if (!counts) {
+      return false;
+    }
+
+    return Object.values(counts).some(
+      (v: any) => typeof v === "number" && Number.isFinite(v) && v > 0,
+    );
+  } catch (_) {
+    return false;
+  }
+};
+
+const scheduleDeviceInfoRetry = (): void => {
+  // If the device didn't respond during connect, retry a few times in the background.
+  // This avoids a "blank components" UI when responses arrive late.
+  if (hasAnyComponentCounts()) {
+    return;
+  }
+
+  const delays = [1000, 3000, 6000];
+  delays.forEach((ms) => {
+    setTimeout(async () => {
+      try {
+        if (deviceState.connectionState !== DeviceConnectionState.Open) {
+          return;
+        }
+
+        await sendMessage({
+          command: Request.GetNumberOfSupportedComponents,
+          handler: (numberOfComponents: array[]) => setInfo({ numberOfComponents }),
+        });
+      } catch (err) {
+        // keep silent; we'll either succeed later or stay in "unknown" mode
+        logger.warn("[Device] Background component-count retry failed", err);
+      }
+    }, ms);
   });
 };
 
@@ -367,6 +500,8 @@ const filterOutDisabledSections = (sectionDef: ISectionDefinition) =>
 
 const filterOutMsbSections = (sectionDef: ISectionDefinition) =>
   deviceState.valueSize === 1 || !sectionDef.isMsb;
+
+const UI_VALUE_READ_TIMEOUT_MS = 1200;
 
 export const getFilteredSectionsForBlock = (
   block: Block,
@@ -392,32 +527,44 @@ export const getComponentSettings = async (
   await ensureConnection();
   const settings = {} as any;
 
-  const tasks = getFilteredSectionsForBlock(block, sectionType).map(
-    (sectionDef) => {
-      const { key, section, onLoad, settingIndex } = sectionDef;
-      const index =
-        typeof componentIndex === "number" ? componentIndex : settingIndex;
+  // Load sequentially and fail-fast.
+  // If a device/target doesn't respond to GetValue, the old code would enqueue
+  // dozens of requests; even with per-request timeouts, the UI would look frozen
+  // while the queue slowly timed out one-by-one.
+  const sectionDefs = getFilteredSectionsForBlock(block, sectionType);
+  const maxConsecutiveFailures = 1;
+  let consecutiveFailures = 0;
 
-      const handler = (res: number[]): void => {
-        const val = res[0];
-        settings[key] = val;
+  for (const sectionDef of sectionDefs) {
+    const { key, section, onLoad, settingIndex } = sectionDef;
+    const index =
+      typeof componentIndex === "number" ? componentIndex : settingIndex;
 
-        if (onLoad) {
-          onLoad(val);
-        }
-      };
+    const handler = (res: number[]): void => {
+      const val = res[0];
+      settings[key] = val;
+      if (onLoad) {
+        onLoad(val);
+      }
+    };
 
-      return sendMessage({
+    try {
+      await sendMessage({
         command: Request.GetValue,
         handler,
         config: { block, section, index },
-      }).catch((error) =>
-        logger.error("Failed to read component config", error),
-      );
-    },
-  );
+        timeoutMs: UI_VALUE_READ_TIMEOUT_MS,
+      });
+      consecutiveFailures = 0;
+    } catch (error) {
+      consecutiveFailures += 1;
+      logger.error("Failed to read component config", error);
 
-  await Promise.all(tasks);
+      if (consecutiveFailures >= maxConsecutiveFailures) {
+        break;
+      }
+    }
+  }
 
   return settings;
 };
@@ -438,29 +585,37 @@ export const getSectionValues = async (
   await ensureConnection();
   const settings = {} as any;
 
-  const tasks = getFilteredSectionsForBlock(block, SectionType.Value).map(
-    (sectionDef) => {
-      const { key, section } = sectionDef;
+  const sectionDefs = getFilteredSectionsForBlock(block, SectionType.Value);
+  const maxConsecutiveFailures = 1;
+  let consecutiveFailures = 0;
 
-      const handler = (res: number[]): void => {
-        if (!settings[key]) {
-          settings[key] = [];
-        }
-        settings[key].push(...res);
-        return false;
-      };
+  for (const sectionDef of sectionDefs) {
+    const { key, section } = sectionDef;
 
-      return sendMessage({
+    const handler = (res: number[]): void => {
+      if (!settings[key]) {
+        settings[key] = [];
+      }
+      settings[key].push(...res);
+      return false;
+    };
+
+    try {
+      await sendMessage({
         command: Request.GetSectionValues,
         handler,
         config: { block, section },
-      }).catch((error) =>
-        logger.error("Failed to read component config", error),
-      );
-    },
-  );
-
-  await Promise.all(tasks);
+        timeoutMs: UI_VALUE_READ_TIMEOUT_MS,
+      });
+      consecutiveFailures = 0;
+    } catch (error) {
+      consecutiveFailures += 1;
+      logger.error("Failed to read component config", error);
+      if (consecutiveFailures >= maxConsecutiveFailures) {
+        break;
+      }
+    }
+  }
 
   return settings;
 };
@@ -472,6 +627,7 @@ export const deviceStoreActions = {
   setViewSetting,
   connectDevice,
   closeConnection,
+  clearLastConnectionError,
   ensureConnection,
   startUpdatesCheck,
   startBootLoaderMode,

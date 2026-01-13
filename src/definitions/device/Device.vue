@@ -1,6 +1,12 @@
 <template>
   <Hero v-if="isConnecting" custom="h-64 relative">
     <SpinnerOverlay />
+    <div class="relative z-10 max-w-sm mx-auto px-4">
+      <h3 class="mb-2">연결 중…</h3>
+      <p v-if="lastRequestErrorContext" class="text-sm opacity-80">
+        {{ lastRequestErrorContext }}
+      </p>
+    </div>
   </Hero>
 
   <div v-else-if="isConnected" class="relative">
@@ -16,7 +22,11 @@
     <SpinnerOverlay v-else-if="isSystemOperationRunning" />
   </div>
 
-  <Hero v-else custom="h-64" title="No WebMidi device found." />
+  <Hero
+    v-else
+    custom="h-64"
+    :title="lastConnectionError || 'No WebMidi device found.'"
+  />
 
   <RequestLog />
 </template>
@@ -41,6 +51,8 @@ export default defineComponent({
       connectDevice,
       isConnected,
       isConnecting,
+      lastConnectionError,
+      lastRequestErrorContext,
       isSystemOperationRunning,
       systemOperationPercentage,
       isBootloaderMode,
@@ -63,6 +75,8 @@ export default defineComponent({
       isConnected,
       isConnecting,
       isBootloaderMode,
+      lastConnectionError,
+      lastRequestErrorContext,
       isSystemOperationRunning,
       systemOperationPercentage,
     };

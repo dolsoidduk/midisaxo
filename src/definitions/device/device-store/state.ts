@@ -31,6 +31,8 @@ export const defaultState: IDeviceState = {
   isBootloaderMode: (null as unknown) as boolean,
   connectionState: (null as unknown) as DeviceConnectionState,
   connectionPromise: (null as unknown) as Promise<any>,
+  lastConnectionError: null,
+  lastRequestErrorContext: null,
   valueSize: (null as unknown) as number,
   valuesPerMessageRequest: (null as unknown) as number,
   boardName: (null as unknown) as string,

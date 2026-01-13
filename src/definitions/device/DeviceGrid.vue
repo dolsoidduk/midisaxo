@@ -13,14 +13,14 @@
             :class="{ 'btn-active': !viewSetting.viewListAsTable }"
             @click="setViewSetting(block, { viewListAsTable: false })"
           >
-            Grid
+            그리드
           </span>
           <span
             class="btn btn-xs"
             :class="{ 'btn-active': viewSetting.viewListAsTable }"
             @click="setViewSetting(block, { viewListAsTable: true })"
           >
-            Table
+            테이블
           </span>
         </span>
 
@@ -28,7 +28,7 @@
           v-if="viewSetting.viewListAsTable && pageSizes.length"
           class="ml-6 float-right"
         >
-          <span class="text-xs">Show</span>
+          <span class="text-xs">표시</span>
           <span
             v-for="itemsPerPage in pageSizes"
             :key="`page-size-${itemsPerPage}`"
@@ -44,7 +44,7 @@
           v-if="viewSetting.viewListAsTable && pages > 1"
           class="ml-6 mt-4 md:mt-0 float-right"
         >
-          <span class="text-xs ml-4">Page</span>
+          <span class="text-xs ml-4">페이지</span>
           <span
             v-for="page in pages"
             :key="`page-size-${page}`"
@@ -78,7 +78,7 @@
         />
       </div>
     </form>
-    <div v-else-if="!segments && componentCount > 0" class="device-grid">
+    <div v-else-if="(!segments || !segments.length) && componentCount > 0" class="device-grid">
       <DeviceGridButton
         v-for="index in componentCount"
         :key="`button-${index}`"
@@ -120,7 +120,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, toRefs } from "vue";
+import { defineComponent, toRefs, onMounted, nextTick, watch } from "vue";
 import { Block } from "./../../definitions";
 import { deviceStoreMapped, requestLogMapped } from "../../store";
 import {
@@ -183,6 +183,87 @@ export default defineComponent({
       showField,
       onValueChange,
     } = useDeviceTableView(block.value, viewSetting);
+
+    // Linux/Electron workaround: inputs sometimes don't paint their text until
+    // the first focus/click. When the table view becomes visible (and after
+    // data finishes loading), force a tiny reflow on form controls and perform
+    // a focus->blur cycle on the first control.
+    const forcePaintTableControls = async (): Promise<void> => {
+      try {
+        await nextTick();
+
+        requestAnimationFrame(() => {
+          const table = document.querySelector(".form-table") as HTMLElement | null;
+          if (!table) {
+            return;
+          }
+
+          const controls = Array.from(
+            table.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+              "input, select, textarea",
+            ),
+          );
+
+          if (!controls.length) {
+            return;
+          }
+
+          // Promote each control to its own layer briefly to force repaint.
+          for (const control of controls) {
+            const prevTransform = control.style.transform;
+            control.style.transform = "translateZ(0)";
+            void control.offsetHeight;
+            control.style.transform = prevTransform;
+          }
+
+          const prevActive = document.activeElement as HTMLElement | null;
+          const first = controls[0] as any;
+          try {
+            first.focus?.({ preventScroll: true });
+            first.blur?.();
+          } catch (_) {
+            // ignore
+          }
+
+          // Restore focus if we stole it.
+          if (prevActive && prevActive !== document.body) {
+            try {
+              (prevActive as any).focus?.({ preventScroll: true });
+            } catch (_) {
+              // ignore
+            }
+          }
+
+          window.dispatchEvent(new Event("resize"));
+        });
+      } catch (_) {
+        // ignore
+      }
+    };
+
+    onMounted(() => {
+      if (viewSetting.value.viewListAsTable) {
+        void forcePaintTableControls();
+      }
+    });
+
+    watch(
+      () => viewSetting.value.viewListAsTable,
+      (enabled) => {
+        if (enabled) {
+          void forcePaintTableControls();
+        }
+      },
+    );
+
+    watch(
+      () => loading.value,
+      (isLoading) => {
+        if (!isLoading && viewSetting.value.viewListAsTable) {
+          void forcePaintTableControls();
+        }
+      },
+    );
 
     return {
       outputId,
