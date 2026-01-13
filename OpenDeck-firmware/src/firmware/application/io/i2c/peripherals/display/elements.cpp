@@ -21,6 +21,7 @@ limitations under the License.
 #include "display.h"
 
 #include "core/mcu.h"
+#include "board/board.h"
 
 using namespace io::i2c::display;
 using namespace protocol;
@@ -33,6 +34,12 @@ void Display::Elements::update()
     }
 
     const auto nowMs = core::mcu::timing::ms();
+
+#ifdef PROJECT_TARGET_SUPPORT_USB
+    const bool usbConnected = board::usb::isUsbConnected();
+#else
+    const bool usbConnected = false;
+#endif
 
     // Large emphasized note display (2x2).
     // Always takes priority over other row-0 text; we redraw it last if anything overlaps.
@@ -117,6 +124,13 @@ void Display::Elements::update()
         // Uses physical rows 0/1 intentionally (ROW_MAP skips some rows for spacing).
         u8x8_Draw2x2String(&_display._u8x8, Display::COLUMN_PADDING, 0, _bigNote.text());
         _bigNote.clearDirty();
+    }
+
+    // Small USB connection indicator next to the big note.
+    // Draw this last so other elements can't overwrite it.
+    {
+        static constexpr uint8_t USB_ICON_X = Display::COLUMN_PADDING + 8; // immediately after 2x2 note (8 columns)
+        u8x8_DrawGlyph(&_display._u8x8, USB_ICON_X, 0, usbConnected ? 'U' : ' ');
     }
 
     _lastRefreshTime = nowMs;
