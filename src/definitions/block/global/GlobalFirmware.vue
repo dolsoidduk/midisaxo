@@ -85,7 +85,7 @@
         class="release-description text-gray-200"
       >
         <a
-          :href="`https://github.com/shanteacontrols/OpenDeck/releases/tag/${update.tag_name}`"
+          :href="`${GitHubFirmwareWebBaseUrl}/releases/tag/${update.tag_name}`"
           >{{ update.tag_name }}</a
         >
         <a
@@ -106,6 +106,7 @@
 import { defineComponent, ref } from "vue";
 import { deviceStoreMapped } from "../../../store";
 import { IOpenDeckRelease } from "../../interface";
+import { GitHubFirmwareWebBaseUrl } from "../../interface";
 
 export default defineComponent({
   name: "GlobalFirmware",
@@ -138,6 +139,7 @@ export default defineComponent({
 
     return {
       firmwareFileName,
+      GitHubFirmwareWebBaseUrl,
       loading,
       isBootloaderMode,
       bootLoaderSupport,

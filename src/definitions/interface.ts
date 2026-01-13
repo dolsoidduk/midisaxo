@@ -17,12 +17,17 @@ export const openDeckManufacturerId = [0, 83, 67]; // Hex [00 53 43]
 
 export const ComponentInfoRequestID = 73;
 
-export const GitHubTagsUrl =
-  "https://api.github.com/repos/shanteacontrols/OpenDeck/tags";
+const firmwareRepo =
+  ((import.meta as any).env?.VITE_FIRMWARE_REPO as string) ||
+  "dolsoidduk/OpenDeck";
+
+export const GitHubTagsUrl = `https://api.github.com/repos/${firmwareRepo}/tags`;
 export const GitHubContentsUrl =
-  "https://api.github.com/repos/shanteacontrols/OpenDeck/contents";
+  `https://api.github.com/repos/${firmwareRepo}/contents`;
 export const GitHubReleasesUrl =
-  "https://api.github.com/repos/shanteacontrols/OpenDeck/releases";
+  `https://api.github.com/repos/${firmwareRepo}/releases`;
+
+export const GitHubFirmwareWebBaseUrl = `https://github.com/${firmwareRepo}`;
 
 export enum MessageStatus {
   Request = 0,
