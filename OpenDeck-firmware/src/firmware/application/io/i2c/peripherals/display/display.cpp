@@ -329,7 +329,16 @@ void Display::displayWelcomeMessage()
         writeString(startRow, "HW: %s", Strings::TARGET_NAME_STRING);
     }
 
-    core::mcu::timing::waitMs(2000);
+    // Give the user enough time to read the startup info (especially FW version).
+    // Use EVENT_TIME as an upper bound control, but keep a sensible minimum.
+    uint32_t welcomeMs = _database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::EVENT_TIME) * 1000UL;
+
+    if (welcomeMs < 5000UL)
+    {
+        welcomeMs = 5000UL;
+    }
+
+    core::mcu::timing::waitMs(welcomeMs);
 }
 
 std::optional<uint8_t> Display::sysConfigGet(sys::Config::Section::i2c_t section, size_t index, uint16_t& value)
