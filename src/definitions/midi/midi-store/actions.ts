@@ -223,7 +223,7 @@ export const findOutputById = (outputId: string): Output => {
   return WebMidi.outputs.find((output: Output) => output.id === outputId);
 };
 
-const pingOutput = async (output: Output, inputs: Inputs[]) => {
+const pingOutput = async (output: Output, inputs: Input[]) => {
   return new Promise((resolve, reject) => {
     let input;
     let resolved = false;
@@ -283,14 +283,46 @@ export const matchInputOutput = async (
     return delay(250).then(() => matchInputOutput(outputId));
   }
 
-  const inputs = WebMidi.inputs.filter(
-    (input: Input) => input.name === output.name,
-  );
-  if (!inputs.length) {
+  const isGenericThroughPort = (name: string): boolean =>
+    /\bmidi\s*(thru|through)\b/i.test(String(name || ""));
+
+  const nonBleInputs = WebMidi.inputs.filter((input: Input) => !input.name.includes("BLE"));
+  const preferredInputs = nonBleInputs.filter((input: Input) => !isGenericThroughPort(input.name));
+
+  const outputName = String(output.name || "");
+  const outputNameLower = outputName.toLowerCase();
+
+  // 1) Best case: exact name match
+  let candidates = preferredInputs.filter((input: Input) => input.name === output.name);
+
+  // 2) Common case: input/output names differ slightly (e.g. "OpenDeck" vs "OpenDeck MIDI")
+  if (!candidates.length && outputNameLower) {
+    candidates = preferredInputs.filter((input: Input) => {
+      const inName = String(input.name || "").toLowerCase();
+      return inName.includes(outputNameLower) || outputNameLower.includes(inName);
+    });
+  }
+
+  // 3) If there's only one reasonable input, just use it.
+  if (!candidates.length && preferredInputs.length === 1) {
+    candidates = preferredInputs;
+  }
+
+  // 4) Otherwise, listen on all non-BLE/non-through inputs and let SysEx handshake decide.
+  if (!candidates.length && preferredInputs.length) {
+    candidates = preferredInputs;
+  }
+
+  // 5) Last resort: fall back to all non-BLE inputs (includes MIDI Through if it's the only thing available)
+  if (!candidates.length && nonBleInputs.length) {
+    candidates = nonBleInputs;
+  }
+
+  if (!candidates.length) {
     return delay(250).then(() => matchInputOutput(outputId));
   }
 
-  return pingOutput(output, inputs);
+  return pingOutput(output, candidates);
 };
 
 export const loadMidi = async (): Promise<void> => {
