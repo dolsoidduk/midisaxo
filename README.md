@@ -163,6 +163,22 @@ This repository can publish the configurator to GitHub Pages so the UI is always
 
 This fork uses the GitHub Actions workflow in `.github/workflows/pages.yml`.
 
+### Alternative: deploy via `gh-pages` branch (avoids Pages deploy queue)
+
+If GitHub Pages deployments get stuck in `deployment_queued` (and hit the 10 minute timeout), you can bypass the Pages Deploy API entirely by publishing the built `dist/` output to a `gh-pages` branch.
+
+This repo includes an additional workflow: `.github/workflows/pages-branch.yml`.
+
+To enable it:
+
+1. GitHub repo → **Settings → Pages**
+2. **Build and deployment → Source = Deploy from a branch**
+3. Branch = `gh-pages`, Folder = `/ (root)`
+
+Notes:
+- If you use the branch method, you can keep `.github/workflows/pages.yml` as a manual fallback (workflow_dispatch).
+- The published URL stays the same.
+
 ### Firmware repo setting (recommended)
 
 This UI checks firmware updates via the GitHub Releases API.
