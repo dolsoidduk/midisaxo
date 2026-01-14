@@ -81,6 +81,7 @@ namespace io::buttons
         SYS_EX_MACRO,
         SAX_TRANSPOSE_INC,
         SAX_TRANSPOSE_DEC,
+        SAX_PB_CENTER_CAPTURE,
         AMOUNT
     };
 

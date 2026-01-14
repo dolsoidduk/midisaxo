@@ -76,6 +76,24 @@ bool Analog::init()
     return true;
 }
 
+void Analog::setPitchBendCenter(size_t index, uint16_t center)
+{
+    if (index >= Collection::SIZE(GROUP_ANALOG_INPUTS))
+    {
+        return;
+    }
+
+    _pitchBendCenter[index] = core::util::CONSTRAIN(center,
+                                                   static_cast<uint16_t>(0),
+                                                   static_cast<uint16_t>(midi::MAX_VALUE_14BIT));
+}
+
+void Analog::setPitchBendDeadzone(uint16_t deadzone)
+{
+    // Keep this sane; PB delta range per side is at most 8192.
+    _pitchBendDeadzone = core::util::CONSTRAIN(deadzone, static_cast<uint16_t>(0), static_cast<uint16_t>(8192));
+}
+
 void Analog::updateSingle(size_t index, bool forceRefresh)
 {
     if (index >= maxComponentUpdateIndex())
@@ -347,7 +365,11 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
             // Dedicated sax targets reserve analog index 2 as a "pitch amount" pot.
             // Value range is 0..127, where 127 means full scale.
             static constexpr size_t   PITCH_AMOUNT_ANALOG_INDEX = 2;
-            static constexpr uint16_t PB_CENTER                 = 8192;
+            static constexpr uint16_t PB_CENTER_DEFAULT          = 8192;
+
+            const uint16_t pbCenter = (_pitchBendCenter[index] <= midi::MAX_VALUE_14BIT)
+                                          ? _pitchBendCenter[index]
+                                          : PB_CENTER_DEFAULT;
 
             if (index != PITCH_AMOUNT_ANALOG_INDEX)
             {
@@ -355,10 +377,74 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
 
                 if ((amount != 0xFFFF) && (amount <= 127) && (amount != 127))
                 {
-                    const int32_t delta      = static_cast<int32_t>(descriptor.event.value) - static_cast<int32_t>(PB_CENTER);
+                    const int32_t delta       = static_cast<int32_t>(descriptor.event.value) - static_cast<int32_t>(pbCenter);
                     const int32_t scaledDelta = (delta * static_cast<int32_t>(amount)) / 127;
-                    descriptor.event.value    = static_cast<uint16_t>(static_cast<int32_t>(PB_CENTER) + scaledDelta);
+                    descriptor.event.value    = static_cast<uint16_t>(static_cast<int32_t>(pbCenter) + scaledDelta);
                 }
+            }
+
+            // Pitch bend shaping: deadzone around center + cubic curve.
+            // This makes small fluctuations near center much less sensitive, while
+            // preserving full-scale bend at the extremes.
+            static constexpr uint32_t Q15                             = 32767;
+            static constexpr uint64_t Q15_CUBE                        = static_cast<uint64_t>(Q15) * Q15 * Q15;
+
+            const int32_t value = static_cast<int32_t>(descriptor.event.value);
+
+            // MIDI PB is 14-bit: 0..16383.
+            // Use captured pbCenter to define the neutral point, but always output
+            // PB_CENTER_DEFAULT as "no bend".
+            const int32_t delta = value - static_cast<int32_t>(pbCenter);
+
+            if (delta != 0)
+            {
+                const int32_t sign   = (delta < 0) ? -1 : 1;
+                const int32_t maxAbs = (sign < 0)
+                                           ? static_cast<int32_t>(pbCenter)
+                                           : static_cast<int32_t>(midi::MAX_VALUE_14BIT) - static_cast<int32_t>(pbCenter);
+
+                    const int32_t deadzone = core::util::CONSTRAIN(static_cast<int32_t>(_pitchBendDeadzone),
+                                                                  static_cast<int32_t>(0),
+                                                                  maxAbs);
+                const int32_t absDeltaRaw = (delta < 0) ? -delta : delta;
+                const int32_t absDelta    = core::util::CONSTRAIN(absDeltaRaw, static_cast<int32_t>(0), maxAbs);
+
+                int32_t shapedDelta = 0;
+
+                    if (absDelta > deadzone)
+                {
+                        const int32_t absNoDZ = absDelta - deadzone;
+                        const int32_t denom   = maxAbs - deadzone;
+
+                    // Normalize to Q15: n in [0..Q15].
+                    uint32_t n = 0;
+
+                    if (denom > 0)
+                    {
+                        n = static_cast<uint32_t>((static_cast<uint64_t>(absNoDZ) * Q15 + static_cast<uint64_t>(denom) / 2) /
+                                                  static_cast<uint64_t>(denom));
+                    }
+
+                    if (n > Q15)
+                    {
+                        n = Q15;
+                    }
+
+                    // Cubic curve: y = (n/Q15)^3, scaled back to full range.
+                    const uint64_t n3 = static_cast<uint64_t>(n) * n * n;
+                    const uint32_t outAbs = static_cast<uint32_t>((n3 * static_cast<uint64_t>(maxAbs) + Q15_CUBE / 2) / Q15_CUBE);
+
+                    shapedDelta = static_cast<int32_t>(outAbs) * sign;
+                }
+
+                const int32_t outValue = static_cast<int32_t>(PB_CENTER_DEFAULT) + shapedDelta;
+                descriptor.event.value = static_cast<uint16_t>(core::util::CONSTRAIN(outValue,
+                                                                                    static_cast<int32_t>(0),
+                                                                                    static_cast<int32_t>(midi::MAX_VALUE_14BIT)));
+            }
+            else
+            {
+                descriptor.event.value = PB_CENTER_DEFAULT;
             }
         }
 
@@ -406,6 +492,9 @@ void Analog::reset(size_t index)
     setFSRstate(index, false);
     _filter.reset(index);
     _lastValue[index] = 0xFFFF;
+
+    static constexpr uint16_t PB_CENTER_DEFAULT = 8192;
+    _pitchBendCenter[index]                     = PB_CENTER_DEFAULT;
 }
 
 void Analog::setFSRstate(size_t index, bool state)

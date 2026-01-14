@@ -115,6 +115,9 @@ export enum ButtonMessageType {
   // Midisaxo custom: change sax transpose (system setting index 11)
   SaxTransposeInc = 31,
   SaxTransposeDec = 32,
+
+  // Midisaxo custom: capture current pitch-bend center (player calibration)
+  SaxPitchBendCenterCapture = 33,
 }
 
 export enum EncodingMode {

@@ -41,6 +41,9 @@ namespace io::analog
         size_t maxComponentUpdateIndex() override;
         void   reset(size_t index);
 
+        void setPitchBendCenter(size_t index, uint16_t center);
+        void setPitchBendDeadzone(uint16_t deadzone);
+
         uint16_t value(size_t index) const;
 
         private:
@@ -75,6 +78,8 @@ namespace io::analog
         Database& _database;
         uint8_t   _fsrPressed[Collection::SIZE() / 8 + 1] = {};
         uint16_t  _lastValue[Collection::SIZE()]          = {};
+        uint16_t  _pitchBendCenter[Collection::SIZE()]    = {};
+        uint16_t  _pitchBendDeadzone                      = 100;
 
         void                   fillDescriptor(size_t index, Descriptor& descriptor);
         void                   processReading(size_t index, uint16_t value);

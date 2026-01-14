@@ -532,6 +532,16 @@ void Buttons::sendMessage(size_t index, bool state, Descriptor& descriptor)
         }
         break;
 
+        case messageType_t::SAX_PB_CENTER_CAPTURE:
+        {
+            eventType                       = messaging::eventType_t::SYSTEM;
+            descriptor.event.message        = midi::messageType_t::INVALID;
+            descriptor.event.index          = 0;
+            descriptor.event.value          = 0;
+            descriptor.event.systemMessage  = messaging::systemMessage_t::SAX_PB_CENTER_CAPTURE_REQ;
+        }
+        break;
+
         case messageType_t::PRESET_CHANGE:
         {
             eventType                      = messaging::eventType_t::SYSTEM;

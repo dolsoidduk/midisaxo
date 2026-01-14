@@ -92,6 +92,8 @@ System::System(Hwa&        hwa,
                               {
                                   // Custom system setting index 11: sax transpose raw value 0..48 (= -24..+24 semis).
                                   static constexpr size_t  SAX_TRANSPOSE_SETTING_INDEX = 11;
+                                  static constexpr uint16_t SAX_TRANSPOSE_INIT_FLAG    = 0x8000;
+                                  static constexpr uint16_t SAX_TRANSPOSE_VALUE_MASK   = 0x7FFF;
                                   static constexpr uint16_t RAW_MIN                    = 0;
                                   static constexpr uint16_t RAW_MAX                    = 48;
 
@@ -101,9 +103,10 @@ System::System(Hwa&        hwa,
                                       steps = 1;
                                   }
 
-                                  uint16_t current = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
-                                                                               SAX_TRANSPOSE_SETTING_INDEX);
-                                  current          = core::util::CONSTRAIN(current, RAW_MIN, RAW_MAX);
+                                  const uint16_t stored = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                                     SAX_TRANSPOSE_SETTING_INDEX);
+                                  uint16_t current       = static_cast<uint16_t>(stored & SAX_TRANSPOSE_VALUE_MASK);
+                                  current                = core::util::CONSTRAIN(current, RAW_MIN, RAW_MAX);
 
                                   uint16_t updated = current;
 
@@ -122,7 +125,7 @@ System::System(Hwa&        hwa,
                                   {
                                       _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS,
                                                                     SAX_TRANSPOSE_SETTING_INDEX,
-                                                                    updated);
+                                                                    static_cast<uint16_t>(SAX_TRANSPOSE_INIT_FLAG | updated));
                                   }
 
                                   // Broadcast (updated) value so IO components can apply it immediately.
@@ -137,25 +140,80 @@ System::System(Hwa&        hwa,
                               {
                                   // Custom system setting index 11: sax transpose raw value 0..48 (= -24..+24 semis).
                                   static constexpr size_t  SAX_TRANSPOSE_SETTING_INDEX = 11;
+                                  static constexpr uint16_t SAX_TRANSPOSE_INIT_FLAG    = 0x8000;
+                                  static constexpr uint16_t SAX_TRANSPOSE_VALUE_MASK   = 0x7FFF;
                                   static constexpr uint16_t RAW_MIN                    = 0;
                                   static constexpr uint16_t RAW_MAX                    = 48;
 
                                   const uint16_t requested = core::util::CONSTRAIN(static_cast<uint16_t>(event.value), RAW_MIN, RAW_MAX);
-                                  uint16_t current         = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
-                                                                                 SAX_TRANSPOSE_SETTING_INDEX);
-                                  current                  = core::util::CONSTRAIN(current, RAW_MIN, RAW_MAX);
+                                  const uint16_t stored = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                                    SAX_TRANSPOSE_SETTING_INDEX);
+                                  uint16_t current       = static_cast<uint16_t>(stored & SAX_TRANSPOSE_VALUE_MASK);
+                                  current                = core::util::CONSTRAIN(current, RAW_MIN, RAW_MAX);
 
                                   if (requested != current)
                                   {
                                       _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS,
                                                                     SAX_TRANSPOSE_SETTING_INDEX,
-                                                                    requested);
+                                                                    static_cast<uint16_t>(SAX_TRANSPOSE_INIT_FLAG | requested));
                                   }
 
                                   messaging::Event notifyEvent = {};
                                   notifyEvent.systemMessage    = messaging::systemMessage_t::SAX_TRANSPOSE_CHANGED;
                                   notifyEvent.value            = requested;
                                   MidiDispatcher.notify(messaging::eventType_t::SYSTEM, notifyEvent);
+                              }
+                              break;
+
+                              case messaging::systemMessage_t::SAX_PB_CENTER_CAPTURE_REQ:
+                              {
+                                  if (_analog == nullptr)
+                                  {
+                                      break;
+                                  }
+
+                                  static constexpr size_t  SAX_PB_CENTER_SETTING_INDEX = 13;
+                                  static constexpr uint16_t PB_CENTER_DEFAULT          = 8192;
+
+                                  // Use the first PITCH_BEND analog input as the calibration source.
+                                  size_t pbIndex = ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS);
+
+                                  for (size_t i = 0; i < ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS); i++)
+                                  {
+                                      const auto typeRaw = _components.database().read(database::Config::Section::analog_t::TYPE, i);
+                                      if (static_cast<::io::analog::type_t>(typeRaw) == ::io::analog::type_t::PITCH_BEND)
+                                      {
+                                          pbIndex = i;
+                                          break;
+                                      }
+                                  }
+
+                                  if (pbIndex >= ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS))
+                                  {
+                                      break;
+                                  }
+
+                                  const uint16_t rawCenter = _analog->value(pbIndex);
+                                  if (rawCenter == 0xFFFF)
+                                  {
+                                      break;
+                                  }
+
+                                  const uint16_t storedCenter = (rawCenter <= midi::MAX_VALUE_14BIT) ? rawCenter : PB_CENTER_DEFAULT;
+
+                                  _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                SAX_PB_CENTER_SETTING_INDEX,
+                                                                storedCenter);
+
+                                  // Apply to all PITCH_BEND analog inputs.
+                                  for (size_t i = 0; i < ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS); i++)
+                                  {
+                                      const auto typeRaw = _components.database().read(database::Config::Section::analog_t::TYPE, i);
+                                      if (static_cast<::io::analog::type_t>(typeRaw) == ::io::analog::type_t::PITCH_BEND)
+                                      {
+                                          _analog->setPitchBendCenter(i, storedCenter);
+                                      }
+                                  }
                               }
                               break;
 
@@ -256,32 +314,71 @@ bool System::init()
     // Sync sax transpose (custom system setting index 11) to interested components.
     {
         static constexpr size_t  SAX_TRANSPOSE_SETTING_INDEX = 11;
-        static constexpr size_t  SAX_TRANSPOSE_INIT_FLAG_INDEX = 12;
+        static constexpr uint16_t SAX_TRANSPOSE_INIT_FLAG    = 0x8000;
+        static constexpr uint16_t SAX_TRANSPOSE_VALUE_MASK   = 0x7FFF;
         static constexpr uint16_t RAW_MIN                    = 0;
         static constexpr uint16_t RAW_MAX                    = 48;
 
-        // One-time migration/defaulting: if flag is not set, initialize to 0 semis (raw 24).
-        // This prevents a fresh/old DB default of 0 from being interpreted as -24 semis.
-        const uint16_t initFlag = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
-                                                             SAX_TRANSPOSE_INIT_FLAG_INDEX);
-        if (initFlag == 0)
+        // One-time migration/defaulting: mark setting as initialized (MSB).
+        // If legacy DB left this at 0 without initialization, set to 0 semis (raw 24).
+        const uint16_t stored = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                           SAX_TRANSPOSE_SETTING_INDEX);
+
+        if ((stored & SAX_TRANSPOSE_INIT_FLAG) == 0)
         {
+            const uint16_t legacyValue = static_cast<uint16_t>(stored & SAX_TRANSPOSE_VALUE_MASK);
+            const uint16_t initValue   = (legacyValue == 0) ? static_cast<uint16_t>(24) : legacyValue;
+
             _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS,
                                           SAX_TRANSPOSE_SETTING_INDEX,
-                                          static_cast<uint16_t>(24));
-            _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS,
-                                          SAX_TRANSPOSE_INIT_FLAG_INDEX,
-                                          static_cast<uint16_t>(1));
+                                          static_cast<uint16_t>(SAX_TRANSPOSE_INIT_FLAG | core::util::CONSTRAIN(initValue, RAW_MIN, RAW_MAX)));
         }
 
-        uint16_t current = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
-                                                      SAX_TRANSPOSE_SETTING_INDEX);
-        current          = core::util::CONSTRAIN(current, RAW_MIN, RAW_MAX);
+        const uint16_t storedAfter = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                SAX_TRANSPOSE_SETTING_INDEX);
+        uint16_t       current     = static_cast<uint16_t>(storedAfter & SAX_TRANSPOSE_VALUE_MASK);
+        current                    = core::util::CONSTRAIN(current, RAW_MIN, RAW_MAX);
 
         messaging::Event notifyEvent = {};
         notifyEvent.systemMessage    = messaging::systemMessage_t::SAX_TRANSPOSE_CHANGED;
         notifyEvent.value            = current;
         MidiDispatcher.notify(messaging::eventType_t::SYSTEM, notifyEvent);
+    }
+
+    // Apply stored pitch bend center (player calibration) on startup.
+    {
+        if (_analog != nullptr)
+        {
+            static constexpr size_t  SAX_PB_CENTER_SETTING_INDEX = 13;
+            static constexpr uint16_t PB_CENTER_DEFAULT          = 8192;
+
+            uint16_t storedCenter = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                               SAX_PB_CENTER_SETTING_INDEX);
+            if (storedCenter > midi::MAX_VALUE_14BIT)
+            {
+                storedCenter = PB_CENTER_DEFAULT;
+            }
+
+            for (size_t i = 0; i < ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS); i++)
+            {
+                const auto typeRaw = _components.database().read(database::Config::Section::analog_t::TYPE, i);
+                if (static_cast<::io::analog::type_t>(typeRaw) == ::io::analog::type_t::PITCH_BEND)
+                {
+                    _analog->setPitchBendCenter(i, storedCenter);
+                }
+            }
+        }
+    }
+
+    // Apply stored pitch bend deadzone (center sensitivity) on startup.
+    {
+        if (_analog != nullptr)
+        {
+            static constexpr size_t  SAX_PB_DEADZONE_SETTING_INDEX = 12;
+            const uint16_t storedDeadzone = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                                        SAX_PB_DEADZONE_SETTING_INDEX);
+            _analog->setPitchBendDeadzone(storedDeadzone);
+        }
     }
 
     _sysExConf.setLayout(_layout.layout());
@@ -968,6 +1065,12 @@ std::optional<uint8_t> System::sysConfigGet(sys::Config::Section::global_t secti
                       ? sys::Config::Status::ACK
                       : sys::Config::Status::ERROR_READ;
 
+    // Hide internal init flag bit from UI for sax transpose.
+    if (index == 11)
+    {
+        readValue &= 0x7FFFu;
+    }
+
     value = readValue;
 
     return result;
@@ -988,6 +1091,14 @@ std::optional<uint8_t> System::sysConfigSet(sys::Config::Section::global_t secti
         return std::nullopt;
     }
 
+    // Preserve internal init flag bit for sax transpose and always mark as initialized.
+    if (index == 11)
+    {
+        static constexpr uint16_t SAX_TRANSPOSE_INIT_FLAG  = 0x8000;
+        static constexpr uint16_t SAX_TRANSPOSE_VALUE_MASK = 0x7FFF;
+        value = static_cast<uint16_t>(SAX_TRANSPOSE_INIT_FLAG | (value & SAX_TRANSPOSE_VALUE_MASK));
+    }
+
     auto result = _components.database().update(database::Config::Section::system_t::SYSTEM_SETTINGS, index, value)
                       ? sys::Config::Status::ACK
                       : sys::Config::Status::ERROR_WRITE;
@@ -998,6 +1109,15 @@ std::optional<uint8_t> System::sysConfigSet(sys::Config::Section::global_t secti
         if ((index == 6) || (index == 7))
         {
             ensureSaxAnalogConfigured();
+        }
+
+        // Apply pitch bend deadzone immediately when changed from UI.
+        if (index == 12)
+        {
+            if (_analog != nullptr)
+            {
+                _analog->setPitchBendDeadzone(value);
+            }
         }
     }
 

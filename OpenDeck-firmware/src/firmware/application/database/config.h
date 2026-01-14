@@ -29,7 +29,7 @@ namespace database
         Config() = delete;
 
         static constexpr size_t MAX_PRESETS                = 10;
-        static constexpr size_t MAX_CUSTOM_SYSTEM_SETTINGS = 10;
+        static constexpr size_t MAX_CUSTOM_SYSTEM_SETTINGS = 11;
 
         enum class block_t : uint8_t
         {

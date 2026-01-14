@@ -365,11 +365,14 @@ namespace io::i2c::display
                 }
 
                 private:
-                static constexpr uint8_t BAR_WIDTH = 12;
+                // Reserve the last LCD cell on the right as blank.
+                // With COLUMN_PADDING=1 and MAX_COLUMNS=16, this element draws into columns 1..15.
+                // Keeping maxLength=15 ensures we never draw past column 15.
+                static constexpr uint8_t BAR_WIDTH = 11;
 
                 void setNeutral()
                 {
-                    // "PB|" + 12 chars = 15 total.
+                    // "PB|" + 11 chars = 14; DisplayElement pads to 15 => last cell stays blank.
                     char temp[16] = {};
                     snprintf(temp, sizeof(temp), "PB|");
 
@@ -379,7 +382,7 @@ namespace io::i2c::display
                     }
 
                     temp[3 + ((BAR_WIDTH - 1) / 2)] = 'o';
-                    temp[3 + BAR_WIDTH]       = '\0';
+                    temp[3 + BAR_WIDTH] = '\0';
                     setText("%s", temp);
                 }
 

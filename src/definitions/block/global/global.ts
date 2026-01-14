@@ -196,6 +196,20 @@ RP2040 Pico + native ADC 3채널 추천 구성:
     label: "브레스 CC",
     helpText: `호흡 압력에 따라 전송할 MIDI CC를 선택합니다.`,
   },
+  SaxPitchBendDeadzone: {
+    showIf: (formState: FormState): boolean =>
+      !!formState.saxBreathControllerEnable,
+    block: Block.Global,
+    key: "saxPitchBendDeadzone",
+    type: SectionType.Setting,
+    section: 2,
+    settingIndex: 12,
+    min: 0,
+    max: 2000,
+    component: FormInputComponent.Input,
+    label: "피치벤드 중앙 민감도(데드존) (0-2000)",
+    helpText: `중립(중앙) 근처에서 피치벤드가 얼마나 둔해질지 설정합니다.\n\n값이 클수록 중앙에서 더 둔해지고, 값이 작을수록 중앙에서도 민감해집니다.\n단위는 14-bit 피치벤드 값 기준(센터 주변 ±N)입니다. 예) 100 = ±100.\n\n이 설정은 장치에 저장되며 전원을 껐다 켜도 유지됩니다.`,
+  },
   ActivePreset: {
     block: Block.Global,
     key: "activePreset",

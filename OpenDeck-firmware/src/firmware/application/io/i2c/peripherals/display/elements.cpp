@@ -54,10 +54,11 @@ void Display::Elements::update()
     {
         static constexpr size_t  SAX_TRANSPOSE_SETTING_INDEX = 11;
         static constexpr int16_t ENCODED_CENTER              = 24;
+        static constexpr uint16_t VALUE_MASK                 = 0x7FFF;
 
         const uint16_t encoded = static_cast<uint16_t>(
             _display._admin.read(database::Config::Section::system_t::SYSTEM_SETTINGS,
-                                 SAX_TRANSPOSE_SETTING_INDEX));
+                                 SAX_TRANSPOSE_SETTING_INDEX) & VALUE_MASK);
         int16_t        semis   = static_cast<int16_t>(encoded) - ENCODED_CENTER;
 
         if (semis < -24)
@@ -131,8 +132,13 @@ void Display::Elements::update()
     {
         // Move 2 columns left vs the default position.
         // Safe because the big note uses 4 chars and the 4th one is always a space (note name is max 2 chars + octave 1).
-        static constexpr uint8_t USB_ICON_X = Display::COLUMN_PADDING + 6;
+        static constexpr uint8_t USB_ICON_X = Display::COLUMN_PADDING + 5;
         u8x8_DrawString(&_display._u8x8, USB_ICON_X, 0, usbConnected ? "USB" : "   ");
+
+        // Always-on power indicator (circle-with-dot approximation).
+        // Placed right next to the USB indicator.
+        static constexpr uint8_t POWER_ICON_X = Display::COLUMN_PADDING + 8;
+        u8x8_DrawGlyph(&_display._u8x8, POWER_ICON_X, 0, 'o');
     }
 
     // Always show sax transpose next to USB indicator (top row).

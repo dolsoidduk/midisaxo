@@ -103,10 +103,14 @@ const sections: Dictionary<ISectionDefinition> = {
       { value: ButtonMessageType.BpmDec, text: "BPM Dec" },
       { value: ButtonMessageType.SaxTransposeInc, text: "Transpose Inc" },
       { value: ButtonMessageType.SaxTransposeDec, text: "Transpose Dec" },
+      { value: ButtonMessageType.SaxPitchBendCenterCapture, text: "PB Center Capture" },
       { value: ButtonMessageType.CustomSysEx, text: "SysEx (HEX)" },
     ],
     label: "Message type",
-    helpText: ``,
+    helpText: `Midisaxo 커스텀 타입 안내:
+
+  - Transpose Inc/Dec: 색소폰 레지스터 트랜스포즈(시스템 설정 #11)를 증감합니다.
+  - PB Center Capture: 현재 피치벤드 값을 ‘중앙값’으로 캡쳐해 장치에 저장합니다(전원 꺼도 유지).`,
     block: Block.Button,
   },
   MidiChannel: {

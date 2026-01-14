@@ -35,10 +35,15 @@ void Admin::customInitGlobal()
 
     // Custom system setting index 11: sax transpose raw value 0..48 (= -24..+24 semis).
     // Default to 0 semis (raw 24) on factory reset.
-    update(Config::Section::system_t::SYSTEM_SETTINGS, 11, 24);
+    // Note: use MSB as an internal "initialized" flag (masked out from UI).
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 11, static_cast<uint16_t>(0x8000u | 24u));
 
-    // One-time init flag for the sax transpose setting.
-    update(Config::Section::system_t::SYSTEM_SETTINGS, 12, 1);
+    // Custom system setting index 12: pitch bend deadzone around captured center.
+    // Higher value = less sensitive around center.
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 12, 100);
+
+    // Custom system setting index 13: stored pitch bend center (player calibration).
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 13, 8192);
 }
 
 void Admin::customInitButtons()
