@@ -253,6 +253,63 @@
             </div>
           </div>
 
+          <div
+            v-if="fingeringSupport === 'supported'"
+            class="surface-neutral border rounded px-3 py-2 mb-3"
+          >
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="text-xs text-gray-300 font-semibold">키 라벨</div>
+
+              <select
+                class="text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
+                :value="fingeringKeyLabelPreset"
+                @change="onFingeringLabelPresetChange($event)"
+              >
+                <option value="sax">색소폰 표준(추천)</option>
+                <option value="numbers">0-25 숫자</option>
+              </select>
+
+              <label class="text-xs text-gray-300 flex items-center gap-1">
+                <input type="checkbox" v-model="showFingeringKeyIndex" />
+                인덱스(#0-25) 표시
+              </label>
+
+              <Button
+                size="sm"
+                variant="secondary"
+                @click.prevent="showFingeringLabelEditor = !showFingeringLabelEditor"
+              >
+                {{ showFingeringLabelEditor ? "라벨 편집 닫기" : "라벨 편집" }}
+              </Button>
+
+              <div class="flex-grow"></div>
+
+              <Button
+                size="sm"
+                variant="secondary"
+                @click.prevent="resetFingeringLabelsToPreset()"
+              >
+                프리셋으로 초기화
+              </Button>
+            </div>
+
+            <div v-if="showFingeringLabelEditor" class="mt-3">
+              <div class="text-xs text-gray-400 mb-2">
+                위에서부터 <strong class="text-gray-200">키 #0</strong> ~ <strong class="text-gray-200">키 #25</strong>
+                순서로 1줄에 1개씩 입력하세요.
+              </div>
+              <textarea
+                class="w-full text-sm px-2 py-2 border border-gray-700 rounded bg-transparent text-gray-200 font-mono"
+                style="min-height: 220px;"
+                :value="fingeringKeyLabelsText"
+                @input="onFingeringKeyLabelsTextInput($event)"
+              />
+              <div class="text-[11px] text-gray-500 mt-2">
+                팁: 라벨은 UI 표시용이며 펌웨어 인덱스/기능은 바뀌지 않습니다.
+              </div>
+            </div>
+          </div>
+
           <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
             <div
               v-for="entry in visibleFingeringEntries"
@@ -284,6 +341,16 @@
               </div>
 
               <label class="text-xs text-gray-400 block mb-1">눌린 키 (0-25)</label>
+              <SaxFingeringKeyPad
+                class="mb-2"
+                :mask="entry.mask"
+                :disabled="!entry.enabled || fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
+                :labels="fingeringKeyLabels"
+                :show-index="showFingeringKeyIndex"
+                @update:mask="(m) => setFingeringMask(entry.index, m)"
+              />
+
+              <label class="text-[11px] text-gray-500 block mb-1">텍스트 입력 (고급)</label>
               <input
                 class="w-full text-sm px-2 py-1"
                 :value="entry.keysText"
@@ -423,9 +490,13 @@ import { defineComponent, computed, ref, onMounted, onUnmounted, watch, nextTick
 import { Block, SectionType, BlockMap } from "../index";
 import { useDeviceForm } from "../../composables";
 import { midiStoreMapped, deviceStoreMapped, deviceStore } from "../../store";
+import SaxFingeringKeyPad from "./SaxFingeringKeyPad.vue";
 
 export default defineComponent({
   name: "MidiSaxophone",
+  components: {
+    SaxFingeringKeyPad,
+  },
   setup() {
     const { isConnected } = midiStoreMapped;
     const { numberOfComponents } = deviceStoreMapped;
@@ -461,6 +532,44 @@ export default defineComponent({
     const fingeringFilterOnlyWithNote = ref(false);
     const fingeringFilterIndexFrom = ref(0);
     const fingeringFilterIndexTo = ref(fingeringEntryCount - 1);
+
+    const saxKeyLabelPresets: Record<"sax" | "numbers", string[]> = {
+      // 인덱스(0-25)는 펌웨어 내부 키 번호이고, 라벨은 UI 표시용입니다.
+      sax: [
+        "Octave",
+        "LH 1",
+        "LH 2",
+        "LH 3",
+        "RH 1",
+        "RH 2",
+        "RH 3",
+        "Low F#",
+        "Alt",
+        "Bis Bb",
+        "G#",
+        "Palm D",
+        "Palm Eb",
+        "Palm F",
+        "Side C",
+        "Side Bb",
+        "Side F#",
+        "Low Eb",
+        "Low C",
+        "Low B",
+        "Low Bb",
+        "Front F",
+        "High F#",
+        "Alt 1",
+        "Alt 2",
+        "Low A",
+      ],
+      numbers: Array.from({ length: 26 }, (_, i) => String(i)),
+    };
+
+    const fingeringKeyLabelPreset = ref<"sax" | "numbers">("sax");
+    const fingeringKeyLabels = ref<string[]>([...saxKeyLabelPresets.sax]);
+    const showFingeringKeyIndex = ref(false);
+    const showFingeringLabelEditor = ref(false);
 
     const uiStateKey = "opendeck.midisaxophone.ui";
 
@@ -501,6 +610,24 @@ export default defineComponent({
           if (typeof parsed.fingeringFilterIndexTo === "number") {
             fingeringFilterIndexTo.value = Math.max(0, Math.min(fingeringEntryCount - 1, Math.floor(parsed.fingeringFilterIndexTo)));
           }
+
+          if (parsed.fingeringKeyLabelPreset === "sax" || parsed.fingeringKeyLabelPreset === "numbers") {
+            fingeringKeyLabelPreset.value = parsed.fingeringKeyLabelPreset;
+          }
+          if (typeof parsed.showFingeringKeyIndex === "boolean") {
+            showFingeringKeyIndex.value = parsed.showFingeringKeyIndex;
+          }
+          if (typeof parsed.showFingeringLabelEditor === "boolean") {
+            showFingeringLabelEditor.value = parsed.showFingeringLabelEditor;
+          }
+          if (Array.isArray(parsed.fingeringKeyLabels)) {
+            const next = parsed.fingeringKeyLabels
+              .slice(0, 26)
+              .map((v: any, i: number) => (typeof v === "string" ? v : saxKeyLabelPresets[fingeringKeyLabelPreset.value][i] || String(i)));
+            if (next.length === 26) {
+              fingeringKeyLabels.value = next;
+            }
+          }
         }
       } catch {
         // ignore corrupted localStorage
@@ -524,11 +651,63 @@ export default defineComponent({
             fingeringFilterOnlyWithNote: fingeringFilterOnlyWithNote.value,
             fingeringFilterIndexFrom: fingeringFilterIndexFrom.value,
             fingeringFilterIndexTo: fingeringFilterIndexTo.value,
+
+            fingeringKeyLabelPreset: fingeringKeyLabelPreset.value,
+            fingeringKeyLabels: fingeringKeyLabels.value,
+            showFingeringKeyIndex: showFingeringKeyIndex.value,
+            showFingeringLabelEditor: showFingeringLabelEditor.value,
           }),
         );
       } catch {
         // ignore quota / private mode
       }
+    };
+
+    const resetFingeringLabelsToPreset = (): void => {
+      fingeringKeyLabels.value = [...saxKeyLabelPresets[fingeringKeyLabelPreset.value]];
+    };
+
+    const onFingeringLabelPresetChange = (event: Event): void => {
+      const target = event && (event.target as unknown as HTMLSelectElement);
+      const value = target && typeof target.value === "string" ? target.value : "sax";
+      if (value === "sax" || value === "numbers") {
+        fingeringKeyLabelPreset.value = value;
+        resetFingeringLabelsToPreset();
+      }
+    };
+
+    const onFingeringKeyLabelInput = (index: number, event: Event): void => {
+      const i = Math.max(0, Math.min(25, Math.floor(Number(index) || 0)));
+      const target = event && (event.target as unknown as HTMLInputElement);
+      const text = target && typeof target.value === "string" ? target.value : "";
+
+      const next = [...fingeringKeyLabels.value];
+      while (next.length < 26) {
+        next.push("");
+      }
+      next[i] = text;
+      fingeringKeyLabels.value = next;
+    };
+
+    const fingeringKeyLabelsText = computed((): string => {
+      const list = fingeringKeyLabels.value || [];
+      const lines: string[] = [];
+      for (let i = 0; i < 26; i++) {
+        lines.push(String(list[i] ?? ""));
+      }
+      return lines.join("\n");
+    });
+
+    const onFingeringKeyLabelsTextInput = (event: Event): void => {
+      const target = event && (event.target as unknown as HTMLTextAreaElement);
+      const text = target && typeof target.value === "string" ? target.value : "";
+      const rawLines = text.split(/\r?\n/);
+      const next: string[] = [];
+      for (let i = 0; i < 26; i++) {
+        const v = rawLines[i];
+        next.push(typeof v === "string" ? v.trim() : "");
+      }
+      fingeringKeyLabels.value = next;
     };
 
     const { formData, loading, onSettingChange, showField } =
@@ -845,11 +1024,14 @@ export default defineComponent({
       return setFingeringNote(entryIndex, raw);
     };
 
-    const setFingeringKeysText = async (entryIndex: number, text: string) => {
+    const setFingeringMask = async (entryIndex: number, rawMask: number) => {
       if (!isConnected.value || fingeringSupport.value !== "supported") {
         return;
       }
-      const mask = parseKeysToMask(text);
+
+      const all = ((1 << fingeringKeyCount) - 1) >>> 0;
+      const mask = (Number(rawMask) >>> 0) & all;
+
       const { lo14, hi } = splitMaskTo14BitParts(mask);
       const currentHiEn = (fingeringMaskHi10Enable.value && fingeringMaskHi10Enable.value[entryIndex]) || 0;
       const enabledBit = currentHiEn & fingeringEnableBit;
@@ -870,6 +1052,11 @@ export default defineComponent({
       } finally {
         fingeringLoading.value = false;
       }
+    };
+
+    const setFingeringKeysText = async (entryIndex: number, text: string) => {
+      const mask = parseKeysToMask(text);
+      return setFingeringMask(entryIndex, mask);
     };
 
     const onFingeringKeysChange = (entryIndex: number, event: Event) => {
@@ -1137,6 +1324,17 @@ export default defineComponent({
     );
 
     watch(
+      () => [
+        fingeringKeyLabelPreset.value,
+        showFingeringKeyIndex.value,
+        showFingeringLabelEditor.value,
+        fingeringKeyLabels.value.join("\u0000"),
+      ],
+      () => saveUiState(),
+      { deep: false },
+    );
+
+    watch(
       () => isConnected.value,
       (connected) => {
         if (connected) {
@@ -1295,11 +1493,22 @@ export default defineComponent({
       onFingeringKeysChange,
       onFingeringNoteChange,
       setFingeringEnabled,
+      setFingeringMask,
       setFingeringKeysText,
       setFingeringNote,
       activeFingeringEntryIndex,
       setFingeringEntryEl,
       setFingeringNoteInputEl,
+
+      fingeringKeyLabelPreset,
+      fingeringKeyLabels,
+      showFingeringKeyIndex,
+      showFingeringLabelEditor,
+      onFingeringLabelPresetChange,
+      onFingeringKeyLabelInput,
+      fingeringKeyLabelsText,
+      onFingeringKeyLabelsTextInput,
+      resetFingeringLabelsToPreset,
     };
   },
 });

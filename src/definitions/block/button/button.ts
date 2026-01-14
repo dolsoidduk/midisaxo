@@ -66,7 +66,10 @@ const sections: Dictionary<ISectionDefinition> = {
       { value: ButtonMessageType.MmcPlay, text: "MMC Play" },
       { value: ButtonMessageType.MmcPlayStop, text: "MMC Play/Stop" },
       { value: ButtonMessageType.MmcRecord, text: "MMC Record" },
-      { value: ButtonMessageType.MmcPause, text: "MMC Pause" },
+        { 
+          value: ButtonMessageType.SaxFingeringKey, 
+          text: "Sax Fingering Key (no MIDI)", 
+        },
       { value: ButtonMessageType.RealTimeClock, text: "Real Time Clock" },
       { value: ButtonMessageType.RealTimeStart, text: "Real Time Start" },
       { value: ButtonMessageType.RealTimeContinue, text: "Real Time Continue" },

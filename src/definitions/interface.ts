@@ -118,6 +118,8 @@ export enum ButtonMessageType {
 
   // Midisaxo custom: capture current pitch-bend center (player calibration)
   SaxPitchBendCenterCapture = 33,
+  // Midisaxo custom: sax fingering key (no MIDI output; pure switch input)
+  SaxFingeringKey = 34,
 }
 
 export enum EncodingMode {
@@ -173,6 +175,7 @@ export const HideButtonVelocityOnTypes = [
   ButtonMessageType.BpmInc,
   ButtonMessageType.BpmDec,
   ButtonMessageType.CustomSysEx,
+  ButtonMessageType.SaxFingeringKey,
 ];
 
 export const HideButtonMidiIdOnTypes = [
@@ -191,6 +194,7 @@ export const HideButtonMidiIdOnTypes = [
   ButtonMessageType.CustomSysEx,
   ButtonMessageType.SaxTransposeInc,
   ButtonMessageType.SaxTransposeDec,
+  ButtonMessageType.SaxFingeringKey,
 ];
 
 export const HideButtonMidiChannelOnTypes = [
@@ -213,6 +217,7 @@ export const HideButtonMidiChannelOnTypes = [
   ButtonMessageType.CustomSysEx,
   ButtonMessageType.SaxTransposeInc,
   ButtonMessageType.SaxTransposeDec,
+  ButtonMessageType.SaxFingeringKey,
 ];
 
 export const HideAnalogMidiIdOnTypes = [AnalogType.Button];
