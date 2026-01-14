@@ -7,7 +7,7 @@
   />
 
   <Hero
-    v-else-if="onlyGenericThrough"
+    v-else-if="onlyGenericThrough && !ignoreOnlyGenericThrough"
     custom="py-24"
     title="현재 'MIDI Through' 포트만 감지됩니다."
   >
@@ -16,7 +16,18 @@
         이 상태는 UI 필터링 문제가 아니라, 브라우저/OS가 실제 USB-MIDI 장치를 못 보고 있는 경우가 대부분입니다.
       </div>
       <div class="mt-3 text-gray-300">
-        먼저 아래 버튼으로 <strong>SysEx 권한(sysex=true)</strong>을 요청하고 포트 목록을 새로고침해보세요.
+        1) 아래 버튼으로 <strong>SysEx 권한(sysex=true)</strong>을 요청하고 포트 목록을 새로고침해보세요.
+      </div>
+      <div class="mt-2 text-gray-300">
+        2) 그래도 계속 "MIDI Through"만 보이면, 보드가 <strong>USB-MIDI 장치로 인식</strong>되고 있는지부터 확인이 필요합니다.
+      </div>
+      <div class="mt-3 text-xs text-gray-400">
+        <div>
+          - 권장 점검: USB 케이블 교체(데이터 케이블), 다른 포트/허브 제거, 보드 재부팅
+        </div>
+        <div>
+          - RP2040는 BOOTSEL(USB 저장장치 모드) / DFU 모드면 MIDI로 안 보입니다
+        </div>
       </div>
     </div>
 
@@ -52,11 +63,19 @@
         >
           진단 로그 복사
         </button>
+        <button
+          type="button"
+          class="px-2 py-1 border border-yellow-700 rounded text-yellow-200 hover:border-yellow-500"
+          @click="enableIgnoreOnlyGenericThrough"
+          title="경고: 대부분의 경우 연결/핸드셰이크가 실패합니다. 그래도 포트를 선택해 다음 화면으로 진행합니다."
+        >
+          무시하고 진행
+        </button>
       </div>
 
       <p class="mt-3 text-xs text-gray-400">
-        Linux라면 OS에서 장치가 MIDI로 잡혔는지 `aconnect -l`로 확인해보세요.
-        RP2040는 BOOTSEL(USB 저장장치 모드)이면 MIDI로 안 보입니다.
+        권한 상태(perm)가 "granted"인데도 장치가 안 보이면, 대부분 OS 레벨에서 MIDI 장치가 안 잡힌 상황입니다.
+        Linux라면 호스트에서 `aconnect -l` / `lsusb`로 확인해보세요.
       </p>
     </div>
   </Hero>
@@ -67,6 +86,27 @@
       order to use configurator."
   />
   <Hero v-else custom="py-24">
+    <div
+      v-if="onlyGenericThrough && ignoreOnlyGenericThrough"
+      class="mb-4 surface-neutral border border-yellow-700 px-6 py-3 rounded text-sm"
+    >
+      <div class="text-yellow-200">
+        현재 <strong>"MIDI Through만 감지" 우회 모드</strong>가 켜져 있습니다.
+      </div>
+      <div class="mt-1 text-xs text-gray-300">
+        대부분의 경우 실제 보드 연결/핸드셰이크는 실패합니다. 문제가 해결되면 우회를 끄는 것을 권장합니다.
+      </div>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="px-2 py-1 border border-yellow-700 rounded text-yellow-200 hover:border-yellow-500"
+          @click="disableIgnoreOnlyGenericThrough"
+        >
+          안전모드로 복귀(우회 해제)
+        </button>
+      </div>
+    </div>
+
     <div class="surface-neutral border px-8 pt-6 rounded">
       <router-link
         v-for="(output, idx) in outputs"
@@ -256,6 +296,7 @@ export default defineComponent({
           const outs: any[] = unref(midiStoreMapped.outputs) as any[];
           return !!dbg?.hasOnlyGenericThrough && Array.isArray(outs) && outs.length === 1;
         });
+    const ignoreOnlyGenericThrough = ref<boolean>(false);
     const nativeError = ref<string | null>(null);
     const nativeInputs = ref<any[]>([]);
     const nativeOutputs = ref<any[]>([]);
@@ -272,7 +313,7 @@ export default defineComponent({
       typeof navigator !== "undefined" && typeof (navigator as any).requestMIDIAccess === "function",
     );
 
-    const refreshMidiPermissions = () => {
+    const refreshMidiPermissions = async (): Promise<void> => {
       midiPermission.value = "";
       midiSysexPermission.value = "";
       midiPermissionError.value = "";
@@ -282,17 +323,18 @@ export default defineComponent({
         return;
       }
 
-      Promise.all([
-        permissions.query({ name: "midi", sysex: false }),
-        permissions.query({ name: "midi", sysex: true }),
-      ])
-        .then(([midi, midiSysex]: any[]) => {
-          midiPermission.value = String(midi?.state || "");
-          midiSysexPermission.value = String(midiSysex?.state || "");
-        })
-        .catch((err: any) => {
-          midiPermissionError.value = String(err?.message || err || "unknown error");
-        });
+      try {
+        const [midi, midiSysex] = await Promise.all([
+          permissions.query({ name: "midi", sysex: false }),
+          permissions.query({ name: "midi", sysex: true }),
+        ]);
+
+        midiPermission.value = String((midi as any)?.state || "");
+        midiSysexPermission.value = String((midiSysex as any)?.state || "");
+      } catch (err) {
+        const errorAny = err as any;
+        midiPermissionError.value = String(errorAny?.message || err || "unknown error");
+      }
     };
 
     const copyMidiDiagnostic = async () => {
@@ -435,6 +477,14 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      try {
+        ignoreOnlyGenericThrough.value =
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem("opendeck.ignoreOnlyGenericThrough") === "true";
+      } catch {
+        // ignore
+      }
+
       midiStoreMapped
         .loadMidi()
         .catch(() => {
@@ -450,11 +500,13 @@ export default defineComponent({
 
       // Native WebMIDI debug (Chrome's MIDIAccess)
       // webmidi.js wraps this, but showing raw MIDIAccess helps diagnose platform/permission issues.
-      requestNativeMidiAccess(false);
 
       // Permissions API (optional): helps distinguish granted vs prompt/denied.
       // Some browsers may not implement this for MIDI.
-      refreshMidiPermissions();
+      // If SysEx is already granted, request a sysex-enabled MIDIAccess snapshot so the dump matches.
+      refreshMidiPermissions().finally(() => {
+        requestNativeMidiAccess(midiSysexPermission.value === "granted");
+      });
     });
 
 
@@ -462,6 +514,7 @@ export default defineComponent({
       outputs: midiStoreMapped.outputs,
       midiDebug: midiStoreMapped.debug,
       onlyGenericThrough,
+      ignoreOnlyGenericThrough,
       isSecureContext: window.isSecureContext,
       isReloadingWebMidi,
       reloadWebMidi,
@@ -480,6 +533,26 @@ export default defineComponent({
       midiSysexPermission,
       midiPermissionError,
       copyMidiDiagnostic,
+      enableIgnoreOnlyGenericThrough: () => {
+        ignoreOnlyGenericThrough.value = true;
+        try {
+          if (typeof localStorage !== "undefined") {
+            localStorage.setItem("opendeck.ignoreOnlyGenericThrough", "true");
+          }
+        } catch {
+          // ignore
+        }
+      },
+      disableIgnoreOnlyGenericThrough: () => {
+        ignoreOnlyGenericThrough.value = false;
+        try {
+          if (typeof localStorage !== "undefined") {
+            localStorage.removeItem("opendeck.ignoreOnlyGenericThrough");
+          }
+        } catch {
+          // ignore
+        }
+      },
     };
   },
 });
