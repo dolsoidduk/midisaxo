@@ -106,14 +106,21 @@ const sections: Dictionary<ISectionDefinition> = {
       { value: ButtonMessageType.BpmDec, text: "BPM Dec" },
       { value: ButtonMessageType.SaxTransposeInc, text: "Transpose Inc" },
       { value: ButtonMessageType.SaxTransposeDec, text: "Transpose Dec" },
-      { value: ButtonMessageType.SaxPitchBendCenterCapture, text: "PB Center Capture" },
+      { value: ButtonMessageType.SaxPitchBendCenterCapture, text: "PB Center Capture (캘리브레이션)" },
       { value: ButtonMessageType.CustomSysEx, text: "SysEx (HEX)" },
     ],
     label: "Message type",
     helpText: `Midisaxo 커스텀 타입 안내:
 
   - Transpose Inc/Dec: 색소폰 레지스터 트랜스포즈(시스템 설정 #11)를 증감합니다.
-  - PB Center Capture: 현재 피치벤드 값을 ‘중앙값’으로 캡쳐해 장치에 저장합니다(전원 꺼도 유지).`,
+  - PB Center Capture: 현재 피치벤드 값을 ‘중앙값(0)’으로 캡쳐해 장치에 저장합니다(전원 꺼도 유지).
+
+PB Center Capture 사용법(추천):
+  1) 평소 연주할 때처럼 ‘입으로 무는 정도’를 유지
+  2) 그 상태에서 버튼을 한 번 눌러 캡처
+  3) 이후부터는 그 ‘문 상태’가 0(센터) 기준이 되고, 입을 떼면 음의 방향(−쪽)으로 자연스럽게 내려갑니다.
+
+팁: 값이 이상해졌으면 같은 방법으로 다시 캡처하면 됩니다.`,
     block: Block.Button,
   },
   MidiChannel: {
