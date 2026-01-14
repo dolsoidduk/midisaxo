@@ -41,6 +41,13 @@ namespace io::buttons
         size_t maxComponentUpdateIndex() override;
         void   reset(size_t index);
 
+        bool isPressed(size_t index) const;
+
+        // Returns the current 26-bit fingering key mask using the configured
+        // messageType_t::SAX_FINGERING_KEY buttons. Returns nullopt unless exactly
+        // 26 keys are configured.
+        std::optional<uint32_t> saxFingeringMask() const;
+
         private:
         struct Descriptor
         {
@@ -85,6 +92,8 @@ namespace io::buttons
             protocol::midi::messageType_t::SYS_EX,                           // SYS_EX_MACRO
             protocol::midi::messageType_t::INVALID,                         // SAX_TRANSPOSE_INC
             protocol::midi::messageType_t::INVALID,                         // SAX_TRANSPOSE_DEC
+            protocol::midi::messageType_t::INVALID,                         // SAX_PB_CENTER_CAPTURE
+            protocol::midi::messageType_t::INVALID,                         // SAX_FINGERING_KEY
         };
 
         Hwa&      _hwa;
@@ -98,6 +107,10 @@ namespace io::buttons
         // Synced from System via SYSTEM event (SAX_TRANSPOSE_CHANGED).
         uint16_t  _saxTransposeRaw = 24;
 
+        static constexpr uint8_t SAX_FINGERING_KEY_COUNT = 26;
+        std::array<uint16_t, SAX_FINGERING_KEY_COUNT> _saxFingeringKeyButtonIndex = {};
+        uint8_t _saxFingeringKeyCount = 0;
+
         bool                   state(size_t index);
         bool                   state(size_t index, uint8_t& numberOfReadings, uint16_t& states);
         void                   fillDescriptor(size_t index, Descriptor& descriptor);
@@ -106,6 +119,7 @@ namespace io::buttons
         void                   setState(size_t index, bool state);
         void                   setLatchingState(size_t index, bool state);
         bool                   latchingState(size_t index);
+        void                   rebuildSaxFingeringKeys();
         std::optional<uint8_t> sysConfigGet(sys::Config::Section::button_t section, size_t index, uint16_t& value);
         std::optional<uint8_t> sysConfigSet(sys::Config::Section::button_t section, size_t index, uint16_t value);
     };

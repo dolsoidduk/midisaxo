@@ -23,6 +23,7 @@ limitations under the License.
 #include "application/global/midi_program.h"
 #include "application/io/analog/analog.h"
 #include "application/io/analog/common.h"
+#include "application/io/buttons/buttons.h"
 #include "application/protocol/midi/common.h"
 #include "bootloader/fw_selector/fw_selector.h"
 
@@ -44,6 +45,7 @@ System::System(Hwa&        hwa,
           SYS_EX_MID)
 {
     _analog = static_cast<::io::analog::Analog*>(_components.io().at(static_cast<size_t>(ioComponent_t::ANALOG)));
+    _buttons = static_cast<::io::buttons::Buttons*>(_components.io().at(static_cast<size_t>(ioComponent_t::BUTTONS)));
 
     MidiDispatcher.listen(messaging::eventType_t::MIDI_IN,
                           [this](const messaging::Event& event)
@@ -520,6 +522,7 @@ void System::updateSax()
     if (!enabled)
     {
         _lastSaxBreathValue = UNKNOWN;
+        updateSaxFingering();
         return;
     }
 
@@ -628,6 +631,102 @@ void System::updateSax()
         sendCC(2);
         break;
     }
+
+    updateSaxFingering();
+}
+
+void System::updateSaxFingering()
+{
+    // UI/firmware contract: 26 keys, split into lo14 + hi12.
+    static constexpr uint8_t  KEY_COUNT   = 26;
+    static constexpr uint8_t  LO_BITS     = 14;
+    static constexpr uint32_t LO_MASK     = (1u << LO_BITS) - 1u; // 0x3FFF
+    static constexpr uint8_t  HI_BITS     = KEY_COUNT - LO_BITS;  // 12
+    static constexpr uint32_t HI_MASK     = (1u << HI_BITS) - 1u; // 0x0FFF
+    static constexpr uint32_t ENABLE_BIT  = (1u << HI_BITS);      // 0x1000
+
+    if (_buttons == nullptr)
+    {
+        return;
+    }
+
+    const auto maybeMask = _buttons->saxFingeringMask();
+    if (!maybeMask.has_value())
+    {
+        return;
+    }
+
+    const uint32_t mask = maybeMask.value();
+
+    if (mask == _lastSaxFingeringMask)
+    {
+        return;
+    }
+
+    _lastSaxFingeringMask = mask;
+
+    // Resolve transpose (0..48 where 24 == 0 semitones).
+    const uint16_t transposeRaw = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS, 11);
+    const int32_t  transpose    = static_cast<int32_t>(core::util::CONSTRAIN(transposeRaw, static_cast<uint16_t>(0), static_cast<uint16_t>(48))) - 24;
+
+    int16_t resolvedNote = -1;
+
+    for (uint16_t entry = 0; entry < 128; entry++)
+    {
+        const uint32_t hiEnable = _components.database().read(database::Config::Section::global_t::SAX_FINGERING_MASK_HI12_ENABLE, entry);
+        if ((hiEnable & ENABLE_BIT) == 0)
+        {
+            continue;
+        }
+
+        const uint32_t lo = _components.database().read(database::Config::Section::global_t::SAX_FINGERING_MASK_LO14, entry) & LO_MASK;
+        const uint32_t hi = (hiEnable & HI_MASK);
+        const uint32_t entryMask = lo | (hi << LO_BITS);
+
+        if (entryMask != mask)
+        {
+            continue;
+        }
+
+        const uint32_t noteRaw = _components.database().read(database::Config::Section::global_t::SAX_FINGERING_NOTE, entry) & 0x7Fu;
+        int32_t noteWithTranspose = static_cast<int32_t>(noteRaw) + transpose;
+        noteWithTranspose         = core::util::CONSTRAIN(noteWithTranspose, static_cast<int32_t>(0), static_cast<int32_t>(127));
+
+        resolvedNote = static_cast<int16_t>(noteWithTranspose);
+        break;
+    }
+
+    if (resolvedNote == _lastSaxFingeringNote)
+    {
+        return;
+    }
+
+    const uint8_t channel = resolvedMidiChannel();
+
+    // Monophonic: turn off previous note, then turn on new note.
+    if (_lastSaxFingeringNote >= 0)
+    {
+        messaging::Event off = {};
+        off.componentIndex   = 0;
+        off.channel          = channel;
+        off.index            = static_cast<uint16_t>(_lastSaxFingeringNote);
+        off.value            = 0;
+        off.message          = midi::messageType_t::NOTE_OFF;
+        MidiDispatcher.notify(messaging::eventType_t::BUTTON, off);
+    }
+
+    if (resolvedNote >= 0)
+    {
+        messaging::Event on = {};
+        on.componentIndex   = 0;
+        on.channel          = channel;
+        on.index            = static_cast<uint16_t>(resolvedNote);
+        on.value            = 127;
+        on.message          = midi::messageType_t::NOTE_ON;
+        MidiDispatcher.notify(messaging::eventType_t::BUTTON, on);
+    }
+
+    _lastSaxFingeringNote = resolvedNote;
 }
 
 void System::backup()
@@ -1044,6 +1143,29 @@ void System::DatabaseHandlers::factoryResetDone()
 
 std::optional<uint8_t> System::sysConfigGet(sys::Config::Section::global_t section, size_t index, uint16_t& value)
 {
+    if ((section == sys::Config::Section::global_t::SAX_FINGERING_MASK_LO14) ||
+        (section == sys::Config::Section::global_t::SAX_FINGERING_MASK_HI12_ENABLE) ||
+        (section == sys::Config::Section::global_t::SAX_FINGERING_NOTE))
+    {
+        if (index >= 128)
+        {
+            return sys::Config::Status::ERROR_NOT_SUPPORTED;
+        }
+
+        const auto dbSection = util::Conversion::SYS_2_DB_SECTION(section);
+        if (dbSection == database::Config::Section::global_t::AMOUNT)
+        {
+            return sys::Config::Status::ERROR_NOT_SUPPORTED;
+        }
+
+        uint32_t readValue = 0;
+        const auto result = _components.database().read(dbSection, index, readValue)
+                                ? sys::Config::Status::ACK
+                                : sys::Config::Status::ERROR_READ;
+        value = readValue;
+        return result;
+    }
+
     if (section != sys::Config::Section::global_t::SYSTEM_SETTINGS)
     {
         return std::nullopt;
@@ -1078,6 +1200,76 @@ std::optional<uint8_t> System::sysConfigGet(sys::Config::Section::global_t secti
 
 std::optional<uint8_t> System::sysConfigSet(sys::Config::Section::global_t section, size_t index, uint16_t value)
 {
+    if (section == sys::Config::Section::global_t::SAX_FINGERING_CAPTURE)
+    {
+        // Write-only: capture current key mask into entry 'index'.
+        // If value < 128, also update note; if value >= 128, keep existing note.
+        static constexpr uint8_t  KEY_COUNT   = 26;
+        static constexpr uint8_t  LO_BITS     = 14;
+        static constexpr uint32_t LO_MASK     = (1u << LO_BITS) - 1u;
+        static constexpr uint8_t  HI_BITS     = KEY_COUNT - LO_BITS;
+        static constexpr uint32_t HI_MASK     = (1u << HI_BITS) - 1u;
+        static constexpr uint32_t ENABLE_BIT  = (1u << HI_BITS);
+
+        if ((index >= 128) || (_buttons == nullptr))
+        {
+            return sys::Config::Status::ERROR_NOT_SUPPORTED;
+        }
+
+        const auto maybeMask = _buttons->saxFingeringMask();
+        if (!maybeMask.has_value())
+        {
+            return sys::Config::Status::ERROR_NOT_SUPPORTED;
+        }
+
+        const uint32_t mask = maybeMask.value();
+
+        const uint16_t lo14      = static_cast<uint16_t>(mask & LO_MASK);
+        const uint16_t hi12      = static_cast<uint16_t>((mask >> LO_BITS) & HI_MASK);
+        const uint16_t hiEnable  = static_cast<uint16_t>(hi12 | ENABLE_BIT);
+
+        bool ok = true;
+        ok &= _components.database().update(database::Config::Section::global_t::SAX_FINGERING_MASK_LO14, index, lo14);
+        ok &= _components.database().update(database::Config::Section::global_t::SAX_FINGERING_MASK_HI12_ENABLE, index, hiEnable);
+
+        if (value < 128)
+        {
+            ok &= _components.database().update(database::Config::Section::global_t::SAX_FINGERING_NOTE, index, static_cast<uint8_t>(value & 0x7F));
+        }
+
+        // Force recompute on next tick.
+        _lastSaxFingeringMask = 0xFFFFFFFFu;
+
+        return ok ? sys::Config::Status::ACK : sys::Config::Status::ERROR_WRITE;
+    }
+
+    if ((section == sys::Config::Section::global_t::SAX_FINGERING_MASK_LO14) ||
+        (section == sys::Config::Section::global_t::SAX_FINGERING_MASK_HI12_ENABLE) ||
+        (section == sys::Config::Section::global_t::SAX_FINGERING_NOTE))
+    {
+        if (index >= 128)
+        {
+            return sys::Config::Status::ERROR_NOT_SUPPORTED;
+        }
+
+        const auto dbSection = util::Conversion::SYS_2_DB_SECTION(section);
+        if (dbSection == database::Config::Section::global_t::AMOUNT)
+        {
+            return sys::Config::Status::ERROR_NOT_SUPPORTED;
+        }
+
+        const auto result = _components.database().update(dbSection, index, value)
+                                ? sys::Config::Status::ACK
+                                : sys::Config::Status::ERROR_WRITE;
+
+        if (result == sys::Config::Status::ACK)
+        {
+            _lastSaxFingeringMask = 0xFFFFFFFFu;
+        }
+
+        return result;
+    }
+
     if (section != sys::Config::Section::global_t::SYSTEM_SETTINGS)
     {
         return std::nullopt;

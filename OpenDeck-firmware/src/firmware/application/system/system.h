@@ -31,6 +31,11 @@ namespace io::analog
     class Analog;
 }
 
+namespace io::buttons
+{
+    class Buttons;
+}
+
 namespace sys
 {
     class System
@@ -107,11 +112,16 @@ namespace sys
         size_t                    _componentUpdateIndex[static_cast<uint8_t>(io::ioComponent_t::AMOUNT)] = {};
 
         ::io::analog::Analog* _analog = nullptr;
+        ::io::buttons::Buttons* _buttons = nullptr;
         uint16_t              _lastSaxBreathValue = 0xFFFF;
+
+        uint32_t _lastSaxFingeringMask = 0xFFFFFFFFu;
+        int16_t  _lastSaxFingeringNote = -1;
 
         io::ioComponent_t      checkComponents();
         void                   checkProtocols();
         void                   updateSax();
+        void                   updateSaxFingering();
         void                   ensureSaxAnalogConfigured();
         uint8_t                resolvedMidiChannel() const;
         void                   backup();

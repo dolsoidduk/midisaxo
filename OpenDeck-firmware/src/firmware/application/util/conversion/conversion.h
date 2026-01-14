@@ -75,7 +75,11 @@ namespace util
         static constexpr database::Config::Section::global_t SYS_EX2_DB_GLOBAL[static_cast<uint8_t>(sys::Config::Section::global_t::AMOUNT)] = {
             database::Config::Section::global_t::MIDI_SETTINGS,
             database::Config::Section::global_t::AMOUNT,    // blank/reserved
-            database::Config::Section::global_t::AMOUNT,    // unused
+            database::Config::Section::global_t::AMOUNT,    // system settings are not in USER global sections
+            database::Config::Section::global_t::SAX_FINGERING_MASK_LO14,
+            database::Config::Section::global_t::SAX_FINGERING_MASK_HI12_ENABLE,
+            database::Config::Section::global_t::SAX_FINGERING_NOTE,
+            database::Config::Section::global_t::AMOUNT,    // capture is write-only, handled separately
         };
 
         static constexpr database::Config::Section::button_t SYS_EX2_DB_BUTTON[static_cast<uint8_t>(sys::Config::Section::button_t::AMOUNT)] = {

@@ -55,6 +55,11 @@ namespace sys
                 MIDI_SETTINGS,
                 RESERVED,    // compatibility
                 SYSTEM_SETTINGS,
+                // Sax fingering table (UI expects these at sections 3..6)
+                SAX_FINGERING_MASK_LO14,
+                SAX_FINGERING_MASK_HI12_ENABLE,
+                SAX_FINGERING_NOTE,
+                SAX_FINGERING_CAPTURE,
                 AMOUNT
             };
 

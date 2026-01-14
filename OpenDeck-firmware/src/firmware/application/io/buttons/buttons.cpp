@@ -114,6 +114,19 @@ Buttons::Buttons(Hwa&      hwa,
         });
 }
 
+bool Buttons::isPressed(size_t index) const
+{
+    if (index >= Collection::SIZE())
+    {
+        return false;
+    }
+
+    const size_t byteIndex = index / 8;
+    const size_t bitIndex  = index % 8;
+
+    return (_buttonPressed[byteIndex] >> bitIndex) & 0x01;
+}
+
 bool Buttons::init()
 {
     for (size_t i = 0; i < Collection::SIZE(); i++)
@@ -121,7 +134,30 @@ bool Buttons::init()
         reset(i);
     }
 
+    rebuildSaxFingeringKeys();
+
     return true;
+}
+
+std::optional<uint32_t> Buttons::saxFingeringMask() const
+{
+    if (_saxFingeringKeyCount != SAX_FINGERING_KEY_COUNT)
+    {
+        return std::nullopt;
+    }
+
+    uint32_t mask = 0;
+
+    for (uint8_t keyIndex = 0; keyIndex < SAX_FINGERING_KEY_COUNT; keyIndex++)
+    {
+        const size_t buttonIndex = static_cast<size_t>(_saxFingeringKeyButtonIndex[keyIndex]);
+        if (isPressed(buttonIndex))
+        {
+            mask |= (1u << keyIndex);
+        }
+    }
+
+    return mask;
 }
 
 void Buttons::updateSingle(size_t index, bool forceRefresh)
@@ -201,8 +237,8 @@ void Buttons::processButton(size_t index, bool reading, Descriptor& descriptor)
 
     setState(index, reading);
 
-    // don't process messageType_t::NONE type of message
-    if (descriptor.messageType != messageType_t::NONE)
+    // don't process message types which don't send MIDI
+    if ((descriptor.messageType != messageType_t::NONE) && (descriptor.messageType != messageType_t::SAX_FINGERING_KEY))
     {
         bool send = true;
 
@@ -734,6 +770,7 @@ void Buttons::fillDescriptor(size_t index, Descriptor& descriptor)
     case messageType_t::SYS_EX_MACRO:
     case messageType_t::SAX_TRANSPOSE_INC:
     case messageType_t::SAX_TRANSPOSE_DEC:
+    case messageType_t::SAX_FINGERING_KEY:
     {
         descriptor.type = type_t::MOMENTARY;
     }
@@ -753,6 +790,30 @@ void Buttons::fillDescriptor(size_t index, Descriptor& descriptor)
     descriptor.event.message = INTERNAL_MSG_TO_MIDI_TYPE[static_cast<uint8_t>(descriptor.messageType)];
 }
 
+void Buttons::rebuildSaxFingeringKeys()
+{
+    _saxFingeringKeyCount = 0;
+    _saxFingeringKeyButtonIndex.fill(0);
+
+    for (size_t i = 0; i < Collection::SIZE(GROUP_DIGITAL_INPUTS); i++)
+    {
+        const auto mt = static_cast<messageType_t>(_database.read(database::Config::Section::button_t::MESSAGE_TYPE, i));
+        if (mt != messageType_t::SAX_FINGERING_KEY)
+        {
+            continue;
+        }
+
+        if (_saxFingeringKeyCount >= SAX_FINGERING_KEY_COUNT)
+        {
+            // Ignore extras.
+            continue;
+        }
+
+        _saxFingeringKeyButtonIndex[_saxFingeringKeyCount] = static_cast<uint16_t>(i);
+        _saxFingeringKeyCount++;
+    }
+}
+
 bool Buttons::state(size_t index, uint8_t& numberOfReadings, uint16_t& states)
 {
     // if encoder under this index is enabled, just return false state each time
@@ -766,11 +827,6 @@ bool Buttons::state(size_t index, uint8_t& numberOfReadings, uint16_t& states)
 
 std::optional<uint8_t> Buttons::sysConfigGet(sys::Config::Section::button_t section, size_t index, uint16_t& value)
 {
-    if (section == sys::Config::Section::button_t::RESERVED)
-    {
-        return sys::Config::Status::ERROR_NOT_SUPPORTED;
-    }
-
     uint32_t readValue;
 
     auto result = _database.read(util::Conversion::SYS_2_DB_SECTION(section), index, readValue)
@@ -784,11 +840,6 @@ std::optional<uint8_t> Buttons::sysConfigGet(sys::Config::Section::button_t sect
 
 std::optional<uint8_t> Buttons::sysConfigSet(sys::Config::Section::button_t section, size_t index, uint16_t value)
 {
-    if (section == sys::Config::Section::button_t::RESERVED)
-    {
-        return sys::Config::Status::ERROR_NOT_SUPPORTED;
-    }
-
     auto result = _database.update(util::Conversion::SYS_2_DB_SECTION(section), index, value)
                       ? sys::Config::Status::ACK
                       : sys::Config::Status::ERROR_WRITE;
@@ -800,6 +851,11 @@ std::optional<uint8_t> Buttons::sysConfigSet(sys::Config::Section::button_t sect
             (section == sys::Config::Section::button_t::MESSAGE_TYPE))
         {
             reset(index);
+
+            if (section == sys::Config::Section::button_t::MESSAGE_TYPE)
+            {
+                rebuildSaxFingeringKeys();
+            }
         }
     }
 

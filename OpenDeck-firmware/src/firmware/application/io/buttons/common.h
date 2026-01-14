@@ -82,6 +82,9 @@ namespace io::buttons
         SAX_TRANSPOSE_INC,
         SAX_TRANSPOSE_DEC,
         SAX_PB_CENTER_CAPTURE,
+        // Midisaxo custom: marks this button as one of the 26 fingering keys.
+        // This message type never sends MIDI; it is used as a pure switch input.
+        SAX_FINGERING_KEY,
         AMOUNT
     };
 

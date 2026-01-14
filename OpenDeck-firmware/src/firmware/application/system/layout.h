@@ -55,6 +55,35 @@ namespace sys
                 0,
                 0,
             },
+
+            // sax fingering table (128 entries)
+            // section 3: lo14 (bits 0..13)
+            {
+                128,
+                0,
+                16383,
+            },
+
+            // section 4: hi12 + enable bit (bit 12)
+            {
+                128,
+                0,
+                8191,
+            },
+
+            // section 5: mapped note (0..127)
+            {
+                128,
+                0,
+                127,
+            },
+
+            // section 6: capture (write-only from UI)
+            {
+                128,
+                0,
+                255,
+            },
         };
 
         std::vector<lib::sysexconf::Section> _buttonSections = {
@@ -68,7 +97,7 @@ namespace sys
             {
                 io::buttons::Collection::SIZE(),
                 0,
-                0,
+                static_cast<uint16_t>(io::buttons::Collection::SIZE()),
             },
 
             // message type section

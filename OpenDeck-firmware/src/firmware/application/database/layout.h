@@ -67,6 +67,34 @@ namespace database
                 lib::lessdb::autoIncrementSetting_t::DISABLE,
                 0,
             },
+
+            // sax fingering table (128 entries)
+            // section 1: mask lo14
+            {
+                128,
+                lib::lessdb::sectionParameterType_t::WORD,
+                lib::lessdb::preserveSetting_t::DISABLE,
+                lib::lessdb::autoIncrementSetting_t::DISABLE,
+                0,
+            },
+
+            // section 2: mask hi12 + enable bit
+            {
+                128,
+                lib::lessdb::sectionParameterType_t::WORD,
+                lib::lessdb::preserveSetting_t::DISABLE,
+                lib::lessdb::autoIncrementSetting_t::DISABLE,
+                0,
+            },
+
+            // section 3: mapped note
+            {
+                128,
+                lib::lessdb::sectionParameterType_t::BYTE,
+                lib::lessdb::preserveSetting_t::DISABLE,
+                lib::lessdb::autoIncrementSetting_t::DISABLE,
+                0,
+            },
         };
 
         std::vector<lib::lessdb::Section> _buttonSections = {
@@ -113,6 +141,15 @@ namespace database
                 lib::lessdb::preserveSetting_t::DISABLE,
                 lib::lessdb::autoIncrementSetting_t::DISABLE,
                 1,
+            },
+
+            // reserved section (compatibility / midisaxo custom key maps)
+            {
+                io::buttons::Collection::SIZE(),
+                lib::lessdb::sectionParameterType_t::BYTE,
+                lib::lessdb::preserveSetting_t::DISABLE,
+                lib::lessdb::autoIncrementSetting_t::DISABLE,
+                0,
             },
         };
 

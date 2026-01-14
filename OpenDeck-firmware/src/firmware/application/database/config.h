@@ -57,6 +57,9 @@ namespace database
             enum class global_t : uint8_t
             {
                 MIDI_SETTINGS,
+                SAX_FINGERING_MASK_LO14,
+                SAX_FINGERING_MASK_HI12_ENABLE,
+                SAX_FINGERING_NOTE,
                 AMOUNT
             };
 
