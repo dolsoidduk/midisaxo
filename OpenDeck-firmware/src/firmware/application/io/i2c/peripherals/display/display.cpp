@@ -318,7 +318,7 @@ void Display::displayWelcomeMessage()
         }
     };
 
-    writeString(startRow, "OpenDeck");
+    writeString(startRow, "%s", Strings::TARGET_NAME_STRING);
 
     startRow++;
     writeString(startRow, "FW: v%d.%d.%d", SW_VERSION_MAJOR, SW_VERSION_MINOR, SW_VERSION_REVISION);
