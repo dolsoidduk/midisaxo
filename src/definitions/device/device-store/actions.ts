@@ -120,6 +120,7 @@ export const connectDeviceStoreToInput = async (
   deviceState.valueSize = valueSize;
   deviceState.valuesPerMessageRequest = null;
   deviceState.firmwareVersion = null;
+  deviceState.connectionError = null;
 
   // make sure we don't duplicate listeners
   deviceState.input.removeListener("sysex", "all");
@@ -136,15 +137,22 @@ export const connectDeviceStoreToInput = async (
     return;
   }
 
-  await sendMessage({
-    command: Request.GetValuesPerMessage,
-    handler: (valuesPerMessageRequest: number) =>
-      setInfo({ valuesPerMessageRequest }),
-  });
-  await sendMessage({
-    command: Request.GetFirmwareVersion,
-    handler: (firmwareVersion: string | null) => setInfo({ firmwareVersion }),
-  });
+  try {
+    await sendMessage({
+      command: Request.GetValuesPerMessage,
+      handler: (valuesPerMessageRequest: number) =>
+        setInfo({ valuesPerMessageRequest }),
+    });
+    await sendMessage({
+      command: Request.GetFirmwareVersion,
+      handler: (firmwareVersion: string | null) => setInfo({ firmwareVersion }),
+    });
+  } catch (err) {
+    deviceState.connectionState = DeviceConnectionState.Closed;
+    deviceState.connectionError =
+      "보드와 SysEx 핸드셰이크/요청 통신에 실패했습니다. (MIDI Through만 보이거나, SysEx 권한이 없거나, 보드가 USB-MIDI로 인식되지 않은 경우에 흔합니다.)\n\n홈으로 돌아가서 ‘SysEx 권한 요청 + Reload’ 후 다시 시도하세요.";
+    throw err;
+  }
 
   // Some builds/targets respond to GetFirmwareVersion without payload.
   // In that case, try the combined request which returns SW version + HW UID.

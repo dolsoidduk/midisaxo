@@ -30,6 +30,7 @@ export const defaultState: IDeviceState = {
   output: (null as unknown) as Output,
   isBootloaderMode: (null as unknown) as boolean,
   connectionState: (null as unknown) as DeviceConnectionState,
+  connectionError: null,
   connectionPromise: (null as unknown) as Promise<any>,
   valueSize: (null as unknown) as number,
   valuesPerMessageRequest: (null as unknown) as number,

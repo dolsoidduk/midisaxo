@@ -5,6 +5,54 @@
     title="No OpenDeck board found. Please connect the board in order to use the
       interface."
   />
+
+  <Hero
+    v-else-if="onlyGenericThrough"
+    custom="py-24"
+    title="현재 'MIDI Through' 포트만 감지됩니다."
+  >
+    <div class="surface-neutral border px-6 py-4 rounded text-sm">
+      <div class="text-gray-300">
+        이 상태는 UI 필터링 문제가 아니라, 브라우저/OS가 실제 USB-MIDI 장치를 못 보고 있는 경우가 대부분입니다.
+      </div>
+      <div class="mt-3 text-gray-300">
+        먼저 아래 버튼으로 <strong>SysEx 권한(sysex=true)</strong>을 요청하고 포트 목록을 새로고침해보세요.
+      </div>
+    </div>
+
+    <div class="mt-6 surface-neutral border px-6 py-4 rounded text-sm">
+      <div class="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          class="px-2 py-1 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
+          :disabled="isReloadingWebMidi"
+          @click="reloadWebMidi"
+        >
+          Reload WebMidi
+        </button>
+        <button
+          type="button"
+          class="px-2 py-1 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
+          :disabled="isReloadingWebMidi || !nativeSupported"
+          @click="requestSysexAndReload"
+        >
+          SysEx 권한 요청 + Reload
+        </button>
+        <button
+          type="button"
+          class="px-2 py-1 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
+          @click="showMidiDebug = !showMidiDebug"
+        >
+          {{ showMidiDebug ? "Hide MIDI debug" : "Show MIDI debug" }}
+        </button>
+      </div>
+
+      <p class="mt-3 text-xs text-gray-400">
+        Linux라면 OS에서 장치가 MIDI로 잡혔는지 `aconnect -l`로 확인해보세요.
+        RP2040는 BOOTSEL(USB 저장장치 모드)이면 MIDI로 안 보입니다.
+      </p>
+    </div>
+  </Hero>
   <Hero
     v-else-if="outputs.length > 1"
     custom="h-64"
@@ -196,6 +244,11 @@ import { midiStoreMapped, deviceStoreMapped } from "../../store";
 export default defineComponent({
   name: "DeviceSelect",
   setup() {
+        const onlyGenericThrough = computed(() => {
+          const dbg: any = unref(midiStoreMapped.debug);
+          const outs: any[] = unref(midiStoreMapped.outputs) as any[];
+          return !!dbg?.hasOnlyGenericThrough && Array.isArray(outs) && outs.length === 1;
+        });
     const nativeError = ref<string | null>(null);
     const nativeInputs = ref<any[]>([]);
     const nativeOutputs = ref<any[]>([]);
@@ -401,6 +454,7 @@ export default defineComponent({
     return {
       outputs: midiStoreMapped.outputs,
       midiDebug: midiStoreMapped.debug,
+      onlyGenericThrough,
       isSecureContext: window.isSecureContext,
       isReloadingWebMidi,
       reloadWebMidi,

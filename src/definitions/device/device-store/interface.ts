@@ -23,6 +23,7 @@ export type IDeviceState = {
   output: Output;
   isBootloaderMode: boolean;
   connectionState: DeviceConnectionState;
+  connectionError?: string | null;
   connectionPromise?: Promise<any>;
   valueSize: number;
   valuesPerMessageRequest: number;

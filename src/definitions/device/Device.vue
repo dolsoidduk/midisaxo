@@ -16,7 +16,25 @@
     <SpinnerOverlay v-else-if="isSystemOperationRunning" />
   </div>
 
-  <Hero v-else custom="h-64" title="No WebMidi device found." />
+    <Hero
+      v-else
+      custom="h-64"
+      :title="connectionError || 'No WebMidi device found.'"
+    >
+      <div class="mt-4 text-sm text-gray-300">
+        <div>체크 포인트:</div>
+        <div class="mt-2">- 홈 화면에서 <strong>SysEx 권한 요청 + Reload</strong>를 먼저 눌러 권한을 허용하세요.</div>
+        <div>- 장치 목록에 <strong>MIDI Through</strong>만 보이면, 브라우저/OS가 실제 USB-MIDI 장치를 못 보고 있는 상태일 수 있습니다.</div>
+      </div>
+      <div class="mt-6">
+        <router-link
+          :to="{ name: 'home' }"
+          class="px-4 py-2 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
+        >
+          홈으로 이동
+        </router-link>
+      </div>
+    </Hero>
 
   <RequestLog />
 </template>
@@ -44,6 +62,7 @@ export default defineComponent({
       isSystemOperationRunning,
       systemOperationPercentage,
       isBootloaderMode,
+        connectionError,
     } = deviceStoreMapped;
 
     onMounted(async () => {
@@ -65,6 +84,7 @@ export default defineComponent({
       isBootloaderMode,
       isSystemOperationRunning,
       systemOperationPercentage,
+        connectionError,
     };
   },
 });
