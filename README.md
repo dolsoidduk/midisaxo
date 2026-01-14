@@ -28,11 +28,49 @@ npm install
 npm run dev
 ```
 
-Build/test the firmware (from the OpenDeck repo root):
+## Firmware (Midisaxo RP2040)
+
+This repo includes the firmware sources under `OpenDeck-firmware/`.
+
+### Build
 
 ```bash
-make TARGET=midisaxo -j
-make TARGET=midisaxo test TEST_EXECUTE=0
+cd OpenDeck-firmware
+make TARGET=midisaxo_pico -j
+```
+
+Artifacts:
+
+- `OpenDeck-firmware/build/midisaxo_pico/release/merged.uf2` (BOOTSEL drag & drop)
+- `OpenDeck-firmware/build/midisaxo_pico/release/sysexgen/firmware.sysex` (SysEx updater)
+
+### Flash via UF2 (BOOTSEL)
+
+1. Hold **BOOTSEL** while connecting the RP2040 board via USB.
+2. A USB drive (typically `RPI-RP2`) appears.
+3. Copy `merged.uf2` to that drive.
+
+Notes:
+
+- While the board is in BOOTSEL/storage mode, it will **not** appear as a MIDI device.
+- If the UI only shows `MIDI Through`, double-check the board is not in BOOTSEL mode.
+
+### Firmware update via SysEx
+
+If your device is already running firmware and enumerates as USB-MIDI, you can update using the generated SysEx file:
+
+- `OpenDeck-firmware/build/midisaxo_pico/release/sysexgen/firmware.sysex`
+
+You can send it via a SysEx sender tool, or via the configurator's firmware update page (when the board is connected).
+
+## Development notes
+
+Build/test the firmware (from the firmware repo root):
+
+```bash
+cd OpenDeck-firmware
+make TARGET=midisaxo_pico -j
+make TARGET=midisaxo_pico test TEST_EXECUTE=0
 ```
 
 If you need any parked work from this session, check the backup branches:

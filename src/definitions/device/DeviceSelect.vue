@@ -45,6 +45,13 @@
         >
           {{ showMidiDebug ? "Hide MIDI debug" : "Show MIDI debug" }}
         </button>
+        <button
+          type="button"
+          class="px-2 py-1 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
+          @click="copyMidiDiagnostic"
+        >
+          진단 로그 복사
+        </button>
       </div>
 
       <p class="mt-3 text-xs text-gray-400">
@@ -118,7 +125,7 @@
             class="px-2 py-1 border border-gray-600 rounded text-gray-200 hover:border-gray-400"
             @click="copyMidiDiagnostic"
           >
-            Copy diagnostic
+            진단 로그 복사
           </button>
         </div>
 

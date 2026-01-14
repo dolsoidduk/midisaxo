@@ -128,3 +128,29 @@ Most of the code is available under Apache License v2.0, with the following exce
   * `u8g2`: Two-clause BSD
   * `unity`: MIT
   * `tinyusb`: MIT, but many modules it uses are individually licensed, check for more details
+
+## Midisaxo targets (custom)
+
+This fork adds custom targets under `config/target/`, for example:
+
+- `midisaxo_pico` (RP2040 Pico)
+- `midisaxo_xiao_rp2040` (Seeed XIAO RP2040)
+
+### Build
+
+```bash
+make TARGET=midisaxo_pico -j
+```
+
+Artifacts are generated under:
+
+- `build/midisaxo_pico/release/merged.uf2` (BOOTSEL drag & drop)
+- `build/midisaxo_pico/release/sysexgen/firmware.sysex` (SysEx updater)
+
+### Flash (UF2 / BOOTSEL)
+
+1. Hold **BOOTSEL** while connecting the board via USB.
+2. A USB mass-storage drive appears (often `RPI-RP2`).
+3. Copy `merged.uf2` onto that drive.
+
+While in BOOTSEL mode the board is not a MIDI device.
