@@ -7,7 +7,7 @@
     <Section title="MIDI Saxophone" class="w-full">
       <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
         <p class="text-sm mb-6">
-          야마하 YDS-150 키 시스템 지원 (크로매틱 순서로 키 레지스터 + 브레스 컨트롤러).
+          야마하 YDS-150 키 시스템 지원 (레지스터 키 + 브레스 컨트롤러).
         </p>
 
         <div
@@ -38,12 +38,6 @@
 
         <div class="surface-neutral border rounded px-4 py-3 mb-6 text-sm">
           <div class="text-gray-200 font-semibold">설정 설명</div>
-          <div
-            v-if="isConnected && saxRegisterKeyMapSupport === 'unsupported'"
-            class="mt-2 text-gray-300"
-          >
-            이 펌웨어에서는 레지스터 키 매핑 저장을 지원하지 않습니다.
-          </div>
           <div
             class="mt-2 grid gap-3"
             style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));"
@@ -110,7 +104,6 @@
           <template v-for="section in saxSections" :key="section.key">
             <div v-if="showField(section)" class="flex flex-col gap-1">
               <FormField
-                v-if="section.key !== 'saxRegisterChromaticTranspose'"
                 :value="formData[section.key]"
                 :field-definition="section"
                 :simple-layout="true"
@@ -136,60 +129,7 @@
         </div>
 
         <div
-          v-if="isConnected && formData.saxRegisterChromaticEnable"
-          class="mb-6"
-        >
-          <div class="flex items-center gap-2 mb-2">
-            <h4 class="heading mb-0">레지스터 키 맵(미리보기)</h4>
-            <div class="flex-grow"></div>
-            <Button
-              v-if="registerKeys.length > registerPreviewDefaultCount"
-              size="sm"
-              variant="secondary"
-              @click.prevent="showRegisterPreviewAll = !showRegisterPreviewAll"
-            >
-              {{ showRegisterPreviewAll ? "처음만" : "전체" }}
-            </Button>
-          </div>
-          <p class="text-sm mb-3">
-            레지스터 키 인덱스(디지털 입력)와 실제 전송되는 노트 번호를 보여줍니다.
-          </p>
-
-          <Hero
-            v-if="!registerKeyCount"
-            custom="h-20"
-            title="레지스터 키 수를 확인할 수 없습니다. (버튼 컴포넌트 수가 0이거나 아직 로드되지 않았습니다.)"
-          />
-
-          <div v-else class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
-            <div
-              v-for="key in visibleRegisterKeys"
-              :key="key.index"
-              class="surface-neutral border rounded px-2 py-2"
-            >
-              <div class="text-xs">
-                <strong>키 {{ key.index }}</strong>
-              </div>
-              <div class="text-xs text-gray-400 mt-0.5">
-                레지스터 키: <strong>{{ key.mappedIndex }}</strong>
-              </div>
-              <div class="text-xs mt-0.5">
-                노트: <strong>{{ key.note }}</strong>
-                <span v-if="key.noteName">({{ key.noteName }})</span>
-              </div>
-            </div>
-          </div>
-
-          <p
-            v-if="!showRegisterPreviewAll && registerKeys.length > registerPreviewDefaultCount"
-            class="text-xs text-gray-400 mt-2"
-          >
-            {{ registerKeys.length }}개 중 {{ registerPreviewDefaultCount }}개만 표시 중
-          </p>
-        </div>
-
-        <div
-          v-if="isConnected && formData.saxRegisterChromaticEnable"
+          v-if="isConnected"
           class="mb-6"
           :class="{ 'pointer-events-none opacity-50': fingeringLoading }"
         >
@@ -408,113 +348,6 @@
           </div>
           </div>
         </div>
-
-        <div
-          v-if="isConnected && formData.saxRegisterChromaticEnable"
-          class="mb-6"
-          :class="{ 'pointer-events-none opacity-50': keyMapLoading }"
-        >
-          <div class="flex items-center gap-2 mb-2">
-            <h4 class="heading mb-0">레지스터 키 매핑</h4>
-            <div class="flex-grow"></div>
-            <Button size="sm" variant="secondary" @click.prevent="showKeyMapping = !showKeyMapping">
-              {{ showKeyMapping ? "접기" : "펼치기" }}
-            </Button>
-          </div>
-          <p class="text-sm mb-3">
-            각 키(디지털 입력)가 어떤 레지스터 키 번호(0부터)로 동작할지 지정합니다. 기본값은 “자기 인덱스 그대로”입니다.
-          </p>
-
-          <div v-if="showKeyMapping">
-
-          <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400 mb-3">
-            <span>
-              펌웨어 지원:
-              <strong class="text-gray-200">
-                {{
-                  saxRegisterKeyMapSupport === "supported"
-                    ? "지원됨"
-                    : saxRegisterKeyMapSupport === "unsupported"
-                      ? "미지원"
-                      : "확인중"
-                }}
-              </strong>
-            </span>
-            <span v-if="saxRegisterKeyMapSupport === 'supported'">
-              변경된 키: <strong class="text-gray-200">{{ changedKeyCount }}</strong>
-            </span>
-
-            <div class="flex-grow"></div>
-            <Button
-              v-if="saxRegisterKeyMapSupport !== 'unsupported'"
-              size="sm"
-              variant="secondary"
-              @click.prevent="reloadKeyMap"
-            >
-              새로고침
-            </Button>
-            <Button
-              v-if="saxRegisterKeyMapSupport === 'supported'"
-              size="sm"
-              variant="secondary"
-              @click.prevent="resetKeyMapToDefault"
-            >
-              전체 기본값
-            </Button>
-          </div>
-
-          <Hero
-            v-if="saxRegisterKeyMapSupport === 'unsupported'"
-            custom="h-20"
-            title="이 펌웨어에서는 레지스터 키 매핑 저장을 지원하지 않습니다."
-          />
-
-          <p
-            v-else-if="duplicateMappedKeys.length"
-            class="text-sm mb-3"
-          >
-            중복된 레지스터 키 매핑이 있습니다 (같은 레지스터 키를 여러 키가 사용):
-            <strong>{{ duplicateMappedKeys.join(', ') }}</strong>
-            <span class="block mt-2 text-xs text-gray-400">
-              <span
-                v-for="item in duplicateMappedKeyDetails"
-                :key="`dup-${item.mappedIndex}`"
-                class="block"
-              >
-                레지스터 키 {{ item.mappedIndex }}: 키 {{ item.keys.join(', ') }}
-              </span>
-            </span>
-          </p>
-
-          <div v-else class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
-            <div
-              v-for="key in registerKeys"
-              :key="`map-${key.index}`"
-              class="surface-neutral border rounded px-2 py-2"
-            >
-              <div class="text-xs mb-1">
-                <strong>키 {{ key.index }}</strong>
-              </div>
-
-              <label class="text-xs text-gray-400 block mb-1">레지스터 키 번호</label>
-              <select
-                class="w-full text-sm px-2 py-1"
-                :value="getKeyMapSelectValue(key.index)"
-                @change="onKeyMapChange(key.index, $event)"
-              >
-                <option :value="0">기본값 (키 {{ key.index }})</option>
-                <option
-                  v-for="opt in keyMapOptions"
-                  :key="`opt-${key.index}-${opt.value}`"
-                  :value="opt.value"
-                >
-                  {{ opt.text }}
-                </option>
-              </select>
-            </div>
-          </div>
-          </div>
-        </div>
       </div>
     </Section>
   </form>
@@ -534,7 +367,6 @@ export default defineComponent({
   },
   setup() {
     const { isConnected } = midiStoreMapped;
-    const { numberOfComponents } = deviceStoreMapped;
 
     const pbCenterCaptureBusy = ref(false);
     const pbCenterCaptureNotice = ref<string>("");
@@ -560,12 +392,6 @@ export default defineComponent({
       }
     };
 
-    const saxRegisterKeyMapRaw = ref<number[] | null>(null);
-    const saxRegisterKeyMapSupport = ref<"unknown" | "supported" | "unsupported">(
-      "unknown",
-    );
-    const keyMapLoading = ref(false);
-
     const fingeringMaskLo14 = ref<number[] | null>(null);
     const fingeringMaskHi10Enable = ref<number[] | null>(null);
     const fingeringNote = ref<number[] | null>(null);
@@ -580,10 +406,7 @@ export default defineComponent({
 
     const fingeringEntryCount = 128;
 
-    const showRegisterPreviewAll = ref(false);
     const showFingeringTable = ref(false);
-    const showKeyMapping = ref(false);
-    const registerPreviewDefaultCount = 24;
 
     const fingeringFilterText = ref("");
     const fingeringFilterOnlyEnabled = ref(false);
@@ -641,14 +464,8 @@ export default defineComponent({
 
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object") {
-          if (typeof parsed.showRegisterPreviewAll === "boolean") {
-            showRegisterPreviewAll.value = parsed.showRegisterPreviewAll;
-          }
           if (typeof parsed.showFingeringTable === "boolean") {
             showFingeringTable.value = parsed.showFingeringTable;
-          }
-          if (typeof parsed.showKeyMapping === "boolean") {
-            showKeyMapping.value = parsed.showKeyMapping;
           }
 
           if (typeof parsed.fingeringFilterText === "string") {
@@ -701,9 +518,7 @@ export default defineComponent({
         window.localStorage.setItem(
           uiStateKey,
           JSON.stringify({
-            showRegisterPreviewAll: showRegisterPreviewAll.value,
             showFingeringTable: showFingeringTable.value,
-            showKeyMapping: showKeyMapping.value,
             fingeringFilterText: fingeringFilterText.value,
             fingeringFilterOnlyEnabled: fingeringFilterOnlyEnabled.value,
             fingeringFilterOnlyWithKeys: fingeringFilterOnlyWithKeys.value,
@@ -851,9 +666,6 @@ export default defineComponent({
     };
 
     const saxKeys = new Set([
-      "saxRegisterChromaticEnable",
-      "saxRegisterChromaticBaseNote",
-      "saxRegisterChromaticInputInvert",
       "saxBreathControllerEnable",
       "saxBreathControllerAnalogIndex",
       "saxBreathControllerMidPercent",
@@ -870,9 +682,7 @@ export default defineComponent({
     const hasSaxSections = computed(() => saxSections.value.length > 0);
 
     const saxHelpItems = computed(() => {
-      return saxSections.value
-        .filter((section: any) => section.key !== "saxRegisterChromaticTranspose")
-        .map((section: any) => {
+      return saxSections.value.map((section: any) => {
         const disabled = deviceStoreMapped.isControlDisabled(section);
         const disabledText = disabled ? "이 펌웨어/디바이스에서는 지원되지 않습니다." : "";
 
@@ -916,33 +726,6 @@ export default defineComponent({
       const n = clampMidiNote(note);
       const octave = Math.floor(n / 12) - 1;
       return `${names[n % 12]}${octave}`;
-    };
-
-    const registerKeyCount = computed(() => {
-      const count = (numberOfComponents.value && numberOfComponents.value[Block.Button]) || 0;
-      return Number(count) || 0;
-    });
-
-    const loadSaxRegisterKeyMap = async () => {
-      if (!isConnected.value) {
-        saxRegisterKeyMapRaw.value = null;
-        saxRegisterKeyMapSupport.value = "unknown";
-        return;
-      }
-
-      keyMapLoading.value = true;
-      try {
-        const values = await deviceStore.actions.getSectionValues(Block.Button);
-        if (Object.prototype.hasOwnProperty.call(values, "saxRegisterKeyMap")) {
-          saxRegisterKeyMapSupport.value = "supported";
-          saxRegisterKeyMapRaw.value = values.saxRegisterKeyMap;
-        } else {
-          saxRegisterKeyMapSupport.value = "unsupported";
-          saxRegisterKeyMapRaw.value = null;
-        }
-      } finally {
-        keyMapLoading.value = false;
-      }
     };
 
     const loadFingeringTable = async () => {
@@ -1179,176 +962,8 @@ export default defineComponent({
       }
     };
 
-    const reloadKeyMap = async () => {
-      await loadSaxRegisterKeyMap();
-    };
-
-    const resetKeyMapToDefault = async () => {
-      if (!isConnected.value) {
-        return;
-      }
-      if (saxRegisterKeyMapSupport.value !== "supported") {
-        return;
-      }
-
-      const count = registerKeyCount.value;
-      if (!count) {
-        return;
-      }
-
-      keyMapLoading.value = true;
-      try {
-        // sequential writes to avoid overwhelming the request queue
-        for (let i = 0; i < count; i++) {
-          // only write if needed
-          const current = saxRegisterKeyMapRaw.value && saxRegisterKeyMapRaw.value[i];
-          if (!current) {
-            continue;
-          }
-          // eslint-disable-next-line no-await-in-loop
-          await setSaxRegisterKeyMap(i, 0);
-        }
-      } finally {
-        keyMapLoading.value = false;
-      }
-    };
-
-    const setSaxRegisterKeyMap = async (physicalIndex: number, rawValue: number) => {
-      if (!isConnected.value) {
-        return;
-      }
-
-      keyMapLoading.value = true;
-      try {
-        await deviceStore.actions.setComponentSectionValue(
-          {
-            block: Block.Button,
-            section: 5,
-            index: physicalIndex,
-            value: rawValue,
-          },
-          () => {
-            if (!saxRegisterKeyMapRaw.value) {
-              saxRegisterKeyMapRaw.value = [];
-            }
-            saxRegisterKeyMapRaw.value[physicalIndex] = rawValue;
-          },
-        );
-      } finally {
-        keyMapLoading.value = false;
-      }
-    };
-
-    const onKeyMapChange = (physicalIndex: number, event: Event) => {
-      const target = event && (event.target as unknown as HTMLSelectElement);
-      const rawValue = target && typeof target.value !== "undefined" ? Number(target.value) : 0;
-      return setSaxRegisterKeyMap(physicalIndex, rawValue);
-    };
-
-    const registerKeys = computed(() => {
-      const count = registerKeyCount.value;
-      const base = clampMidiNote(Number(formData.saxRegisterChromaticBaseNote) || 0);
-
-      const transposeRaw = Math.max(0, Math.min(48, Math.floor(Number((formData as any).saxRegisterChromaticTranspose) || 24)));
-      const transpose = transposeRaw - 24;
-
-      return Array.from({ length: count }, (_, index) => {
-        const raw = saxRegisterKeyMapRaw.value && saxRegisterKeyMapRaw.value[index];
-        const mappedIndex = raw && raw > 0 ? raw - 1 : index;
-        const note = clampMidiNote(base + mappedIndex + transpose);
-        return {
-          index,
-          mappedIndex,
-          note,
-          noteName: midiNoteName(note),
-        };
-      });
-    });
-
-    const visibleRegisterKeys = computed(() => {
-      if (showRegisterPreviewAll.value) {
-        return registerKeys.value;
-      }
-      return registerKeys.value.slice(0, registerPreviewDefaultCount);
-    });
-
-    const keyMapOptions = computed(() => {
-      const count = registerKeyCount.value;
-      const options = Array.from({ length: count }, (_, idx) => ({
-        value: idx + 1,
-        text: `레지스터 키 ${idx}`,
-      }));
-      return options;
-    });
-
-    const changedKeyCount = computed(() => {
-      const count = registerKeyCount.value;
-      if (!count || !saxRegisterKeyMapRaw.value) {
-        return 0;
-      }
-      let changed = 0;
-      for (let i = 0; i < count; i++) {
-        const raw = saxRegisterKeyMapRaw.value[i];
-        if (raw && Number(raw) !== 0) {
-          changed++;
-        }
-      }
-      return changed;
-    });
-
-    const duplicateMappedKeys = computed(() => {
-      const count = registerKeyCount.value;
-      if (!count || !saxRegisterKeyMapRaw.value) {
-        return [] as number[];
-      }
-
-      const seen = new Set<number>();
-      const duplicates = new Set<number>();
-
-      for (let i = 0; i < count; i++) {
-        const raw = saxRegisterKeyMapRaw.value[i];
-        const mappedIndex = raw && Number(raw) > 0 ? Number(raw) - 1 : i;
-
-        if (seen.has(mappedIndex)) {
-          duplicates.add(mappedIndex);
-        } else {
-          seen.add(mappedIndex);
-        }
-      }
-
-      return Array.from(duplicates).sort((a, b) => a - b);
-    });
-
-    const duplicateMappedKeyDetails = computed(() => {
-      const count = registerKeyCount.value;
-      if (!count || !saxRegisterKeyMapRaw.value) {
-        return [] as Array<{ mappedIndex: number; keys: number[] }>;
-      }
-
-      const groups = new Map<number, number[]>();
-      for (let i = 0; i < count; i++) {
-        const raw = saxRegisterKeyMapRaw.value[i];
-        const mappedIndex = raw && Number(raw) > 0 ? Number(raw) - 1 : i;
-        if (!groups.has(mappedIndex)) {
-          groups.set(mappedIndex, []);
-        }
-        groups.get(mappedIndex)!.push(i);
-      }
-
-      return Array.from(groups.entries())
-        .filter(([, keys]) => keys.length > 1)
-        .map(([mappedIndex, keys]) => ({ mappedIndex, keys }))
-        .sort((a, b) => a.mappedIndex - b.mappedIndex);
-    });
-
-    const getKeyMapSelectValue = (physicalIndex: number): number => {
-      const raw = saxRegisterKeyMapRaw.value && saxRegisterKeyMapRaw.value[physicalIndex];
-      return Number(raw) || 0;
-    };
-
     onMounted(() => {
       loadUiState();
-      loadSaxRegisterKeyMap();
       loadFingeringTable();
     });
 
@@ -1364,7 +979,7 @@ export default defineComponent({
     });
 
     watch(
-      () => [showRegisterPreviewAll.value, showFingeringTable.value, showKeyMapping.value],
+      () => [showFingeringTable.value],
       () => saveUiState(),
       { deep: false },
     );
@@ -1397,13 +1012,10 @@ export default defineComponent({
       () => isConnected.value,
       (connected) => {
         if (connected) {
-          loadSaxRegisterKeyMap();
           loadFingeringTable();
           detachBreathActivityListener?.();
           detachBreathActivityListener = attachBreathActivityListener(deviceStore.state.input as any);
         } else {
-          saxRegisterKeyMapRaw.value = null;
-          saxRegisterKeyMapSupport.value = "unknown";
           fingeringMaskLo14.value = null;
           fingeringMaskHi10Enable.value = null;
           fingeringNote.value = null;
@@ -1520,24 +1132,7 @@ export default defineComponent({
       clearBreathActivity,
       breathCcStatusLine,
       lastBreathCcTime,
-      registerKeyCount,
-      registerKeys,
-      visibleRegisterKeys,
-      showRegisterPreviewAll,
-      registerPreviewDefaultCount,
       showFingeringTable,
-      showKeyMapping,
-      saxRegisterKeyMapSupport,
-      keyMapLoading,
-      keyMapOptions,
-      changedKeyCount,
-      duplicateMappedKeys,
-      duplicateMappedKeyDetails,
-      getKeyMapSelectValue,
-      setSaxRegisterKeyMap,
-      onKeyMapChange,
-      reloadKeyMap,
-      resetKeyMapToDefault,
 
       fingeringSupport,
       fingeringLoading,

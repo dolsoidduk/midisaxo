@@ -85,6 +85,7 @@ const sections: Dictionary<ISectionDefinition> = {
     max: 127,
   },
   SaxRegisterChromaticEnable: {
+    showIf: (): boolean => false,
     block: Block.Global,
     key: "saxRegisterChromaticEnable",
     type: SectionType.Setting,
@@ -95,8 +96,7 @@ const sections: Dictionary<ISectionDefinition> = {
     helpText: `활성화되면 디지털 버튼 입력이 단일 모노포닉 크로매틱 노트 스트림(레지스터 키)으로 결합됩니다.`,
   },
   SaxRegisterChromaticBaseNote: {
-    showIf: (formState: FormState): boolean =>
-      !!formState.saxRegisterChromaticEnable,
+    showIf: (): boolean => false,
     block: Block.Global,
     key: "saxRegisterChromaticBaseNote",
     type: SectionType.Setting,
@@ -109,8 +109,7 @@ const sections: Dictionary<ISectionDefinition> = {
     helpText: `레지스터 키 0에 대한 기본 MIDI 노트 번호입니다. 레지스터 키 인덱스는 이 값에 추가됩니다.`,
   },
   SaxRegisterChromaticTranspose: {
-    showIf: (formState: FormState): boolean =>
-      !!formState.saxRegisterChromaticEnable,
+    showIf: (): boolean => false,
     block: Block.Global,
     key: "saxRegisterChromaticTranspose",
     type: SectionType.Setting,
@@ -124,8 +123,7 @@ const sections: Dictionary<ISectionDefinition> = {
     helpText: `레지스터 크로매틱 모드에서 전송되는 최종 노트에 반음 단위 트랜스포즈를 적용합니다.\n\n값 범위는 0..48이고, 24가 0반음(기본값)입니다. 예) 12= -12반음, 36= +12반음`,
   },
   SaxRegisterChromaticInputInvert: {
-    showIf: (formState: FormState): boolean =>
-      !!formState.saxRegisterChromaticEnable,
+    showIf: (): boolean => false,
     block: Block.Global,
     key: "saxRegisterChromaticInputInvert",
     type: SectionType.Setting,
