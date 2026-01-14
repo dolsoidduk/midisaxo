@@ -333,9 +333,9 @@ void Display::displayWelcomeMessage()
     // Use EVENT_TIME as an upper bound control, but keep a sensible minimum.
     uint32_t welcomeMs = _database.read(database::Config::Section::i2c_t::DISPLAY, setting_t::EVENT_TIME) * 1000UL;
 
-    if (welcomeMs < 5000UL)
+    if (welcomeMs < 3000UL)
     {
-        welcomeMs = 5000UL;
+        welcomeMs = 3000UL;
     }
 
     core::mcu::timing::waitMs(welcomeMs);
