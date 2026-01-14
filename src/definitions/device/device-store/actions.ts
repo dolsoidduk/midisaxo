@@ -344,6 +344,13 @@ export const startReboot = async (): Promise<void> => {
   await sendMessageAndRebootUi(Request.Reboot, handler);
 };
 
+export const saxPitchBendCenterCapture = async (): Promise<void> => {
+  await sendMessage({
+    command: Request.SaxPitchBendCenterCapture,
+    handler: () => undefined,
+  });
+};
+
 const sendMessageAndRebootUi = async (
   command: Request,
   handler: () => void,
@@ -552,6 +559,7 @@ export const deviceStoreActions = {
   startBootLoaderMode,
   startFactoryReset,
   startReboot,
+  saxPitchBendCenterCapture,
   startDeviceConnectionWatcher,
   stopDeviceConnectionWatcher,
   startFirmwareUpdate,

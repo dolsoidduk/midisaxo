@@ -35,5 +35,8 @@ constexpr inline uint8_t SYSEX_CR_FULL_BACKUP                   = 0x1B;
 constexpr inline uint8_t SYSEX_CR_RESTORE_START                 = 0x1C;
 constexpr inline uint8_t SYSEX_CR_RESTORE_END                   = 0x1D;
 
+// Midisaxo custom requests
+constexpr inline uint8_t SYSEX_CR_SAX_PB_CENTER_CAPTURE          = 0x60;
+
 /// Custom ID used when sending info about components to host
 constexpr inline uint8_t SYSEX_CM_COMPONENT_ID = 0x49;

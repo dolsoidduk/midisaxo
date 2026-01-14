@@ -1016,6 +1016,14 @@ uint8_t System::SysExDataHandler::customRequest(uint16_t request, CustomResponse
     }
     break;
 
+    case SYSEX_CR_SAX_PB_CENTER_CAPTURE:
+    {
+        messaging::Event event = {};
+        event.systemMessage    = messaging::systemMessage_t::SAX_PB_CENTER_CAPTURE_REQ;
+        MidiDispatcher.notify(messaging::eventType_t::SYSTEM, event);
+    }
+    break;
+
     case SYSEX_CR_FULL_BACKUP:
     {
         // no response here, just set flag internally that backup needs to be done

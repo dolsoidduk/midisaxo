@@ -28,6 +28,7 @@ export enum Request {
   GetNumberOfSupportedComponents = "GetNumberOfSupportedComponents",
   GetNumberOfSupportedPresets = "GetNumberOfSupportedPresets",
   Reboot = "Reboot",
+  SaxPitchBendCenterCapture = "SaxPitchBendCenterCapture",
   Backup = "Backup",
   GetBootLoaderSupport = "GetBootLoaderSupport",
   BootloaderMode = "BootloaderMode",
@@ -150,6 +151,12 @@ export const requestDefinitions: Dictionary<IRequestDefinition> = {
     isConnectionInfoRequest: true,
     expectsNoResponse: true,
     specialRequestId: 127, // Hex: 7F
+  },
+  [Request.SaxPitchBendCenterCapture]: {
+    key: Request.SaxPitchBendCenterCapture,
+    type: RequestType.Custom,
+    expectsNoResponse: true,
+    specialRequestId: 96, // Hex: 60
   },
   [Request.GetBootLoaderSupport]: {
     key: Request.GetBootLoaderSupport,

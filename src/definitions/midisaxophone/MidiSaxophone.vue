@@ -69,6 +69,41 @@
         </div>
 
         <div
+          v-if="isConnected"
+          class="surface-neutral border border-gray-700/60 rounded px-4 py-3 mb-6 text-sm"
+        >
+          <div class="text-gray-200 font-semibold">피치벤드(입) 캘리브레이션 안내</div>
+          <div class="mt-2 text-gray-300 whitespace-pre-line">
+            피치벤드 기본값이 0(센터)로만 느껴지거나, ‘입으로 무는 정도’ 기준이 안 맞으면
+            버튼 메시지 타입을 <strong>PB Center Capture</strong>로 설정한 뒤 아래처럼 한 번 캡처하세요.
+          </div>
+          <ol class="mt-2 text-gray-300 list-decimal list-inside space-y-1">
+            <li>평소 연주할 때처럼 ‘입으로 무는 정도’를 유지</li>
+            <li>그 상태에서 PB Center Capture 버튼을 1번 눌러 캡처</li>
+            <li>이후부터 그 상태가 0(센터) 기준이 되고, 입을 떼면 음의 방향(−쪽)으로 자연스럽게 내려갑니다</li>
+          </ol>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              :disabled="pbCenterCaptureBusy"
+              @click.prevent="runPbCenterCapture"
+            >
+              {{ pbCenterCaptureBusy ? "CAL..." : "CAL" }}
+            </Button>
+            <span class="text-xs text-gray-400">
+              UI에서 바로 캡처(= PB Center Capture 요청 전송)
+            </span>
+            <span v-if="pbCenterCaptureNotice" class="text-xs text-green-300">
+              {{ pbCenterCaptureNotice }}
+            </span>
+          </div>
+          <div class="mt-2 text-xs text-gray-400">
+            팁: 캡처 후에도 흔들리면 "피치벤드 중앙 민감도(데드존)" 값을 조금 올려보세요.
+          </div>
+        </div>
+
+        <div
           class="form-grid sax-settings-grid mb-8"
           :class="{ 'pointer-events-none opacity-50': !isConnected }"
         >
@@ -500,6 +535,30 @@ export default defineComponent({
   setup() {
     const { isConnected } = midiStoreMapped;
     const { numberOfComponents } = deviceStoreMapped;
+
+    const pbCenterCaptureBusy = ref(false);
+    const pbCenterCaptureNotice = ref<string>("");
+
+    const runPbCenterCapture = async (): Promise<void> => {
+      if (pbCenterCaptureBusy.value) {
+        return;
+      }
+
+      pbCenterCaptureBusy.value = true;
+      pbCenterCaptureNotice.value = "";
+
+      try {
+        await deviceStore.actions.saxPitchBendCenterCapture();
+        pbCenterCaptureNotice.value = "캡처 요청 전송됨 (평소 무는 상태 유지 중에 눌러주세요)";
+      } catch {
+        pbCenterCaptureNotice.value = "캡처 요청 실패 (연결/권한을 확인하세요)";
+      } finally {
+        pbCenterCaptureBusy.value = false;
+        window.setTimeout(() => {
+          pbCenterCaptureNotice.value = "";
+        }, 3000);
+      }
+    };
 
     const saxRegisterKeyMapRaw = ref<number[] | null>(null);
     const saxRegisterKeyMapSupport = ref<"unknown" | "supported" | "unsupported">(
@@ -1453,6 +1512,11 @@ export default defineComponent({
       hasSaxSections,
       saxHelpItems,
       isConnected,
+
+      pbCenterCaptureBusy,
+      pbCenterCaptureNotice,
+      runPbCenterCapture,
+
       clearBreathActivity,
       breathCcStatusLine,
       lastBreathCcTime,
