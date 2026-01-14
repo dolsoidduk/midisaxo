@@ -252,9 +252,22 @@ const startFirmwareUpdate = async (file: File): Promise<void> => {
 export const startUpdatesCheck = async (
   firmwareFileName?: string,
 ): Promise<Array<IOpenDeckRelease>> => {
-  const releases = await fetch(GitHubReleasesUrl).then((response) =>
-    response.json(),
-  );
+  let releases: any[] = [];
+
+  try {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeout = window.setTimeout(() => controller?.abort(), 2500);
+
+    try {
+      const resp = await fetch(GitHubReleasesUrl, controller ? { signal: controller.signal } : undefined);
+      releases = await resp.json();
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  } catch (err) {
+    logger.warn("[FW] Updates check failed (offline?)", err);
+    throw new Error("FW_UPDATES_CHECK_FAILED");
+  }
 
   const currentVersion = deviceState.firmwareVersion || "v0.0.0";
 

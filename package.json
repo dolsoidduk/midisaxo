@@ -2,7 +2,7 @@
   "name": "opendeck-ui",
   "description": "Configuration utility for OpenDeck MIDI platform",
   "main": "main.js",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "files": [
     "main.js",

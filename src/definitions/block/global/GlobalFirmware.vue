@@ -75,6 +75,9 @@
   </div>
 
   <Section v-else-if="updatesChecked" title="Updates" class="w-full">
+    <p v-if="updateError" class="text-sm leading-5 text-red-300 mb-4">
+      {{ updateError }}
+    </p>
     <p v-if="!availableUpdates.length" class="text-sm leading-5 text-gray-200">
       Your firmware is up to date.
     </p>
@@ -127,10 +130,19 @@ export default defineComponent({
     const loading = ref(false);
     const updatesChecked = ref(false);
     const availableUpdates = ref<Array<IOpenDeckRelease>>([]);
+    const updateError = ref("");
 
     const checkForUpdates = async () => {
       loading.value = true;
-      availableUpdates.value = await startUpdatesCheck(firmwareFileName.value);
+      updateError.value = "";
+
+      try {
+        availableUpdates.value = await startUpdatesCheck(firmwareFileName.value);
+      } catch {
+        // Standalone/offline friendly: don't block the UI if GitHub isn't reachable.
+        availableUpdates.value = [];
+        updateError.value = "업데이트 확인 실패: 오프라인이거나 GitHub에 접근할 수 없습니다.";
+      }
       loading.value = false;
       updatesChecked.value = true;
     };
@@ -151,6 +163,7 @@ export default defineComponent({
       bootLoaderSupport,
       startBootLoaderMode,
       updatesChecked,
+      updateError,
       checkForUpdates,
       availableUpdates,
       onFirmwareFileSelected,
