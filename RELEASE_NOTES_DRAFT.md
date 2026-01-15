@@ -23,13 +23,22 @@
 - 연결/기본
   - UI(AppImage 또는 dev)에서 디바이스 연결(Serial/MIDI)
   - 테스트용으로 DAW 또는 MIDI 모니터(예: `aseqdump`, DAW의 MIDI monitor)를 준비
+  - Linux(터미널)에서 빠르게 확인하려면(ASLA):
+    - 포트 목록 보기: `aseqdump -l`
+    - 입력 모니터링: `aseqdump -p <client:port>`
+    - 예: `aseqdump -p 20:0`
 - 브레스 센서(#1): CC2/CC11
   - 설정에서 브레스 출력 CC를 CC2/CC11로 각각 설정(사용 중인 매핑 기준)
   - 무호흡(0)부터 강하게 불기까지 천천히 변화시키며 CC 값이 0..127로 부드럽게 변하는지 확인
+  - `aseqdump` 기대 출력(예시): Control change 이벤트가 증가/감소
+    - CC2: `B0 02 vv` (채널/값은 설정에 따라 다름)
+    - CC11: `B0 0B vv`
   - 브레스 곡선/오프셋(있는 경우)을 바꿨을 때 동일 입력에서 CC 출력이 예상대로 달라지는지 확인
 - 피치 센서(#2): Pitch Bend + Center Capture
   - 무압력(중립) 상태에서 Pitch Bend가 0 근처(센터)로 안정적으로 유지되는지 확인
   - PB Center Capture(CAL)를 실행한 뒤, 중립 상태의 Pitch Bend가 다시 센터로 정렬되는지 확인
+  - `aseqdump` 기대 출력(예시): Pitch bend 이벤트
+    - `E0 ll mm` (LSB/MSB)
   - 중립 주변에서 흔들림이 크면 PB deadzone(중앙 민감도)을 조절해 안정화되는지 확인
 - 자동 비브라토(피치벤드 오버레이): 게이트 기반
   - 자동 비브라토 기능을 ON으로 두고, 게이트 기준을 센서 #2(피치)로 설정했는지 확인
