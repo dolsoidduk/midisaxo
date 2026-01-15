@@ -24,6 +24,7 @@ limitations under the License.
 #include "application/util/configurable/configurable.h"
 
 #include "core/util/util.h"
+#include "core/mcu.h"
 
 using namespace io::analog;
 using namespace protocol;
@@ -445,6 +446,73 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
             else
             {
                 descriptor.event.value = PB_CENTER_DEFAULT;
+            }
+
+            // Optional gated "auto vibrato" for sax targets using a pressure sensor as Pitch Bend.
+            // When enabled, and when the PB value exceeds a configurable threshold above center,
+            // apply a triangle LFO around the current PB value.
+            static constexpr size_t   SAX_VIB_ENABLE_SETTING_INDEX    = 14;
+            static constexpr size_t   SAX_VIB_THRESHOLD_SETTING_INDEX = 15;
+            static constexpr size_t   SAX_VIB_DEPTH_SETTING_INDEX     = 16;
+            static constexpr size_t   SAX_VIB_RATE_SETTING_INDEX      = 17; // Hz * 10
+            static constexpr size_t   SAX_VIB_ANALOG_INDEX_SETTING    = 18;
+
+            const uint16_t vibEnabled = static_cast<uint16_t>(_database.readSystem(SAX_VIB_ENABLE_SETTING_INDEX));
+
+            if (vibEnabled)
+            {
+                const size_t vibIndex = static_cast<size_t>(_database.readSystem(SAX_VIB_ANALOG_INDEX_SETTING));
+
+                if (index == vibIndex)
+                {
+                    const uint16_t threshold = core::util::CONSTRAIN(
+                        static_cast<uint16_t>(_database.readSystem(SAX_VIB_THRESHOLD_SETTING_INDEX)),
+                        static_cast<uint16_t>(0),
+                        static_cast<uint16_t>(8192));
+
+                    const uint16_t depth = core::util::CONSTRAIN(
+                        static_cast<uint16_t>(_database.readSystem(SAX_VIB_DEPTH_SETTING_INDEX)),
+                        static_cast<uint16_t>(0),
+                        static_cast<uint16_t>(8192));
+
+                    const uint16_t hz10 = core::util::CONSTRAIN(
+                        static_cast<uint16_t>(_database.readSystem(SAX_VIB_RATE_SETTING_INDEX)),
+                        static_cast<uint16_t>(0),
+                        static_cast<uint16_t>(300));
+
+                    // Gate condition: only apply vibrato if PB is above (center + threshold).
+                    const uint16_t gateLevel = static_cast<uint16_t>(
+                        core::util::CONSTRAIN(static_cast<int32_t>(PB_CENTER_DEFAULT) + static_cast<int32_t>(threshold),
+                                              static_cast<int32_t>(0),
+                                              static_cast<int32_t>(midi::MAX_VALUE_14BIT)));
+
+                    if ((depth > 0) && (hz10 > 0) && (descriptor.event.value > gateLevel))
+                    {
+                        const uint32_t periodMs = core::util::CONSTRAIN(
+                            static_cast<uint32_t>(10000u / static_cast<uint32_t>(hz10)),
+                            static_cast<uint32_t>(20),
+                            static_cast<uint32_t>(2000));
+
+                        const uint32_t nowMs  = core::mcu::timing::ms();
+                        const uint32_t posMs  = (periodMs > 0) ? (nowMs % periodMs) : 0;
+                        const uint32_t phaseQ = (periodMs > 0)
+                                                    ? static_cast<uint32_t>((static_cast<uint64_t>(posMs) * 32767u) /
+                                                                            static_cast<uint64_t>(periodMs))
+                                                    : 0;
+
+                        // Triangle wave in signed Q14-ish range: [-16383..+16383].
+                        const uint32_t tri = (phaseQ < 16384u) ? phaseQ : (32767u - phaseQ);
+                        const int32_t  triSigned = (phaseQ < 16384u) ? static_cast<int32_t>(tri)
+                                                                    : -static_cast<int32_t>(tri);
+
+                        const int32_t lfoDelta = (triSigned * static_cast<int32_t>(depth)) / 16383;
+
+                        const int32_t outValue = static_cast<int32_t>(descriptor.event.value) + lfoDelta;
+                        descriptor.event.value = static_cast<uint16_t>(core::util::CONSTRAIN(outValue,
+                                                                                              static_cast<int32_t>(0),
+                                                                                              static_cast<int32_t>(midi::MAX_VALUE_14BIT)));
+                    }
+                }
             }
         }
 

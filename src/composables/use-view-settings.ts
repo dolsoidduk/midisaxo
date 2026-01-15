@@ -2,7 +2,6 @@ import { computed } from "vue";
 import {
   Block,
   BlockMap,
-  ButtonMessageType,
   FormInputComponent,
   ISectionDefinition,
   SectionType,

@@ -255,11 +255,15 @@ export const startUpdatesCheck = async (
   let releases: any[] = [];
 
   try {
-    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const controller =
+      typeof AbortController !== "undefined" ? new AbortController() : null;
     const timeout = window.setTimeout(() => controller?.abort(), 2500);
 
     try {
-      const resp = await fetch(GitHubReleasesUrl, controller ? { signal: controller.signal } : undefined);
+      const resp = await fetch(
+        GitHubReleasesUrl,
+        controller ? { signal: controller.signal } : undefined,
+      );
       releases = await resp.json();
     } finally {
       window.clearTimeout(timeout);

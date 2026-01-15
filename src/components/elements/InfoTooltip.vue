@@ -10,7 +10,7 @@
     </span>
 
     <span
-      class="info-tooltip__bubble absolute left-1/2 top-full mt-1 z-50 w-72 max-w-[90vw] rounded border border-gray-700 bg-gray-900 text-gray-200 text-xs px-2 py-1 shadow-lg whitespace-pre-line"
+      class="info-tooltip__bubble absolute left-1/2 top-full mt-1 z-50 rounded border border-gray-700 bg-gray-900 text-gray-200 text-xs px-3 py-2 shadow-lg whitespace-normal break-words leading-relaxed"
     >
       {{ text }}
     </span>
@@ -33,6 +33,9 @@ export default defineComponent({
 
 <style scoped>
 .info-tooltip__bubble {
+  width: min(42rem, 92vw);
+  max-width: 42rem;
+  word-break: break-word;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;

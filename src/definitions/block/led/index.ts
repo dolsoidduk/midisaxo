@@ -1,1 +1,1 @@
-export * from "./led";
+export { LedBlock } from "./led";

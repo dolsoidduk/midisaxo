@@ -1,1 +1,1 @@
-export * from "./i2c";
+export { DisplayBlock } from "./i2c";

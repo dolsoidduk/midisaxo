@@ -202,6 +202,63 @@
                 </span>
               </div>
             </div>
+
+            <div class="mt-4 border-t border-gray-700/60 pt-4">
+              <div class="text-gray-200 font-semibold">SWAM 추천: 자동 비브라토(압력 게이트)</div>
+              <div class="mt-2 text-gray-300 whitespace-pre-line text-xs">
+                SWAM(가상 색소폰)에서 피치 센서(Pitch Bend)를 ‘원할 때만’ 흔들리게 하고 싶을 때 쓰는 추천값입니다.
+
+                SWAM 권장 설정:
+                - Pitch Bend Range는 우선 ±2 semitone(또는 ±1)로 시작하는 걸 추천합니다.
+                  Range가 커질수록 같은 Depth라도 실제 음정 흔들림이 훨씬 커집니다.
+
+                참고:
+                - SWAM의 Pitch Bend Range(반음 범위)가 커질수록 같은 Depth 값이 더 크게 들립니다.
+                - 기본값(±2 semitone) 기준으로 Depth 200~350은 대략 수~10 cent 정도의 진폭에 해당합니다.
+              </div>
+
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-gray-400">SWAM PB Range:</span>
+                  <select
+                    class="text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
+                    :disabled="swamVibratoPresetBusy"
+                    :value="swamPitchBendRangeSemitones"
+                    @change="onSwamPitchBendRangeChange"
+                    title="SWAM의 Pitch Bend Range(±반음) 값과 맞추세요"
+                  >
+                    <option :value="1">±1</option>
+                    <option :value="2">±2</option>
+                    <option :value="12">±12</option>
+                  </select>
+                </div>
+
+                <select
+                  class="text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
+                  :disabled="swamVibratoPresetBusy"
+                  :value="swamVibratoPreset"
+                  @change="onSwamVibratoPresetChange"
+                >
+                  <option value="off">OFF</option>
+                  <option value="swam-soft">SWAM Soft</option>
+                  <option value="swam-normal">SWAM Normal</option>
+                  <option value="swam-strong">SWAM Strong</option>
+                </select>
+
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  :disabled="swamVibratoPresetBusy"
+                  @click.prevent="applySwamAutoVibratoPreset"
+                >
+                  {{ swamVibratoPresetBusy ? "APPLY..." : "자동 비브라토 프리셋 적용" }}
+                </Button>
+
+                <span v-if="swamVibratoPresetNotice" class="text-xs text-green-300">
+                  {{ swamVibratoPresetNotice }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1631,7 +1688,116 @@ export default defineComponent({
       "saxBreathControllerMidPercent",
       "saxBreathControllerCC",
       "saxPitchBendDeadzone",
+      "saxAutoVibratoEnable",
+      "saxAutoVibratoAnalogIndex",
+      "saxAutoVibratoGateThreshold",
+      "saxAutoVibratoDepth",
+      "saxAutoVibratoRateHz10",
     ]);
+
+    type SwamVibratoPresetId = "off" | "swam-soft" | "swam-normal" | "swam-strong";
+    const swamVibratoPreset = ref<SwamVibratoPresetId>("swam-normal");
+    const swamPitchBendRangeSemitones = ref<number>(2);
+    const swamVibratoPresetBusy = ref(false);
+    const swamVibratoPresetNotice = ref<string>("");
+
+    const onSwamVibratoPresetChange = (event: Event): void => {
+      const target = event && (event.target as unknown as HTMLSelectElement);
+      const value = target && typeof target.value === "string" ? target.value : "";
+
+      if (
+        value === "off" ||
+        value === "swam-soft" ||
+        value === "swam-normal" ||
+        value === "swam-strong"
+      ) {
+        swamVibratoPreset.value = value;
+      }
+    };
+
+    const onSwamPitchBendRangeChange = (event: Event): void => {
+      const target = event && (event.target as unknown as HTMLSelectElement);
+      const raw = target && typeof target.value === "string" ? target.value : "";
+      const parsed = Math.floor(Number(raw));
+
+      // Keep it simple: only support common SWAM values.
+      if (parsed === 1 || parsed === 2 || parsed === 12) {
+        swamPitchBendRangeSemitones.value = parsed;
+      }
+    };
+
+    const applySwamAutoVibratoPreset = async (): Promise<void> => {
+      if (!isConnected.value || swamVibratoPresetBusy.value) {
+        return;
+      }
+
+      if (!isMidisaxoBoard.value) {
+        return;
+      }
+
+      swamVibratoPresetBusy.value = true;
+      swamVibratoPresetNotice.value = "";
+
+      const write = async (config: { block: number; section: number; index: number; value: number }) =>
+        deviceStore.actions.setComponentSectionValue(config as any, () => {});
+
+      const analogIndexRaw = Number((formData as any).saxAutoVibratoAnalogIndex);
+      const analogIndex = Number.isFinite(analogIndexRaw)
+        ? Math.max(0, Math.min(255, Math.floor(analogIndexRaw)))
+        : 2;
+
+      const preset = swamVibratoPreset.value;
+
+      // Presets are calibrated for ±2 semitone PB range.
+      const rangeSemitones = Math.max(1, Math.floor(Number(swamPitchBendRangeSemitones.value) || 2));
+      const depthScaleNum = 2;
+      const depthScaleDen = rangeSemitones;
+
+      const presetValues: Record<Exclude<SwamVibratoPresetId, "off">, { threshold: number; depth: number; rateHz10: number }> = {
+        "swam-soft": { threshold: 450, depth: 180, rateHz10: 55 },
+        "swam-normal": { threshold: 550, depth: 260, rateHz10: 62 },
+        "swam-strong": { threshold: 650, depth: 360, rateHz10: 70 },
+      };
+
+      try {
+        if (preset === "off") {
+          await write({ block: Block.Global, section: 2, index: 14, value: 0 });
+          (formData as any).saxAutoVibratoEnable = 0;
+          swamVibratoPresetNotice.value = "자동 비브라토 OFF 적용";
+          return;
+        }
+
+        const v = presetValues[preset];
+
+        // Scale depth to keep a similar "cents" feel across different PB ranges.
+        const scaledDepth = Math.max(
+          0,
+          Math.min(8192, Math.round((v.depth * depthScaleNum) / depthScaleDen)),
+        );
+
+        await write({ block: Block.Global, section: 2, index: 14, value: 1 });
+        await write({ block: Block.Global, section: 2, index: 18, value: analogIndex });
+        await write({ block: Block.Global, section: 2, index: 15, value: v.threshold });
+        await write({ block: Block.Global, section: 2, index: 16, value: scaledDepth });
+        await write({ block: Block.Global, section: 2, index: 17, value: v.rateHz10 });
+
+        // Keep UI in sync without forcing a full reload.
+        (formData as any).saxAutoVibratoEnable = 1;
+        (formData as any).saxAutoVibratoAnalogIndex = analogIndex;
+        (formData as any).saxAutoVibratoGateThreshold = v.threshold;
+        (formData as any).saxAutoVibratoDepth = scaledDepth;
+        (formData as any).saxAutoVibratoRateHz10 = v.rateHz10;
+
+        swamVibratoPresetNotice.value = "SWAM 자동 비브라토 프리셋 적용 완료";
+      } catch {
+        swamVibratoPresetNotice.value = "프리셋 적용 실패 (연결/권한을 확인하세요)";
+      } finally {
+        swamVibratoPresetBusy.value = false;
+        window.setTimeout(() => {
+          swamVibratoPresetNotice.value = "";
+        }, 3000);
+      }
+    };
 
     const saxSections = computed(() => {
       const globalSections = Object.values(BlockMap[Block.Global].sections);
@@ -2506,6 +2672,14 @@ export default defineComponent({
       cc2cc11pbPresetBusy,
       cc2cc11pbPresetNotice,
       applyCc2Cc11PitchBendPreset,
+
+      swamVibratoPreset,
+      swamPitchBendRangeSemitones,
+      swamVibratoPresetBusy,
+      swamVibratoPresetNotice,
+      onSwamVibratoPresetChange,
+      onSwamPitchBendRangeChange,
+      applySwamAutoVibratoPreset,
 
       clearBreathActivity,
       breathCcStatusLine,

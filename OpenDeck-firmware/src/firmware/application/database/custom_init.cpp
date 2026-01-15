@@ -44,6 +44,23 @@ void Admin::customInitGlobal()
 
     // Custom system setting index 13: stored pitch bend center (player calibration).
     update(Config::Section::system_t::SYSTEM_SETTINGS, 13, 8192);
+
+    // Custom system setting index 14: sax auto vibrato enable (0/1).
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 14, 0);
+
+    // Custom system setting index 15: sax auto vibrato gate threshold (14-bit delta above center).
+    // Vibrato turns on only when PB value goes above (8192 + threshold).
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 15, 300);
+
+    // Custom system setting index 16: sax auto vibrato depth (14-bit, peak amplitude).
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 16, 200);
+
+    // Custom system setting index 17: sax auto vibrato rate (Hz * 10). Example: 60 = 6.0 Hz.
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 17, 60);
+
+    // Custom system setting index 18: sax auto vibrato analog index (which PITCH_BEND input to modulate).
+    // midisaxo_pico default PB sensor index is 2.
+    update(Config::Section::system_t::SYSTEM_SETTINGS, 18, 2);
 }
 
 void Admin::customInitButtons()

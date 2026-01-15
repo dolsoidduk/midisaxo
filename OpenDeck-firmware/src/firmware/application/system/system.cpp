@@ -450,7 +450,10 @@ void System::ensureSaxAnalogConfigured()
     // When sax breath controller is enabled, reserve analog inputs for:
     // - 0: trim pot
     // - breathIndex: breath sensor
-    // - 2: pitch amount pot
+    // Note: analog index 2 was historically reserved as a "pitch amount" pot.
+    // That prevented using a second pressure sensor for Pitch Bend while sax breath
+    // was enabled. Keep only trim + breath reserved so other analog inputs can be
+    // freely configured (e.g. PITCH_BEND).
     static constexpr size_t SAX_BREATH_ENABLE_SETTING_INDEX      = 6;
     static constexpr size_t SAX_BREATH_ANALOG_INDEX_SETTING_INDEX = 7;
 
@@ -486,18 +489,12 @@ void System::ensureSaxAnalogConfigured()
     };
 
     static constexpr size_t TRIM_ANALOG_INDEX        = 0;
-    static constexpr size_t PITCH_AMOUNT_ANALOG_INDEX = 2;
 
     configReservedAnalog(breathIndex);
 
     if (breathIndex != TRIM_ANALOG_INDEX)
     {
         configReservedAnalog(TRIM_ANALOG_INDEX);
-    }
-
-    if (breathIndex != PITCH_AMOUNT_ANALOG_INDEX)
-    {
-        configReservedAnalog(PITCH_AMOUNT_ANALOG_INDEX);
     }
 }
 

@@ -1,9 +1,6 @@
 name: Deploy UI (GitHub Pages)
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
     inputs:
       firmware_repo:

@@ -48,6 +48,7 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Select,
     options: [
       { value: AnalogType.ControlChange7Bit, text: "Control change 7-bit" },
+      { value: 1001, text: "ModWheel (CC1 preset)" },
       { value: 1002, text: "Breath Controller (CC2 preset)" },
       { value: 1011, text: "Expression (CC11 preset)" },
       { value: AnalogType.Note, text: "Note" },
@@ -57,10 +58,13 @@ const sections: Dictionary<ISectionDefinition> = {
       { value: AnalogType.NRPN14bit, text: "NRPN 14-bit" },
       { value: AnalogType.PitchBend, text: "Pitch bend" },
       { value: AnalogType.ControlChange14Bit, text: "Control change 14-bit" },
-      { value: AnalogType.Reserved, text: "Reserved (internal, no MIDI output)" },
+      {
+        value: AnalogType.Reserved,
+        text: "Reserved (internal, no MIDI output)",
+      },
     ],
     label: "Message type",
-    helpText: `Tip: Breath/Expression presets automatically set message type to Control change 7-bit and MIDI ID to CC2/CC11.`,
+    helpText: `Tip: Presets automatically set message type to Control change 7-bit and MIDI ID to CC1/CC2/CC11.`,
     block: Block.Analog,
   },
   MidiIdLSB: {
