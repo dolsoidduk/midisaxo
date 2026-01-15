@@ -186,10 +186,49 @@
                 전체 접기
               </Button>
 
+              <Button
+                size="sm"
+                variant="secondary"
+                :disabled="fingeringSupport !== 'supported' || fingeringLoading"
+                @click.prevent="exportFingeringBackup"
+              >
+                백업 내보내기
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                :disabled="fingeringSupport !== 'supported' || fingeringLoading"
+                @click.prevent="triggerFingeringBackupImport"
+              >
+                백업 가져오기
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                :disabled="fingeringSupport !== 'supported' || fingeringLoading || !hasPendingFingeringBackup"
+                @click.prevent="applyFingeringBackup"
+              >
+                백업 적용
+              </Button>
+
+              <input
+                ref="fingeringBackupFileInput"
+                type="file"
+                accept="application/json,.json"
+                class="hidden"
+                @change="onFingeringBackupFileChange"
+              />
+
               <Button size="sm" variant="secondary" @click.prevent="showFingeringTable = !showFingeringTable">
                 {{ showFingeringTable ? "접기" : "펼치기" }}
               </Button>
             </div>
+          </div>
+          <div v-if="fingeringBackupApplyProgressText" class="text-xs text-gray-400 mb-2">
+            {{ fingeringBackupApplyProgressText }}
+          </div>
+          <div v-else-if="hasPendingFingeringBackup" class="text-xs text-gray-400 mb-2">
+            가져온 백업: <strong class="text-gray-200">{{ pendingFingeringBackupSummary }}</strong>
           </div>
           <p class="text-sm mb-3">
             키 조합(눌린 키 목록) → 노트(0-127)를 테이블로 지정합니다. 매칭은 “가장 많은 키가 일치하는 항목”이 우선입니다.
@@ -1278,6 +1317,202 @@ export default defineComponent({
       });
     });
 
+    type FingeringBackupEntryV1 = {
+      index: number;
+      enabled: boolean;
+      mask: number;
+      note: number;
+    };
+
+    type FingeringBackupV1 = {
+      schema: "midisaxo.fingering-backup.v1";
+      createdAt: string;
+      keyCount: number;
+      entryCount: number;
+      entries: FingeringBackupEntryV1[];
+    };
+
+    const fingeringBackupFileInput = ref<HTMLInputElement | null>(null);
+    const pendingFingeringBackup = ref<FingeringBackupV1 | null>(null);
+    const fingeringBackupApplyProgressText = ref<string>("");
+
+    const hasPendingFingeringBackup = computed(() => pendingFingeringBackup.value !== null);
+    const pendingFingeringBackupSummary = computed(() => {
+      const backup = pendingFingeringBackup.value;
+      if (!backup) {
+        return "";
+      }
+      return `${backup.entryCount}개 엔트리 / ${backup.keyCount}키 / ${backup.entries.length}개 항목`;
+    });
+
+    const createFingeringBackupFromCurrent = (): FingeringBackupV1 => {
+      const entries: FingeringBackupEntryV1[] = fingeringEntries.value.map((e) => ({
+        index: e.index,
+        enabled: Boolean(e.enabled),
+        mask: Number(e.mask) >>> 0,
+        note: clampMidiNote(Number(e.note) || 0),
+      }));
+
+      return {
+        schema: "midisaxo.fingering-backup.v1",
+        createdAt: new Date().toISOString(),
+        keyCount: fingeringKeyCount,
+        entryCount: fingeringEntryCount,
+        entries,
+      };
+    };
+
+    const formatTimestampForFilename = (date: Date): string => {
+      // e.g. 20260115-132530
+      return date
+        .toISOString()
+        .replace(/\..+$/, "")
+        .replace(/[-:]/g, "")
+        .replace("T", "-");
+    };
+
+    const downloadJson = (filename: string, data: unknown): void => {
+      const text = JSON.stringify(data, null, 2);
+      const blob = new Blob([text], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    };
+
+    const exportFingeringBackup = (): void => {
+      if (!isConnected.value || fingeringSupport.value !== "supported") {
+        return;
+      }
+      const backup = createFingeringBackupFromCurrent();
+      const ts = formatTimestampForFilename(new Date());
+      downloadJson(`midisaxo-fingering-backup-${ts}.json`, backup);
+    };
+
+    const triggerFingeringBackupImport = (): void => {
+      if (!isConnected.value || fingeringSupport.value !== "supported") {
+        return;
+      }
+      fingeringBackupFileInput.value?.click();
+    };
+
+    const parseFingeringBackup = (raw: any): FingeringBackupV1 => {
+      if (!raw || raw.schema !== "midisaxo.fingering-backup.v1") {
+        throw new Error("지원하지 않는 백업 형식입니다.");
+      }
+      const entryCount = Math.max(0, Math.floor(Number(raw.entryCount) || 0));
+      const keyCount = Math.max(0, Math.floor(Number(raw.keyCount) || 0));
+      const createdAt = String(raw.createdAt || "");
+      const entriesRaw = Array.isArray(raw.entries) ? raw.entries : [];
+      const entries: FingeringBackupEntryV1[] = entriesRaw
+        .map((e: any) => ({
+          index: Math.max(0, Math.floor(Number(e?.index) || 0)),
+          enabled: Boolean(e?.enabled),
+          mask: (Number(e?.mask) >>> 0) || 0,
+          note: clampMidiNote(Math.floor(Number(e?.note) || 0)),
+        }))
+        .filter((e) => Number.isFinite(e.index) && e.index >= 0 && e.index < entryCount);
+
+      return {
+        schema: "midisaxo.fingering-backup.v1",
+        createdAt,
+        keyCount,
+        entryCount,
+        entries,
+      };
+    };
+
+    const onFingeringBackupFileChange = async (ev: Event): Promise<void> => {
+      const input = ev.target as HTMLInputElement | null;
+      const file = input?.files?.[0];
+      if (!file) {
+        return;
+      }
+      try {
+        const text = await file.text();
+        const raw = JSON.parse(text);
+        const backup = parseFingeringBackup(raw);
+
+        if (backup.keyCount !== fingeringKeyCount || backup.entryCount !== fingeringEntryCount) {
+          pendingFingeringBackup.value = null;
+          window.alert(
+            `이 백업은 현재 설정과 호환되지 않습니다. (백업: ${backup.entryCount}엔트리/${backup.keyCount}키, 현재: ${fingeringEntryCount}엔트리/${fingeringKeyCount}키)`,
+          );
+          return;
+        }
+
+        pendingFingeringBackup.value = backup;
+      } catch (err) {
+        const e = err as any;
+        pendingFingeringBackup.value = null;
+        window.alert(`백업 파일을 읽을 수 없습니다: ${String(e?.message || e)}`);
+      } finally {
+        if (input) {
+          input.value = "";
+        }
+      }
+    };
+
+    const applyFingeringBackup = async (): Promise<void> => {
+      if (!isConnected.value || fingeringSupport.value !== "supported") {
+        return;
+      }
+      const backup = pendingFingeringBackup.value;
+      if (!backup) {
+        return;
+      }
+
+      const ok = window.confirm(
+        "현재 기기의 핑거링 테이블(전체 128개)을 백업 내용으로 덮어씁니다. 계속할까요?",
+      );
+      if (!ok) {
+        return;
+      }
+
+      // Safety: auto-export current table before overwriting.
+      try {
+        const safety = createFingeringBackupFromCurrent();
+        const ts = formatTimestampForFilename(new Date());
+        downloadJson(`midisaxo-fingering-safety-backup-before-apply-${ts}.json`, safety);
+      } catch {
+        // Ignore auto-backup failures and continue.
+      }
+
+      const entryMap = new Map<number, FingeringBackupEntryV1>();
+      for (const e of backup.entries) {
+        entryMap.set(e.index, e);
+      }
+
+      fingeringLoading.value = true;
+      fingeringBackupApplyProgressText.value = "백업 적용 준비중…";
+
+      try {
+        for (let i = 0; i < fingeringEntryCount; i++) {
+          const e = entryMap.get(i) || { index: i, enabled: false, mask: 0, note: 0 };
+          const mask = Number(e.mask) >>> 0;
+          const { lo14, hi } = splitMaskTo14BitParts(mask);
+          const hiEn = (hi & fingeringHiMask) | (e.enabled ? fingeringEnableBit : 0);
+          const note = clampMidiNote(Math.floor(Number(e.note) || 0));
+
+          fingeringBackupApplyProgressText.value = `백업 적용중… ${i + 1}/${fingeringEntryCount}`;
+          await setGlobalValue(3, i, lo14);
+          await setGlobalValue(4, i, hiEn);
+          await setGlobalValue(5, i, note);
+        }
+
+        fingeringBackupApplyProgressText.value = "백업 적용 완료. 테이블 동기화중…";
+        await loadFingeringTable();
+        pendingFingeringBackup.value = null;
+      } finally {
+        fingeringBackupApplyProgressText.value = "";
+        fingeringLoading.value = false;
+      }
+    };
+
     const normalizeFilterText = (text: string): string =>
       String(text || "")
         .trim()
@@ -1380,6 +1615,15 @@ export default defineComponent({
       breathCcStatusLine,
       lastBreathCcTime,
       showFingeringTable,
+
+      exportFingeringBackup,
+      triggerFingeringBackupImport,
+      onFingeringBackupFileChange,
+      applyFingeringBackup,
+      hasPendingFingeringBackup,
+      pendingFingeringBackupSummary,
+      fingeringBackupApplyProgressText,
+      fingeringBackupFileInput,
 
       fingeringSupport,
       fingeringLoading,
