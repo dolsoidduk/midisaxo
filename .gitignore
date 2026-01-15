@@ -4,3 +4,4 @@ build/*
 .tmp/
 release/
 *.code-workspace
+package-lock.json

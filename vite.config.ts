@@ -32,7 +32,8 @@ const base =
 // If the user specifies --hostname/--port on the CLI, do not set hostname/port here.
 const defaultHost = process.env.VITE_HOST || process.env.HOST || "0.0.0.0";
 const defaultPort = parsePort(process.env.VITE_PORT || process.env.PORT, 3004);
-const hostname = hasCliFlag("host") || hasCliFlag("hostname") ? undefined : defaultHost;
+const hostname =
+  hasCliFlag("host") || hasCliFlag("hostname") ? undefined : defaultHost;
 const port = hasCliFlag("port") ? undefined : defaultPort;
 
 const config: UserConfig = {
