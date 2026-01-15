@@ -137,6 +137,15 @@ jobs:
           path: artifacts
 
       - name: List artifacts
+        shell: bash
+        run: |
+          echo "== Artifacts tree (top) =="
+          ls -Rlah artifacts | head -n 200
+          echo
+          echo "== Files (maxdepth 6) =="
+          find artifacts -maxdepth 6 -type f -print | sort | head -n 200
+
+      - name: List artifacts
         run: ls -Rlah artifacts | head -n 200
 
       - name: Create/update release and upload assets
@@ -144,6 +153,7 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           generate_release_notes: false
+          fail_on_unmatched_files: true
           body: |
             Desktop builds for Midisaxo.
 
@@ -174,7 +184,13 @@ jobs:
             - SysEx typically needs explicit permission: allow “MIDI + SysEx”.
             - Chrome/Edge work best for WebMIDI.
           files: |
-            artifacts/linux/release/*
-            artifacts/windows/release/*
+            artifacts/**/*.AppImage
+            artifacts/**/*.tar.gz
+            artifacts/**/*.exe
+            artifacts/**/*.exe.blockmap
+            artifacts/**/*win*.zip
+            artifacts/**/latest*.yml
+            artifacts/**/builder-effective-config.yaml
+            artifacts/**/builder-debug.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
