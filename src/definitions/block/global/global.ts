@@ -142,7 +142,7 @@ const sections: Dictionary<ISectionDefinition> = {
     settingIndex: 6,
     component: FormInputComponent.Toggle,
     label: "색소폰 브레스 컨트롤러 (MPXV7002DP)",
-    helpText: `활성화되면 선택된 아날로그 입력이 MIDI CC(호흡/표현)에 매핑됩니다.`,
+    helpText: `활성화하면 선택한 아날로그 입력(브레스 센서 값)을 MIDI CC(호흡/표현)로 변환해 전송합니다.`,
   },
   SaxBreathControllerAnalogIndex: {
     showIf: (formState: FormState): boolean =>
@@ -156,12 +156,13 @@ const sections: Dictionary<ISectionDefinition> = {
     max: 255,
     component: FormInputComponent.Input,
     label: "브레스 아날로그 인덱스 (0-255)",
-    helpText: `MPXV7002DP에 사용할 아날로그 입력 인덱스입니다. (인덱스 매핑은 타겟 설정에 따라 달라질 수 있습니다.)
+    helpText: `MPXV7002DP(브레스 센서)에 연결된 아날로그 입력 인덱스입니다.
+  인덱스 매핑은 타겟(보드) 설정에 따라 달라질 수 있습니다.
 
 RP2040 Pico + native ADC 3채널 추천 구성:
-- 0: 오프셋 트림(예약)
-- 1: 브레스 센서(권장)
-- 2: 피치 Amount(밴딩/비브라토 스케일, 예약)`,
+  - 0: 오프셋 트림(예약)
+  - 1: 브레스 센서(권장)
+  - 2: 피치 Amount(밴딩/비브라토 스케일, 예약)`,
   },
   SaxBreathControllerMidPercent: {
     showIf: (formState: FormState): boolean =>
@@ -175,7 +176,10 @@ RP2040 Pico + native ADC 3채널 추천 구성:
     max: 100,
     component: FormInputComponent.Input,
     label: "브레스 오프셋(중앙값 %) (0-100)",
-    helpText: `무호흡(0 압력)일 때의 센서 기준점을 ADC 전체 범위 대비 %로 설정합니다.\n\n대부분의 MPXV7002DP는 50% 근처(Vcc/2)입니다. 값이 낮으면 더 작은 압력에서도 CC가 빨리 올라가고, 값이 높으면 반대입니다.`,
+    helpText: `무호흡(0 압력)일 때의 센서 기준점을 ADC 전체 범위 대비 %로 설정합니다.
+
+  대부분의 MPXV7002DP는 50% 근처(Vcc/2)입니다.
+  값이 낮으면 작은 압력에서도 CC가 더 빨리 올라가고, 값이 높으면 반대로 더 늦게 올라갑니다.`,
   },
   SaxBreathControllerCC: {
     showIf: (formState: FormState): boolean =>
@@ -192,7 +196,9 @@ RP2040 Pico + native ADC 3채널 추천 구성:
       { value: 13, text: "CC2 + CC11" },
     ],
     label: "브레스 CC",
-    helpText: `호흡 압력에 따라 전송할 MIDI CC를 선택합니다.`,
+    helpText: `호흡 압력에 따라 전송할 MIDI CC를 선택합니다.
+
+  일반적으로는 CC2(Breath) 또는 CC11(Expression)를 사용합니다.`,
   },
   SaxPitchBendDeadzone: {
     showIf: (formState: FormState): boolean =>
@@ -206,7 +212,15 @@ RP2040 Pico + native ADC 3채널 추천 구성:
     max: 2000,
     component: FormInputComponent.Input,
     label: "피치벤드 중앙 민감도(데드존) (0-2000)",
-    helpText: `중립(중앙) 근처에서 피치벤드가 얼마나 둔해질지 설정합니다.\n\n값이 클수록 중앙에서 더 둔해지고, 값이 작을수록 중앙에서도 민감해집니다.\n단위는 14-bit 피치벤드 값 기준(센터 주변 ±N)입니다. 예) 100 = ±100.\n\n팁: 센터(0) 기준이 내 연주 습관과 안 맞으면, 버튼 메시지 타입을 "PB Center Capture"로 설정해서 ‘평소에 무는 정도’에서 한 번 캡처해 두는 걸 추천합니다.\n\n이 설정은 장치에 저장되며 전원을 껐다 켜도 유지됩니다.`,
+    helpText: `중립(센터) 근처에서 피치벤드가 얼마나 둔해질지 설정합니다.
+
+  값이 클수록 중앙에서 더 둔해지고, 값이 작을수록 중앙에서도 더 민감해집니다.
+  단위는 14-bit 피치벤드 값 기준(센터 주변 ±N)입니다. 예) 100 = ±100.
+
+  팁: 센터(0) 기준이 내 연주 습관과 안 맞으면,
+  버튼 메시지 타입을 "PB Center Capture"로 설정하고 ‘평소에 무는 정도’에서 한 번 캡처해 두는 걸 추천합니다.
+
+  이 설정은 장치에 저장되며 전원을 껐다 켜도 유지됩니다.`,
   },
   ActivePreset: {
     block: Block.Global,

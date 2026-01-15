@@ -195,9 +195,13 @@ To package the configurator for offline usage, `make pkg` command can be used wi
 
 This repository can publish the configurator to GitHub Pages so the UI is always available online.
 
-1. Push to `master` (or run the workflow manually).
+1. Push to `master` (this triggers the GitHub Pages deploy workflow).
 2. In GitHub repo settings: **Settings → Pages → Build and deployment → Source = GitHub Actions**.
 3. Open the published URL (usually `https://<owner>.github.io/<repo>/`).
+
+### Alternative: deploy via `gh-pages` branch (manual)
+
+If GitHub Pages deployments get stuck in `deployment_queued` (and hit the 10 minute timeout), you can bypass the Pages Deploy API entirely by publishing the built `dist/` output to a `gh-pages` branch by running the **Deploy UI (gh-pages branch)** workflow manually.
 
 This fork uses the GitHub Actions workflow in `.github/workflows/pages.yml`.
 

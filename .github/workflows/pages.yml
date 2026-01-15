@@ -1,6 +1,9 @@
 name: Deploy UI (GitHub Pages)
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
     inputs:
       firmware_repo:
@@ -38,11 +41,16 @@ jobs:
             npm install --legacy-peer-deps
           fi
 
+      - name: Build metadata
+        run: |
+          echo "VITE_BUILD_SHA=${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "VITE_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
       - name: Build
         env:
           GITHUB_PAGES: "true"
           GITHUB_REPOSITORY: ${{ github.repository }}
-          VITE_FIRMWARE_REPO: ${{ github.event.inputs.firmware_repo || vars.FIRMWARE_REPO || 'dolsoidduk/OpenDeck' }}
+          VITE_FIRMWARE_REPO: ${{ github.event.inputs.firmware_repo || 'dolsoidduk/OpenDeck' }}
         run: npm run build
 
       - name: Configure Pages

@@ -5,6 +5,21 @@
         OpenDeck Configurator
       </router-link>
 
+      <div class="ml-4 flex items-center gap-4 text-sm">
+        <router-link
+          :to="{ name: 'midisaxophone' }"
+          class="text-gray-400 hover:text-gray-200"
+        >
+          MIDI 색소폰
+        </router-link>
+        <router-link
+          :to="{ name: 'midi-bank-changer' }"
+          class="text-gray-400 hover:text-gray-200"
+        >
+          Bank Changer
+        </router-link>
+      </div>
+
       <span v-if="!isHomePage && boardName" class="app-board-info">
         <template v-if="isBootloaderMode">OpenDeck DFU mode</template>
         <template v-else>
@@ -126,6 +141,11 @@
                 >Shantea Controls 공식 웹사이트</a
               >
             </li>
+            <li v-if="buildShaShort || buildTime" class="text-xs text-gray-500">
+              Build:
+              <span v-if="buildShaShort" class="ml-1 font-mono">{{ buildShaShort }}</span>
+              <span v-if="buildTime" class="ml-2">{{ buildTime }}</span>
+            </li>
           </ul>
         </nav>
       </div>
@@ -162,6 +182,10 @@ export default defineComponent({
     const { isConnected, isConnecting, isWebMidiSupported } = midiStoreMapped;
     const { supportedPresetsCount, isBootloaderMode } = deviceStoreMapped;
 
+    const buildSha = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_BUILD_SHA) || "";
+    const buildTime = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_BUILD_TIME) || "";
+    const buildShaShort = computed(() => (buildSha ? String(buildSha).slice(0, 8) : ""));
+
     onMounted(() => {
       midiStoreMapped.startMidiConnectionWatcher();
     });
@@ -182,6 +206,8 @@ export default defineComponent({
       activePreset,
       supportedPresetsCount,
       isBootloaderMode,
+      buildShaShort,
+      buildTime,
     };
   },
 });

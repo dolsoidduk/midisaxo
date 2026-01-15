@@ -161,6 +161,8 @@ export default defineComponent({
       // 기본은 실제 색소폰 키 느낌의 라벨을 제공하되,
       // 내부 매핑(인덱스)은 그대로 유지합니다.
       return [
+        // NOTE: Keep this aligned with the MIDI Saxophone page preset
+        // (index->meaning mapping) so layout and labels stay consistent.
         "OCT",
         "LH1",
         "LH2",
@@ -168,7 +170,9 @@ export default defineComponent({
         "RH1",
         "RH2",
         "RH3",
-        "BIS",
+        "LOW F#",
+        "ALT",
+        "BIS Bb",
         "G#",
         "PALM D",
         "PALM Eb",
@@ -180,12 +184,10 @@ export default defineComponent({
         "LOW C",
         "LOW B",
         "LOW Bb",
-        "LOW F#",
-        "ALT1",
-        "ALT2",
-        "ALT3",
-        "ALT4",
-        "ALT5",
+        "FRONT F",
+        "HIGH F#",
+        "ALT 1",
+        "ALT 2",
         "LOW A",
       ];
     });
@@ -248,11 +250,21 @@ export default defineComponent({
     });
 
     const saxLayout = computed((): SaxLayoutKey[] => {
-      // 대략적인 색소폰 실루엣 레이아웃 (12x8 grid)
+      // 대략적인 색소폰 실루엣 레이아웃 (12 columns grid)
+      // IMPORTANT: idx(0..25) 의미는 MIDI Saxophone 페이지의 라벨 프리셋과 동일해야 함.
       // row/col은 1-base, span은 선택.
       return [
-        // register / octave
-        { idx: 0, row: 3, col: 2, rowSpan: 2, colSpan: 2, big: true },
+        // octave (back key)
+        { idx: 0, row: 2, col: 1, rowSpan: 2, colSpan: 2, big: true },
+
+        // palm keys (LH top)
+        { idx: 11, row: 1, col: 3, colSpan: 2 },
+        { idx: 12, row: 1, col: 5, colSpan: 2 },
+        { idx: 13, row: 2, col: 3, colSpan: 2 },
+
+        // front/extra near top of LH
+        { idx: 21, row: 2, col: 7, colSpan: 2 },
+        { idx: 22, row: 2, col: 9, colSpan: 2 },
 
         // left hand main stack
         { idx: 1, row: 4, col: 4, rowSpan: 2, colSpan: 2, big: true },
@@ -260,38 +272,31 @@ export default defineComponent({
         { idx: 3, row: 8, col: 4, rowSpan: 2, colSpan: 2, big: true },
 
         // bis / g# near left hand
-        { idx: 9, row: 3, col: 6, colSpan: 2 },
-        { idx: 10, row: 8, col: 6, colSpan: 2 },
+        { idx: 9, row: 4, col: 7, colSpan: 2 },
+        { idx: 10, row: 9, col: 1, colSpan: 2 },
 
         // right hand main stack
         { idx: 4, row: 5, col: 7, rowSpan: 2, colSpan: 2, big: true },
         { idx: 5, row: 7, col: 7, rowSpan: 2, colSpan: 2, big: true },
         { idx: 6, row: 9, col: 7, rowSpan: 2, colSpan: 2, big: true },
 
-        // palm keys (top)
-        { idx: 11, row: 1, col: 7, colSpan: 2 },
-        { idx: 12, row: 1, col: 9, colSpan: 2 },
-        { idx: 13, row: 2, col: 8, colSpan: 2 },
-
-        // side keys
-        { idx: 14, row: 5, col: 10, colSpan: 2 },
-        { idx: 15, row: 7, col: 10, colSpan: 2 },
-        { idx: 16, row: 9, col: 10, colSpan: 2 },
+        // side keys (RH side)
+        { idx: 14, row: 5, col: 11, colSpan: 2 },
+        { idx: 15, row: 7, col: 11, colSpan: 2 },
+        { idx: 16, row: 9, col: 11, colSpan: 2 },
 
         // low keys cluster
-        { idx: 17, row: 11, col: 7, colSpan: 2 },
-        { idx: 18, row: 11, col: 9, colSpan: 2 },
-        { idx: 19, row: 12, col: 7, colSpan: 2 },
-        { idx: 20, row: 12, col: 9, colSpan: 2 },
+        { idx: 17, row: 11, col: 1, colSpan: 2 },
+        { idx: 18, row: 11, col: 7, colSpan: 2 },
+        { idx: 19, row: 11, col: 9, colSpan: 2 },
+        { idx: 20, row: 12, col: 7, colSpan: 2 },
+        { idx: 7, row: 12, col: 9, colSpan: 2 },
         { idx: 25, row: 12, col: 11, colSpan: 2 },
-        { idx: 7, row: 12, col: 5, colSpan: 2 },
 
-        // altissimo / extra keys bottom row
-        { idx: 21, row: 14, col: 2, colSpan: 2 },
-        { idx: 22, row: 14, col: 4, colSpan: 2 },
-        { idx: 23, row: 14, col: 6, colSpan: 2 },
-        { idx: 24, row: 14, col: 8, colSpan: 2 },
-        { idx: 8, row: 13, col: 6, colSpan: 2 },
+        // alt keys (extra)
+        { idx: 8, row: 13, col: 7, colSpan: 2 },
+        { idx: 23, row: 14, col: 5, colSpan: 2 },
+        { idx: 24, row: 14, col: 7, colSpan: 2 },
       ];
     });
 

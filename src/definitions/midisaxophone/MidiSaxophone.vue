@@ -133,12 +133,46 @@
           class="mb-6"
           :class="{ 'pointer-events-none opacity-50': fingeringLoading }"
         >
-          <div class="flex items-center gap-2 mb-2">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
             <h4 class="heading mb-0">핑거링 테이블 (26키)</h4>
-            <div class="flex-grow"></div>
-            <Button size="sm" variant="secondary" @click.prevent="showFingeringTable = !showFingeringTable">
-              {{ showFingeringTable ? "접기" : "펼치기" }}
-            </Button>
+
+            <div class="flex items-center gap-2 ml-auto">
+              <div class="flex items-center gap-2">
+                <div class="text-xs text-gray-300 font-semibold">엔트리 표시(가로/세로)</div>
+                <select
+                  class="text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
+                  :disabled="fingeringSupport === 'unsupported'"
+                  :value="fingeringEntryLayoutMode"
+                  @change="onFingeringEntryLayoutModeChange($event)"
+                >
+                  <option value="horizontal">가로(스크롤)</option>
+                  <option value="grid">세로(그리드)</option>
+                </select>
+
+                <div v-if="fingeringEntryLayoutMode === 'horizontal'" class="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    :disabled="fingeringSupport === 'unsupported' || !showFingeringTable || !canScrollFingeringLeft"
+                    @click.prevent="scrollFingeringEntriesByPage(-1)"
+                  >
+                    ◀
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    :disabled="fingeringSupport === 'unsupported' || !showFingeringTable || !canScrollFingeringRight"
+                    @click.prevent="scrollFingeringEntriesByPage(1)"
+                  >
+                    ▶
+                  </Button>
+                </div>
+              </div>
+
+              <Button size="sm" variant="secondary" @click.prevent="showFingeringTable = !showFingeringTable">
+                {{ showFingeringTable ? "접기" : "펼치기" }}
+              </Button>
+            </div>
           </div>
           <p class="text-sm mb-3">
             키 조합(눌린 키 목록) → 노트(0-127)를 테이블로 지정합니다. 매칭은 “가장 많은 키가 일치하는 항목”이 우선입니다.
@@ -172,9 +206,40 @@
             <Button size="sm" variant="secondary" @click.prevent="reloadFingering">
               새로고침
             </Button>
+
+            <div class="flex items-center gap-2">
+              <div class="text-xs text-gray-300 font-semibold">엔트리 표시</div>
+              <select
+                class="text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
+                :value="fingeringEntryLayoutMode"
+                @change="onFingeringEntryLayoutModeChange($event)"
+              >
+                <option value="horizontal">가로(스크롤)</option>
+                <option value="grid">세로(그리드)</option>
+              </select>
+
+              <div v-if="fingeringEntryLayoutMode === 'horizontal'" class="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  :disabled="!canScrollFingeringLeft"
+                  @click.prevent="scrollFingeringEntriesByPage(-1)"
+                >
+                  ◀
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  :disabled="!canScrollFingeringRight"
+                  @click.prevent="scrollFingeringEntriesByPage(1)"
+                >
+                  ▶
+                </Button>
+              </div>
+            </div>
           </div>
 
-          <div v-if="fingeringSupport === 'supported'" class="surface-neutral border rounded px-3 py-2 mb-3">
+          <div v-if="fingeringSupport !== 'unsupported'" class="surface-neutral border rounded px-3 py-2 mb-3">
             <div class="flex flex-wrap items-center gap-2">
               <input
                 v-model="fingeringFilterText"
@@ -229,7 +294,7 @@
           </div>
 
           <div
-            v-if="fingeringSupport === 'supported'"
+            v-if="fingeringSupport !== 'unsupported'"
             class="surface-neutral border rounded px-3 py-2 mb-3"
           >
             <div class="flex flex-wrap items-center gap-2">
@@ -285,7 +350,94 @@
             </div>
           </div>
 
-          <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+          <div
+            v-if="fingeringEntryLayoutMode === 'horizontal'"
+            ref="fingeringEntriesScrollEl"
+            @scroll.passive="updateFingeringScrollButtons"
+            class="flex gap-2 overflow-x-auto pb-2"
+            style="scrollbar-gutter: stable; scroll-snap-type: x mandatory; scroll-padding-left: 4px; scroll-padding-right: 4px;"
+          >
+            <div
+              v-for="entry in visibleFingeringEntries"
+              :key="`fing-${entry.index}`"
+              :ref="setFingeringEntryEl(entry.index)"
+              class="surface-neutral border rounded px-2 py-2 flex-none"
+              style="width: 340px; scroll-snap-align: start;"
+              :class="{ 'ring-2 ring-blue-500': activeFingeringEntryIndex === entry.index }"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <div class="text-xs"><strong>#{{ entry.index }}</strong></div>
+                <div class="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    :disabled="!isConnected || fingeringSupport !== 'supported'"
+                    @click.prevent="captureFingeringEntry(entry.index)"
+                  >
+                    현재 눌림 캡처
+                  </Button>
+                  <label class="text-xs text-gray-400">
+                    <input
+                      type="checkbox"
+                      :checked="entry.enabled"
+                      @change="onFingeringEnabledChange(entry.index, $event)"
+                    />
+                    사용
+                  </label>
+                </div>
+              </div>
+
+              <label class="text-xs text-gray-400 block mb-1">눌린 키 (0-25)</label>
+              <SaxFingeringKeyPad
+                class="mb-2"
+                :mask="entry.mask"
+                :disabled="fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
+                :labels="fingeringKeyLabels"
+                :show-index="showFingeringKeyIndex"
+                @update:mask="(m) => setFingeringMask(entry.index, m)"
+              />
+
+              <div class="flex items-center gap-2 mt-2">
+                <div class="text-xs text-gray-400">텍스트/노트</div>
+                <div class="flex-grow"></div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  @click.prevent="toggleFingeringEntryDetails(entry.index)"
+                >
+                  {{ isFingeringEntryDetailsOpen(entry.index) ? "접기" : "펼치기" }}
+                </Button>
+              </div>
+
+              <div v-show="isFingeringEntryDetailsOpen(entry.index)">
+                <label class="text-[11px] text-gray-500 block mt-2 mb-1">텍스트 입력 (고급)</label>
+                <input
+                  class="w-full text-sm px-2 py-1"
+                  :value="entry.keysText"
+                  :disabled="fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
+                  @change="onFingeringKeysChange(entry.index, $event)"
+                />
+
+                <label class="text-xs text-gray-400 block mt-3 mb-1">노트 (0-127)</label>
+                <input
+                  class="w-full text-sm px-2 py-1"
+                  type="number"
+                  min="0"
+                  max="127"
+                  :value="entry.note"
+                  :disabled="fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
+                  :ref="setFingeringNoteInputEl(entry.index)"
+                  @change="onFingeringNoteChange(entry.index, $event)"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-else
+            class="grid gap-2"
+            style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));"
+          >
             <div
               v-for="entry in visibleFingeringEntries"
               :key="`fing-${entry.index}`"
@@ -319,31 +471,45 @@
               <SaxFingeringKeyPad
                 class="mb-2"
                 :mask="entry.mask"
-                :disabled="!entry.enabled || fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
+                :disabled="fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
                 :labels="fingeringKeyLabels"
                 :show-index="showFingeringKeyIndex"
                 @update:mask="(m) => setFingeringMask(entry.index, m)"
               />
 
-              <label class="text-[11px] text-gray-500 block mb-1">텍스트 입력 (고급)</label>
-              <input
-                class="w-full text-sm px-2 py-1"
-                :value="entry.keysText"
-                :disabled="!entry.enabled"
-                @change="onFingeringKeysChange(entry.index, $event)"
-              />
+              <div class="flex items-center gap-2 mt-2">
+                <div class="text-xs text-gray-400">텍스트/노트</div>
+                <div class="flex-grow"></div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  @click.prevent="toggleFingeringEntryDetails(entry.index)"
+                >
+                  {{ isFingeringEntryDetailsOpen(entry.index) ? "접기" : "펼치기" }}
+                </Button>
+              </div>
 
-              <label class="text-xs text-gray-400 block mt-3 mb-1">노트 (0-127)</label>
-              <input
-                class="w-full text-sm px-2 py-1"
-                type="number"
-                min="0"
-                max="127"
-                :value="entry.note"
-                :disabled="!entry.enabled"
-                :ref="setFingeringNoteInputEl(entry.index)"
-                @change="onFingeringNoteChange(entry.index, $event)"
-              />
+              <div v-show="isFingeringEntryDetailsOpen(entry.index)">
+                <label class="text-[11px] text-gray-500 block mt-2 mb-1">텍스트 입력 (고급)</label>
+                <input
+                  class="w-full text-sm px-2 py-1"
+                  :value="entry.keysText"
+                  :disabled="fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
+                  @change="onFingeringKeysChange(entry.index, $event)"
+                />
+
+                <label class="text-xs text-gray-400 block mt-3 mb-1">노트 (0-127)</label>
+                <input
+                  class="w-full text-sm px-2 py-1"
+                  type="number"
+                  min="0"
+                  max="127"
+                  :value="entry.note"
+                  :disabled="fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
+                  :ref="setFingeringNoteInputEl(entry.index)"
+                  @change="onFingeringNoteChange(entry.index, $event)"
+                />
+              </div>
             </div>
           </div>
           </div>
@@ -453,6 +619,47 @@ export default defineComponent({
     const showFingeringKeyIndex = ref(false);
     const showFingeringLabelEditor = ref(false);
 
+    type FingeringEntryLayoutMode = "grid" | "horizontal";
+    const fingeringEntryLayoutMode = ref<FingeringEntryLayoutMode>("horizontal");
+
+    const fingeringEntriesScrollEl = ref<HTMLElement | null>(null);
+    const canScrollFingeringLeft = ref(false);
+    const canScrollFingeringRight = ref(false);
+
+    const updateFingeringScrollButtons = (): void => {
+      const el = fingeringEntriesScrollEl.value;
+      if (!el || fingeringEntryLayoutMode.value !== "horizontal") {
+        canScrollFingeringLeft.value = false;
+        canScrollFingeringRight.value = false;
+        return;
+      }
+
+      const left = el.scrollLeft;
+      const maxLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+
+      canScrollFingeringLeft.value = left > 0;
+      // allow a tiny epsilon for fractional scroll positions
+      canScrollFingeringRight.value = left < maxLeft - 1;
+    };
+
+    const scrollFingeringEntriesByPage = (direction: number): void => {
+      const el = fingeringEntriesScrollEl.value;
+      if (!el || fingeringEntryLayoutMode.value !== "horizontal") {
+        return;
+      }
+
+      const dir = Math.sign(Number(direction) || 0);
+      if (!dir) {
+        return;
+      }
+
+      const page = Math.max(120, el.clientWidth);
+      el.scrollBy({ left: dir * page, behavior: "smooth" });
+
+      // After smooth scroll, update state a bit later.
+      window.setTimeout(() => updateFingeringScrollButtons(), 200);
+    };
+
     const uiStateKey = "opendeck.midisaxophone.ui";
 
     const loadUiState = (): void => {
@@ -496,6 +703,9 @@ export default defineComponent({
           if (typeof parsed.showFingeringLabelEditor === "boolean") {
             showFingeringLabelEditor.value = parsed.showFingeringLabelEditor;
           }
+          if (parsed.fingeringEntryLayoutMode === "grid" || parsed.fingeringEntryLayoutMode === "horizontal") {
+            fingeringEntryLayoutMode.value = parsed.fingeringEntryLayoutMode;
+          }
           if (Array.isArray(parsed.fingeringKeyLabels)) {
             const next = parsed.fingeringKeyLabels
               .slice(0, 26)
@@ -530,10 +740,19 @@ export default defineComponent({
             fingeringKeyLabels: fingeringKeyLabels.value,
             showFingeringKeyIndex: showFingeringKeyIndex.value,
             showFingeringLabelEditor: showFingeringLabelEditor.value,
+            fingeringEntryLayoutMode: fingeringEntryLayoutMode.value,
           }),
         );
       } catch {
         // ignore quota / private mode
+      }
+    };
+
+    const onFingeringEntryLayoutModeChange = (event: Event): void => {
+      const target = event && (event.target as unknown as HTMLSelectElement);
+      const value = target && typeof target.value === "string" ? target.value : "horizontal";
+      if (value === "grid" || value === "horizontal") {
+        fingeringEntryLayoutMode.value = value;
       }
     };
 
@@ -965,6 +1184,9 @@ export default defineComponent({
     onMounted(() => {
       loadUiState();
       loadFingeringTable();
+
+      // Keep scroll arrow enablement in sync.
+      window.setTimeout(() => updateFingeringScrollButtons(), 0);
     });
 
     onMounted(() => {
@@ -1002,6 +1224,7 @@ export default defineComponent({
         fingeringKeyLabelPreset.value,
         showFingeringKeyIndex.value,
         showFingeringLabelEditor.value,
+        fingeringEntryLayoutMode.value,
         fingeringKeyLabels.value.join("\u0000"),
       ],
       () => saveUiState(),
@@ -1066,6 +1289,12 @@ export default defineComponent({
         .trim()
         .toLowerCase();
 
+    const fingeringEntryDetailsOpen = ref<Record<number, boolean>>({});
+    const isFingeringEntryDetailsOpen = (entryIndex: number): boolean => fingeringEntryDetailsOpen.value[entryIndex] === true;
+    const toggleFingeringEntryDetails = (entryIndex: number): void => {
+      fingeringEntryDetailsOpen.value[entryIndex] = !isFingeringEntryDetailsOpen(entryIndex);
+    };
+
     const resetFingeringFilters = (): void => {
       fingeringFilterText.value = "";
       fingeringFilterOnlyEnabled.value = false;
@@ -1115,6 +1344,18 @@ export default defineComponent({
       });
     });
 
+    watch(
+      () => [
+        fingeringEntryLayoutMode.value,
+        visibleFingeringEntries.value.length,
+        fingeringLoading.value,
+      ],
+      () => {
+        window.setTimeout(() => updateFingeringScrollButtons(), 0);
+      },
+      { deep: false },
+    );
+
     return {
       formData,
       loading,
@@ -1139,6 +1380,8 @@ export default defineComponent({
       fingeringEntryCount,
       fingeringEntries,
       visibleFingeringEntries,
+      isFingeringEntryDetailsOpen,
+      toggleFingeringEntryDetails,
       fingeringFilterText,
       fingeringFilterOnlyEnabled,
       fingeringFilterOnlyWithKeys,
@@ -1163,7 +1406,14 @@ export default defineComponent({
       fingeringKeyLabels,
       showFingeringKeyIndex,
       showFingeringLabelEditor,
+      fingeringEntryLayoutMode,
+      fingeringEntriesScrollEl,
+      canScrollFingeringLeft,
+      canScrollFingeringRight,
+      scrollFingeringEntriesByPage,
+      updateFingeringScrollButtons,
       onFingeringLabelPresetChange,
+      onFingeringEntryLayoutModeChange,
       onFingeringKeyLabelInput,
       fingeringKeyLabelsText,
       onFingeringKeyLabelsTextInput,
