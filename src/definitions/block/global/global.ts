@@ -284,7 +284,7 @@ RP2040 Pico + native ADC 3채널 추천 구성:
     component: FormInputComponent.Input,
     label: "비브라토 임계값 (0-8192)",
     helpText:
-      "Pitch Bend 센서 값이 ‘센터(8192) + 임계값’을 넘을 때만 비브라토가 켜집니다.\n\n값이 작을수록 쉽게 켜지고, 값이 클수록 더 강하게 불어야(눌러야) 켜집니다.",
+      "Pitch Bend 센서 값이 ‘센터(중립점) + 임계값’을 넘을 때만 비브라토가 켜집니다.\n\n센터(중립점)는 PB Center Capture(버튼)로 캡처한 값 기준이며, UI/DAW로 나가는 피치벤드 ‘중립’은 항상 8192로 정규화됩니다.\n\n값이 작을수록 쉽게 켜지고, 값이 클수록 더 강하게 불어야(눌러야) 켜집니다.",
   },
 
   SaxAutoVibratoDepth: {

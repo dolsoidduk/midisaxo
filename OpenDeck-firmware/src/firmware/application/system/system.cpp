@@ -538,7 +538,28 @@ void System::updateSax()
     {
         _analog->updateSingle(TRIM_ANALOG_INDEX);
     }
+    // Also poll pitch-related analog input fast for sax playability.
+    // Keep legacy index 2 (historical "pitch amount") and additionally poll
+    // the configured auto-vibrato target PB analog index.
     _analog->updateSingle(2);
+
+    static constexpr size_t SAX_VIB_ENABLE_SETTING_INDEX     = 14;
+    static constexpr size_t SAX_VIB_ANALOG_INDEX_SETTING     = 18;
+
+    const uint16_t vibEnabled = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                            SAX_VIB_ENABLE_SETTING_INDEX);
+
+    if (vibEnabled)
+    {
+        const size_t vibIndex = static_cast<size_t>(
+            _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                       SAX_VIB_ANALOG_INDEX_SETTING));
+
+        if (vibIndex < ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS))
+        {
+            _analog->updateSingle(vibIndex);
+        }
+    }
 
     const uint16_t midPercentRaw = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
                                                               SAX_BREATH_MID_PERCENT_SETTING_INDEX);
