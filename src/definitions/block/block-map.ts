@@ -2,7 +2,7 @@ import {
   Block,
   SectionType,
   IBlockDefinition,
-  SectionType,
+  ISectionDefinition,
 } from "../interface";
 import {
   GlobalBlock,
@@ -26,17 +26,22 @@ export const BlockMap: Dictionary<IBlockDefinition> = {
 
 // Combine routes for each block into a single array
 
-const combineBlockRoutes = (accumulator, currentBlock) => {
-  accumulator.push(...currentBlock.routes);
+const combineBlockRoutes = (
+  accumulator: any[],
+  currentBlock: IBlockDefinition,
+): any[] => {
+  if (currentBlock.routes) {
+    accumulator.push(...currentBlock.routes);
+  }
   return accumulator;
 };
 
 export const getDefaultDataForBlock = (
   block: Block,
   sectionType?: SectionType,
-): Record<string, number> => {
+): Record<string, number | null> => {
   return Object.values(BlockMap[block].sections).reduce(
-    (formData: Record<string, number>, section: ISectionDefinition) => {
+    (formData: Record<string, number | null>, section: ISectionDefinition) => {
       if (!sectionType || section.type === sectionType) {
         formData[section.key] = null;
       }

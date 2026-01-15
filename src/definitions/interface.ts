@@ -24,15 +24,12 @@ const firmwareRepo =
 export const OpenDeckUpstreamRepo = "shanteacontrols/OpenDeck";
 
 export const GitHubTagsUrl = `https://api.github.com/repos/${firmwareRepo}/tags`;
-export const GitHubContentsUrl =
-  `https://api.github.com/repos/${firmwareRepo}/contents`;
-export const GitHubReleasesUrl =
-  `https://api.github.com/repos/${firmwareRepo}/releases`;
+export const GitHubContentsUrl = `https://api.github.com/repos/${firmwareRepo}/contents`;
+export const GitHubReleasesUrl = `https://api.github.com/repos/${firmwareRepo}/releases`;
 
 export const GitHubFirmwareWebBaseUrl = `https://github.com/${firmwareRepo}`;
 
-export const GitHubFirmwareUpstreamWebBaseUrl =
-  `https://github.com/${OpenDeckUpstreamRepo}`;
+export const GitHubFirmwareUpstreamWebBaseUrl = `https://github.com/${OpenDeckUpstreamRepo}`;
 
 export const OpenDeckUpstreamWikiFirmwareUpdateUrl =
   "https://github.com/shanteacontrols/OpenDeck/wiki/Firmware-update";
@@ -222,7 +219,10 @@ export const HideButtonMidiChannelOnTypes = [
 ];
 
 export const HideAnalogMidiIdOnTypes = [AnalogType.Button, AnalogType.Reserved];
-export const HideAnalogMidiChannelOnTypes = [AnalogType.Button, AnalogType.Reserved];
+export const HideAnalogMidiChannelOnTypes = [
+  AnalogType.Button,
+  AnalogType.Reserved,
+];
 
 export const HideEncoderMidiIdOnTypes = [];
 

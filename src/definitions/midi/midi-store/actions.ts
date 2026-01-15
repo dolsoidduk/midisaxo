@@ -22,7 +22,8 @@ let areWebMidiPortListenersInstalled = false;
 const dumpMidiPorts = (tag: string): void => {
   const summarize = (port: Input | Output): IMidiPortSummary => {
     // webmidi may not provide manufacturer on some platforms
-    const manufacturer = (port as any)?.manufacturer ?? "(unknown manufacturer)";
+    const manufacturer =
+      (port as any)?.manufacturer ?? "(unknown manufacturer)";
     const state = (port as any)?.state ?? "(unknown state)";
 
     return {
@@ -33,9 +34,13 @@ const dumpMidiPorts = (tag: string): void => {
     };
   };
 
-  const names = [...WebMidi.inputs.map((i) => i.name), ...WebMidi.outputs.map((o) => o.name)];
+  const names = [
+    ...WebMidi.inputs.map((i) => i.name),
+    ...WebMidi.outputs.map((o) => o.name),
+  ];
   const hasOnlyGenericThrough =
-    names.length > 0 && names.every((name) => /\bmidi\s*(thru|through)\b/i.test(name));
+    names.length > 0 &&
+    names.every((name) => /\bmidi\s*(thru|through)\b/i.test(name));
 
   midiState.debug = {
     tag,
@@ -56,7 +61,9 @@ const dumpMidiPorts = (tag: string): void => {
     return;
   }
 
-  logger.log(`[MIDI] ${tag}: inputs=${WebMidi.inputs.length} outputs=${WebMidi.outputs.length}`);
+  logger.log(
+    `[MIDI] ${tag}: inputs=${WebMidi.inputs.length} outputs=${WebMidi.outputs.length}`,
+  );
   logger.log("[MIDI] inputs", WebMidi.inputs.map(summarize));
   logger.log("[MIDI] outputs", WebMidi.outputs.map(summarize));
 
@@ -202,14 +209,14 @@ export const assignInputs = async (): Promise<void> => {
   midiState.inputs = openDeckInputs.length
     ? openDeckInputs
     : inputs.length
-      ? inputs
-      : nonBleInputs;
+    ? inputs
+    : nonBleInputs;
 
   midiState.outputs = openDeckOutputs.length
     ? openDeckOutputs
     : outputs.length
-      ? outputs
-      : nonBleOutputs;
+    ? outputs
+    : nonBleOutputs;
 
   logger.log("[MIDI] assignInputs (selected)", {
     inputs: midiState.inputs.map((i) => ({ id: i.id, name: i.name })),
@@ -286,20 +293,28 @@ export const matchInputOutput = async (
   const isGenericThroughPort = (name: string): boolean =>
     /\bmidi\s*(thru|through)\b/i.test(String(name || ""));
 
-  const nonBleInputs = WebMidi.inputs.filter((input: Input) => !input.name.includes("BLE"));
-  const preferredInputs = nonBleInputs.filter((input: Input) => !isGenericThroughPort(input.name));
+  const nonBleInputs = WebMidi.inputs.filter(
+    (input: Input) => !input.name.includes("BLE"),
+  );
+  const preferredInputs = nonBleInputs.filter(
+    (input: Input) => !isGenericThroughPort(input.name),
+  );
 
   const outputName = String(output.name || "");
   const outputNameLower = outputName.toLowerCase();
 
   // 1) Best case: exact name match
-  let candidates = preferredInputs.filter((input: Input) => input.name === output.name);
+  let candidates = preferredInputs.filter(
+    (input: Input) => input.name === output.name,
+  );
 
   // 2) Common case: input/output names differ slightly (e.g. "OpenDeck" vs "OpenDeck MIDI")
   if (!candidates.length && outputNameLower) {
     candidates = preferredInputs.filter((input: Input) => {
       const inName = String(input.name || "").toLowerCase();
-      return inName.includes(outputNameLower) || outputNameLower.includes(inName);
+      return (
+        inName.includes(outputNameLower) || outputNameLower.includes(inName)
+      );
     });
   }
 

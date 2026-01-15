@@ -1,7 +1,6 @@
 import { computed, Ref } from "vue";
 import { Block } from "../definitions";
 import { deviceState } from "../definitions/device/device-store/state";
-import { logger } from "../util";
 import semverLt from "semver/functions/lt";
 import semverGt from "semver/functions/gt";
 import semverClean from "semver/functions/clean";

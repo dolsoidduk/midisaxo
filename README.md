@@ -63,6 +63,43 @@ If your device is already running firmware and enumerates as USB-MIDI, you can u
 
 You can send it via a SysEx sender tool, or via the configurator's firmware update page (when the board is connected).
 
+## 2x MPXV7002DP (Breath + Pitch Bend) 추천 구성
+
+MPXV7002DP(차압 센서) 2개를 다음처럼 분리해서 쓰는 구성을 지원합니다.
+
+- 센서 #1: 브레스 전용 → CC2 + CC11 (동시 전송)
+- 센서 #2: 피치벤드 전용 → Pitch Bend
+
+### 배선/ADC 인덱스 (midisaxo_pico 기본)
+
+`OpenDeck-firmware/config/target/midisaxo_pico.yml` 기준으로 RP2040 Pico의 native ADC는 다음 인덱스로 잡힙니다.
+
+- Analog index 0: GPIO26 / ADC0 (트림/예약 용도)
+- Analog index 1: GPIO27 / ADC1 (브레스 센서 추천)
+- Analog index 2: GPIO28 / ADC2 (피치 Amount 또는 Pitch Bend 센서)
+
+즉, 2개의 MPXV7002DP를 쓰려면 보통:
+
+- 센서 #1 출력 → GPIO27(Analog index 1)
+- 센서 #2 출력 → GPIO28(Analog index 2)
+
+로 두고, 3.3V/GND는 공통으로 연결합니다.
+
+### UI 설정 절차
+
+1. Global → `색소폰 브레스 컨트롤러 (MPXV7002DP)`
+    - Enable: ON
+    - 브레스 아날로그 인덱스: 센서 #1이 연결된 인덱스(보통 `1`)
+    - 브레스 CC: `CC2 + CC11`
+
+2. Analog 블록
+    - 센서 #2가 연결된 아날로그 입력을 선택
+    - 타입(Type)을 `Pitch Bend`로 설정
+
+주의:
+
+- Analog 블록에서도 CC2/CC11을 직접 내보내도록 설정하면, Global의 브레스 CC와 중복될 수 있습니다.
+
 ## Development notes
 
 Build/test the firmware (from the firmware repo root):

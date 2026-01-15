@@ -56,6 +56,7 @@ import { useDeviceForm } from "../../../composables";
 import AnalogModeSummary from "./AnalogModeSummary.vue";
 
 const UI_PRESET_BREATH_CC2 = 1002;
+const UI_PRESET_MODWHEEL_CC1 = 1001;
 const UI_PRESET_EXPRESSION_CC11 = 1011;
 
 export default defineComponent({
@@ -96,6 +97,14 @@ export default defineComponent({
       if (
         type === AnalogType.ControlChange7Bit &&
         midiIdMSB === 0 &&
+        midiIdLSB === 1
+      ) {
+        return UI_PRESET_MODWHEEL_CC1;
+      }
+
+      if (
+        type === AnalogType.ControlChange7Bit &&
+        midiIdMSB === 0 &&
         midiIdLSB === 2
       ) {
         return UI_PRESET_BREATH_CC2;
@@ -130,6 +139,7 @@ export default defineComponent({
 
       // UI-only presets: never write these numbers to the device.
       if (
+        requested === UI_PRESET_MODWHEEL_CC1 ||
         requested === UI_PRESET_BREATH_CC2 ||
         requested === UI_PRESET_EXPRESSION_CC11
       ) {
@@ -141,7 +151,14 @@ export default defineComponent({
         await setValue("type", 2, AnalogType.ControlChange7Bit);
 
         // Set CC number.
-        const cc = requested === UI_PRESET_BREATH_CC2 ? 2 : 11;
+        let cc = 11;
+
+        if (requested === UI_PRESET_MODWHEEL_CC1) {
+          cc = 1;
+        } else if (requested === UI_PRESET_BREATH_CC2) {
+          cc = 2;
+        }
+
         await setValue("midiIdLSB", 3, cc);
         await setValue("midiIdMSB", 4, 0);
 

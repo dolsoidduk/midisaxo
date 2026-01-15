@@ -12,7 +12,9 @@ export const getBoardDefinition = (value: number[]): IBoardDefinition => {
   const board = Boards.find(
     (b: any) =>
       (Array.isArray(b.id) && b.id.length === 4 && arrayEqual(b.id, value)) ||
-      (Array.isArray(b.oldId) && b.oldId.length === 4 && arrayEqual(b.oldId, value)),
+      (Array.isArray(b.oldId) &&
+        b.oldId.length === 4 &&
+        arrayEqual(b.oldId, value)),
   );
 
   return board;
