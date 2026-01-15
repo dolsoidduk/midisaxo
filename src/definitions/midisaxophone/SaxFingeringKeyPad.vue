@@ -267,7 +267,6 @@ export default defineComponent({
 
         // front/extra near top of LH
         { idx: 21, row: 2, col: 7, colSpan: 2 },
-        { idx: 22, row: 2, col: 9, colSpan: 2 },
 
         // left hand main stack
         { idx: 1, row: 4, col: 4, rowSpan: 2, colSpan: 2, big: true },
@@ -297,11 +296,14 @@ export default defineComponent({
         // RH pinky cluster (C / Eb) + low F# (often sits further right)
         // Option A: C를 Eb보다 살짝 아래로 내려 롤러 느낌을 만듭니다.
         { idx: 18, row: 12, col: 7, colSpan: 2 },
-        { idx: 17, row: 11, col: 9, colSpan: 2 },
+        { idx: 17, row: 10, col: 9, colSpan: 2 },
 
+        // low F# (RH pinky) + HIGH F# 바로 위(실물 느낌)
+        { idx: 22, row: 11, col: 11, colSpan: 2 },
         { idx: 7, row: 12, col: 11, colSpan: 2 },
-        // baritone LOW A extension (place under left-hand spatula cluster)
-        { idx: 25, row: 13, col: 1, colSpan: 2 },
+
+        // baritone LOW A: 옥타브키(0) 아래로 배치
+        { idx: 25, row: 4, col: 1, colSpan: 2 },
 
         // alt keys (extra)
         { idx: 8, row: 13, col: 7, colSpan: 2 },
