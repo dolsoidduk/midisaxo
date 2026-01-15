@@ -1,6 +1,24 @@
 # Release notes (draft)
 
 ## Version
+- midisaxo-0.1.4
+
+## Artifacts
+- Midisaxo-0.1.4.AppImage (오프라인 스탠드얼론 UI)
+- Midisaxo-0.1.4.tar.gz (오프라인 스탠드얼론 UI, portable)
+
+## Changes
+- UI(Midisaxo): MIDI Saxophone(핑거링 테이블) 편집 UX 개선
+	- 엔트리 표시 가로/세로 전환 + 가로 스크롤/페이지 이동
+	- 엔트리별 고급 입력(텍스트/노트) 접기/펼치기(기본 접힘) + 전체 펼치기/접기
+	- 비활성(사용/매핑 제외) 상태의 시각적 표시 강화(편집은 가능)
+	- “현재 눌림 캡처” 후 같은 엔트리에 유지되어 바로 추가 편집 가능
+- UI: 상단 네비게이션에서 MIDI 색소폰 페이지에 항상 진입 가능
+- Build/Deploy: GitHub Pages 자동 배포 + 화면 하단 Build 정보 표시(배포 버전 확인)
+
+---
+
+## Version
 - midisaxo-0.1.3
 
 ## Artifacts
