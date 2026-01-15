@@ -12,6 +12,28 @@ This repository hosts the **Midisaxo** configurator UI, based on the upstream Op
 2. Click any UI button once (required for WebMIDI permission).
 3. Allow **MIDI + SysEx** → select the OpenDeck MIDI output.
 
+## 개발/배포 최소 루틴 (로컬 + 원격)
+
+로컬에서 기능 확인하고, PR 머지 후 GitHub Pages로 반영하는 가장 짧은 루틴입니다.
+
+1. 로컬 UI 실행
+    - Install: `npm install` (또는 `yarn`)
+    - Dev: `npm run dev` (기본 포트 `3004`)
+    - 접속: `http://localhost:3004/`
+    - 원격 컨테이너/SSH 환경이면 VS Code Ports에서 `3004` 포트 포워딩 후 접속
+
+2. PR 전 체크
+    - `npm run lint && npm run build`
+
+3. 원격 배포 (GitHub Pages)
+    - `master`에 머지/푸시되면 `.github/workflows/pages.yml`가 실행되어 Pages가 갱신됩니다.
+    - URL: <https://dolsoidduk.github.io/midisaxo/>
+
+4. (대체) Pages 배포 큐가 막힐 때
+    - `deployment_queued`로 오래 멈추면 `.github/workflows/pages-branch.yml`로 `gh-pages` 브랜치에 직접 배포해서 우회할 수 있습니다.
+
+주의: `dev` 스크립트에 이미 `--port 3004`가 포함되어 있어서 `npm run dev -- --port 3004`처럼 인자를 중복 전달하면 실행이 깨질 수 있습니다. 포트를 바꾸려면 스크립트/설정에서 한 군데만 변경하세요.
+
 ## Resume (next time)
 
 Get back to a known-good state:
@@ -255,12 +277,6 @@ This repository can publish the configurator to GitHub Pages so the UI is always
 1. Push to `master` (this triggers the GitHub Pages deploy workflow).
 2. In GitHub repo settings: **Settings → Pages → Build and deployment → Source = GitHub Actions**.
 3. Open the published URL (usually `https://<owner>.github.io/<repo>/`).
-
-### Alternative: deploy via `gh-pages` branch (manual)
-
-If GitHub Pages deployments get stuck in `deployment_queued` (and hit the 10 minute timeout), you can bypass the Pages Deploy API entirely by publishing the built `dist/` output to a `gh-pages` branch by running the **Deploy UI (gh-pages branch)** workflow manually.
-
-This fork uses the GitHub Actions workflow in `.github/workflows/pages.yml`.
 
 ### Alternative: deploy via `gh-pages` branch (avoids Pages deploy queue)
 
