@@ -239,14 +239,15 @@ export default defineComponent({
           title: "로우(하단)",
           // 실제 색소폰 느낌(왼손 새끼손가락 클러스터: G#/B/Bb, 오른손 새끼손가락: C/Eb)
           // 인덱스 의미는 그대로 두고, 표시 순서만 더 직관적으로 정리합니다.
-          keys: [19, 20, 18, 17, 7],
-          columns: 5,
+          // 바리톤(LOW A 포함) 기준으로 LOW A(25)도 로우 클러스터에 포함합니다.
+          keys: [19, 20, 25, 18, 17, 7],
+          columns: 6,
         },
         {
           key: "alt",
           title: "보조/알티시모",
-          keys: [21, 22, 23, 24, 25, 8],
-          columns: 6,
+          keys: [21, 22, 23, 24, 8],
+          columns: 5,
         },
       ];
     });
@@ -297,7 +298,8 @@ export default defineComponent({
         { idx: 17, row: 11, col: 9, colSpan: 2 },
 
         { idx: 7, row: 12, col: 9, colSpan: 2 },
-        { idx: 25, row: 12, col: 11, colSpan: 2 },
+        // baritone LOW A extension (place under left-hand spatula cluster)
+        { idx: 25, row: 13, col: 1, colSpan: 2 },
 
         // alt keys (extra)
         { idx: 8, row: 13, col: 7, colSpan: 2 },
