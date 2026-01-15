@@ -82,8 +82,13 @@ Windows:
 
 MIDI가 안 보일 때(데스크탑 앱):
 
-- 장치가 OS에서 인식되는지 먼저 확인(USB 케이블/포트, 장치 전원, BOOTSEL 모드 아님)
-- 앱을 실행한 뒤 화면에서 한 번 클릭/조작 후 다시 MIDI 목록 확인(권한/사용자 제스처 이슈 회피)
+- 장치가 OS에서 인식되는지 먼저 확인(USB 케이블/포트, 장치 전원)
+- BOOTSEL 모드가 아닌지 확인
+    - RP2040(Pico 계열)이 BOOTSEL이면 OS에 USB 드라이브(`RPI-RP2`)로 보이고, MIDI 장치로는 나타나지 않습니다.
+- 앱을 실행한 뒤 화면에서 한 번 클릭/조작 후 다시 MIDI 목록 확인
+    - WebMIDI는 사용자 제스처(클릭/키입력) 이후에 스캔/권한 요청이 정상 동작하는 경우가 많습니다.
+- Windows에서는 SysEx가 필요하면 “MIDI + SysEx” 권한을 허용
+    - MIDI만 허용하면 연결은 되지만 설정 저장/복원(SysEx)이 실패할 수 있습니다.
 - Linux에서 AppImage 실행 시 권한 에러가 나면 `chmod +x` 적용 여부 확인
 
 ## Desktop packaging (Linux/Windows)
