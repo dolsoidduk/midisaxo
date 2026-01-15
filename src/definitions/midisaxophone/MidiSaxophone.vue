@@ -1168,8 +1168,8 @@ export default defineComponent({
         await setGlobalValue(6, entryIndex, noteValue);
         await loadFingeringTable();
 
-        const nextIndex = Math.min(entryIndex + 1, fingeringEntryCount - 1);
-        await focusFingeringEntry(nextIndex);
+        // Stay on the same entry so the user can immediately verify/edit the captured keys.
+        await focusFingeringEntry(entryIndex);
       } finally {
         fingeringLoading.value = false;
       }
