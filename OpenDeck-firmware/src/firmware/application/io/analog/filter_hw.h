@@ -61,11 +61,38 @@ namespace io::analog
                                                               static_cast<uint32_t>(ADC_MAX_VALUE),
                                                               static_cast<uint32_t>(0),
                                                               static_cast<uint32_t>(descriptor.maxValue));
-            int16_t    stepDiff       = 1;
+            const uint32_t adcSpan = (ADC_MAX_VALUE > ADC_MIN_VALUE)
+                                         ? static_cast<uint32_t>(ADC_MAX_VALUE - ADC_MIN_VALUE)
+                                         : 1u;
+
+            // Filtering threshold is expressed in raw ADC units.
+            // The original heuristic (STEP_DIFF_7BIT) is tuned for 7-bit outputs.
+            // For 14-bit outputs (e.g. Pitch Bend), using the same raw threshold makes
+            // the output feel "steppy" because updates happen only after a large ADC delta.
+            // Use a smaller threshold when maxValue is large, while still keeping some
+            // noise immunity.
+            uint16_t baseStepDiff = 1;
+
+            if (descriptor.maxValue <= 127)
+            {
+                baseStepDiff = STEP_DIFF_7BIT;
+            }
+            else
+            {
+                // Target a small MIDI step (in 14-bit units) per accepted change.
+                // 16 gives good responsiveness while avoiding excessive jitter.
+                static constexpr uint32_t TARGET_MIDI_STEP = 16;
+                const uint32_t denom = (descriptor.maxValue == 0) ? 1u : static_cast<uint32_t>(descriptor.maxValue);
+
+                const uint32_t step = (adcSpan * TARGET_MIDI_STEP + denom / 2u) / denom;
+                baseStepDiff         = static_cast<uint16_t>(core::util::CONSTRAIN(step, static_cast<uint32_t>(1), static_cast<uint32_t>(STEP_DIFF_7BIT)));
+            }
+
+            int16_t stepDiff = static_cast<int16_t>(baseStepDiff);
 
             if (((DIRECTION != lastDirection(index)) || !FAST_FILTER) && ((OLD_MIDI_VALUE != 0) && (OLD_MIDI_VALUE != descriptor.maxValue)))
             {
-                stepDiff = STEP_DIFF_7BIT * 2;
+                stepDiff = static_cast<int16_t>(baseStepDiff * 2u);
             }
 
             if (abs(static_cast<int16_t>(descriptor.value) - static_cast<int16_t>(_lastValue[index])) < stepDiff)
