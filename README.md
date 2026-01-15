@@ -28,6 +28,12 @@ npm install
 npm run dev
 ```
 
+Notes:
+
+- Default dev URL: `http://localhost:3004/`
+- If you need a different port, prefer CLI args (config avoids duplication):
+    - Example: `npm run dev -- --port 5173`
+
 ## Firmware (Midisaxo RP2040)
 
 This repo includes the firmware sources under `OpenDeck-firmware/`.
