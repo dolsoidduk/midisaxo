@@ -349,7 +349,7 @@
               :ref="setFingeringEntryEl(entry.index)"
               class="surface-neutral border rounded px-2 py-2 flex-none"
               style="width: 340px; scroll-snap-align: start;"
-              :class="{ 'ring-2 ring-blue-500': activeFingeringEntryIndex === entry.index }"
+              :class="{ 'ring-2 ring-blue-500': activeFingeringEntryIndex === entry.index, 'opacity-80': !entry.enabled }"
             >
               <div class="flex items-center justify-between mb-2">
                 <div class="text-xs"><strong>#{{ entry.index }}</strong></div>
@@ -368,9 +368,13 @@
                       :checked="entry.enabled"
                       @change="onFingeringEnabledChange(entry.index, $event)"
                     />
-                    사용
+                    사용(매핑)
                   </label>
                 </div>
+              </div>
+
+              <div v-if="!entry.enabled" class="text-[11px] text-gray-500 mb-2">
+                비활성: 이 엔트리는 매핑에서 제외됩니다. (편집은 가능)
               </div>
 
               <label class="text-xs text-gray-400 block mb-1">눌린 키 (0-25)</label>
@@ -429,7 +433,7 @@
               :key="`fing-${entry.index}`"
               :ref="setFingeringEntryEl(entry.index)"
               class="surface-neutral border rounded px-2 py-2"
-              :class="{ 'ring-2 ring-blue-500': activeFingeringEntryIndex === entry.index }"
+              :class="{ 'ring-2 ring-blue-500': activeFingeringEntryIndex === entry.index, 'opacity-80': !entry.enabled }"
             >
               <div class="flex items-center justify-between mb-2">
                 <div class="text-xs"><strong>#{{ entry.index }}</strong></div>
@@ -448,9 +452,13 @@
                       :checked="entry.enabled"
                       @change="onFingeringEnabledChange(entry.index, $event)"
                     />
-                    사용
+                    사용(매핑)
                   </label>
                 </div>
+              </div>
+
+              <div v-if="!entry.enabled" class="text-[11px] text-gray-500 mb-2">
+                비활성: 이 엔트리는 매핑에서 제외됩니다. (편집은 가능)
               </div>
 
               <label class="text-xs text-gray-400 block mb-1">눌린 키 (0-25)</label>
