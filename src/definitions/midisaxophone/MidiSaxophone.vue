@@ -169,6 +169,23 @@
                 </div>
               </div>
 
+              <Button
+                size="sm"
+                variant="secondary"
+                :disabled="fingeringSupport === 'unsupported' || !showFingeringTable"
+                @click.prevent="openAllFingeringEntryDetails"
+              >
+                전체 펼치기
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                :disabled="fingeringSupport === 'unsupported' || !showFingeringTable"
+                @click.prevent="closeAllFingeringEntryDetails"
+              >
+                전체 접기
+              </Button>
+
               <Button size="sm" variant="secondary" @click.prevent="showFingeringTable = !showFingeringTable">
                 {{ showFingeringTable ? "접기" : "펼치기" }}
               </Button>
@@ -1295,6 +1312,18 @@ export default defineComponent({
       fingeringEntryDetailsOpen.value[entryIndex] = !isFingeringEntryDetailsOpen(entryIndex);
     };
 
+    const openAllFingeringEntryDetails = (): void => {
+      const next: Record<number, boolean> = {};
+      for (let i = 0; i < fingeringEntryCount; i++) {
+        next[i] = true;
+      }
+      fingeringEntryDetailsOpen.value = next;
+    };
+
+    const closeAllFingeringEntryDetails = (): void => {
+      fingeringEntryDetailsOpen.value = {};
+    };
+
     const resetFingeringFilters = (): void => {
       fingeringFilterText.value = "";
       fingeringFilterOnlyEnabled.value = false;
@@ -1382,6 +1411,8 @@ export default defineComponent({
       visibleFingeringEntries,
       isFingeringEntryDetailsOpen,
       toggleFingeringEntryDetails,
+      openAllFingeringEntryDetails,
+      closeAllFingeringEntryDetails,
       fingeringFilterText,
       fingeringFilterOnlyEnabled,
       fingeringFilterOnlyWithKeys,
