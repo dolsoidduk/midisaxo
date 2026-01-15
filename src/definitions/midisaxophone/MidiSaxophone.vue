@@ -386,6 +386,69 @@
                 placeholder="#인덱스, 키(예: 1,2,3), 노트(예: 60 또는 C4)"
               />
 
+              <div class="flex items-center gap-2">
+                <div class="text-xs text-gray-300">
+                  사용 키:
+                  <strong class="text-gray-200">{{ fingeringUsableKeyCount }}</strong>
+                  / 26
+                </div>
+
+                <div class="flex items-center gap-1 text-[11px]">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    :disabled="fingeringSupport === 'unsupported'"
+                    @click.prevent="applyFingeringControllerPreset('sax26')"
+                  >
+                    전체(26)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    :disabled="fingeringSupport === 'unsupported'"
+                    @click.prevent="showFingeringUsableKeySelector = !showFingeringUsableKeySelector"
+                  >
+                    {{ showFingeringUsableKeySelector ? "사용 키 닫기" : "사용 키 선택" }}
+                  </Button>
+                </div>
+
+                <span class="text-[11px] text-gray-500">
+                  선택된 키만 편집/텍스트 입력/저장에서 사용
+                </span>
+
+                <label class="text-xs text-gray-300 flex items-center gap-1">
+                  <input type="checkbox" v-model="hideUnusableFingeringKeys" />
+                  비사용 키 숨김
+                </label>
+              </div>
+            <div
+              v-if="showFingeringUsableKeySelector && fingeringSupport !== 'unsupported'"
+              class="mt-3 border border-gray-800/60 rounded-md px-2 py-2"
+            >
+              <div class="text-[11px] text-gray-400 mb-2">
+                하드웨어에 존재하는 키(버튼)만 선택하세요. 비선택 키는 편집/입력에서 무시됩니다.
+              </div>
+
+              <label class="text-xs text-gray-300 flex items-center gap-1 mb-2">
+                <input type="checkbox" v-model="hideUnselectedKeysInKeySelector" />
+                미선택 키 숨김
+              </label>
+
+              <SaxFingeringKeyPad
+                :mask="fingeringUiUsableKeyMask"
+                :disabled="fingeringSupport === 'unsupported'"
+                :key-count="26"
+                :labels="fingeringKeyLabels"
+                :show-index="true"
+                layout-mode="grouped"
+                :visible-mask="hideUnselectedKeysInKeySelector ? fingeringUiUsableKeyMask : null"
+                @update:mask="(m) => (fingeringUiUsableKeyMask = m)"
+              />
+              <div class="text-[11px] text-gray-500 mt-2">
+                팁: 비연속 구성(예: 0,1,2,4,5...)도 여기서 그대로 체크하면 됩니다.
+              </div>
+            </div>
+
               <label class="text-xs text-gray-300 flex items-center gap-1">
                 <input type="checkbox" v-model="fingeringFilterOnlyEnabled" />
                 사용 중만
@@ -529,13 +592,17 @@
                 비활성: 이 엔트리는 매핑에서 제외됩니다. (편집은 가능)
               </div>
 
-              <label class="text-xs text-gray-400 block mb-1">눌린 키 (0-25)</label>
+              <label class="text-xs text-gray-400 block mb-1">눌린 키 (사용 키만)</label>
               <SaxFingeringKeyPad
                 class="mb-2"
                 :mask="entry.mask"
                 :disabled="fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
+                :key-count="26"
+                :usable-mask="fingeringUiUsableKeyMask"
+                :hide-unusable-keys="hideUnusableFingeringKeys"
                 :labels="fingeringKeyLabels"
                 :show-index="showFingeringKeyIndex"
+                :layout-mode="fingeringKeyPadLayoutMode"
                 @update:mask="(m) => setFingeringMask(entry.index, m)"
               />
 
@@ -613,13 +680,17 @@
                 비활성: 이 엔트리는 매핑에서 제외됩니다. (편집은 가능)
               </div>
 
-              <label class="text-xs text-gray-400 block mb-1">눌린 키 (0-25)</label>
+              <label class="text-xs text-gray-400 block mb-1">눌린 키 (사용 키만)</label>
               <SaxFingeringKeyPad
                 class="mb-2"
                 :mask="entry.mask"
                 :disabled="fingeringLoading || !isConnected || fingeringSupport !== 'supported'"
+                :key-count="26"
+                :usable-mask="fingeringUiUsableKeyMask"
+                :hide-unusable-keys="hideUnusableFingeringKeys"
                 :labels="fingeringKeyLabels"
                 :show-index="showFingeringKeyIndex"
+                :layout-mode="fingeringKeyPadLayoutMode"
                 @update:mask="(m) => setFingeringMask(entry.index, m)"
               />
 
@@ -780,6 +851,38 @@ export default defineComponent({
     const showFingeringKeyIndex = ref(false);
     const showFingeringLabelEditor = ref(false);
 
+    const full26Mask = 0x03ffffff;
+
+    const fingeringUiUsableKeyMask = ref<number>(full26Mask);
+    const showFingeringUsableKeySelector = ref(false);
+    const hideUnusableFingeringKeys = ref(false);
+    const hideUnselectedKeysInKeySelector = ref(false);
+
+    const normalizeUsableMask = (value: unknown): number => {
+      const v = (Number(value) >>> 0) & full26Mask;
+      // 최소 1키는 남기기
+      return v !== 0 ? v : 1;
+    };
+
+    const fingeringUsableKeyCount = computed((): number => {
+      const m = fingeringUiUsableKeyMask.value >>> 0;
+      let cnt = 0;
+      for (let i = 0; i < 26; i++) {
+        if ((m >>> i) & 1) {
+          cnt++;
+        }
+      }
+      return cnt;
+    });
+
+    const fingeringKeyPadLayoutMode = computed((): "sax" | "linear" => {
+      // 사용 키 수가 적으면 linear로 단순 표시
+      if (hideUnusableFingeringKeys.value && fingeringUsableKeyCount.value < 26) {
+        return "linear";
+      }
+      return fingeringUsableKeyCount.value <= 10 ? "linear" : "sax";
+    });
+
     type FingeringEntryLayoutMode = "grid" | "horizontal";
     const fingeringEntryLayoutMode = ref<FingeringEntryLayoutMode>("horizontal");
 
@@ -823,6 +926,11 @@ export default defineComponent({
 
     const uiStateKey = "opendeck.midisaxophone.ui";
 
+    const clampFingeringUiKeyCount = (value: unknown): number => {
+      const n = Math.floor(Number(value) || 26);
+      return Math.max(1, Math.min(26, n));
+    };
+
     const loadUiState = (): void => {
       try {
         const raw = typeof window !== "undefined" ? window.localStorage.getItem(uiStateKey) : null;
@@ -861,6 +969,9 @@ export default defineComponent({
 
           if (parsed.fingeringKeyLabelPreset === "sax" || parsed.fingeringKeyLabelPreset === "numbers") {
             fingeringKeyLabelPreset.value = parsed.fingeringKeyLabelPreset;
+          } else if (parsed.fingeringKeyLabelPreset === "recorder8") {
+            // Backward-compat: old UI preset value
+            fingeringKeyLabelPreset.value = "numbers";
           }
           if (typeof parsed.showFingeringKeyIndex === "boolean") {
             showFingeringKeyIndex.value = parsed.showFingeringKeyIndex;
@@ -871,6 +982,14 @@ export default defineComponent({
           if (parsed.fingeringEntryLayoutMode === "grid" || parsed.fingeringEntryLayoutMode === "horizontal") {
             fingeringEntryLayoutMode.value = parsed.fingeringEntryLayoutMode;
           }
+
+          if (typeof parsed.fingeringUiUsableKeyMask === "number") {
+            fingeringUiUsableKeyMask.value = normalizeUsableMask(parsed.fingeringUiUsableKeyMask);
+          } else if (typeof parsed.fingeringUiKeyCount === "number") {
+            // migrate from old contiguous count -> low N bits mask
+            const n = clampFingeringUiKeyCount(parsed.fingeringUiKeyCount);
+            fingeringUiUsableKeyMask.value = n >= 26 ? full26Mask : (((1 << n) - 1) >>> 0);
+          }
           if (Array.isArray(parsed.fingeringKeyLabels)) {
             const next = parsed.fingeringKeyLabels
               .slice(0, 26)
@@ -878,6 +997,18 @@ export default defineComponent({
             if (next.length === 26) {
               fingeringKeyLabels.value = next;
             }
+          }
+
+          if (typeof parsed.showFingeringUsableKeySelector === "boolean") {
+            showFingeringUsableKeySelector.value = parsed.showFingeringUsableKeySelector;
+          }
+
+          if (typeof parsed.hideUnusableFingeringKeys === "boolean") {
+            hideUnusableFingeringKeys.value = parsed.hideUnusableFingeringKeys;
+          }
+
+          if (typeof parsed.hideUnselectedKeysInKeySelector === "boolean") {
+            hideUnselectedKeysInKeySelector.value = parsed.hideUnselectedKeysInKeySelector;
           }
         }
       } catch {
@@ -907,6 +1038,11 @@ export default defineComponent({
             showFingeringKeyIndex: showFingeringKeyIndex.value,
             showFingeringLabelEditor: showFingeringLabelEditor.value,
             fingeringEntryLayoutMode: fingeringEntryLayoutMode.value,
+
+            fingeringUiUsableKeyMask: fingeringUiUsableKeyMask.value,
+            showFingeringUsableKeySelector: showFingeringUsableKeySelector.value,
+            hideUnusableFingeringKeys: hideUnusableFingeringKeys.value,
+            hideUnselectedKeysInKeySelector: hideUnselectedKeysInKeySelector.value,
           }),
         );
       } catch {
@@ -938,6 +1074,14 @@ export default defineComponent({
         fingeringKeyLabelPreset.value = value;
         resetFingeringLabelsToPreset();
       }
+    };
+
+    type FingeringControllerPreset = "sax26";
+    const applyFingeringControllerPreset = (preset: FingeringControllerPreset): void => {
+      // default: sax 26
+      fingeringUiUsableKeyMask.value = full26Mask;
+      fingeringKeyLabelPreset.value = "sax";
+      fingeringKeyLabels.value = [...saxKeyLabelPresets.sax];
     };
 
     const onFingeringKeyLabelInput = (index: number, event: Event): void => {
@@ -1590,6 +1734,7 @@ export default defineComponent({
       if (!text) {
         return 0;
       }
+      const usable = normalizeUsableMask(fingeringUiUsableKeyMask.value);
       const parts = text
         .split(/[,\s]+/)
         .map((p) => p.trim())
@@ -1601,7 +1746,10 @@ export default defineComponent({
           continue;
         }
         const idx = Math.floor(n);
-        if (idx < 0 || idx > fingeringKeyCount - 1) {
+        if (idx < 0 || idx > 25) {
+          continue;
+        }
+        if (((usable >>> idx) & 1) === 0) {
           continue;
         }
         mask |= 1 << idx;
@@ -1688,8 +1836,8 @@ export default defineComponent({
         return;
       }
 
-      const all = ((1 << fingeringKeyCount) - 1) >>> 0;
-      const mask = (Number(rawMask) >>> 0) & all;
+      const usable = normalizeUsableMask(fingeringUiUsableKeyMask.value);
+      const mask = (Number(rawMask) >>> 0) & usable;
 
       const { lo14, hi } = splitMaskTo14BitParts(mask);
       const currentHiEn = (fingeringMaskHi10Enable.value && fingeringMaskHi10Enable.value[entryIndex]) || 0;
@@ -1836,6 +1984,15 @@ export default defineComponent({
     );
 
     watch(
+      () => fingeringUiUsableKeyMask.value,
+      (next) => {
+        fingeringUiUsableKeyMask.value = normalizeUsableMask(next);
+        saveUiState();
+      },
+      { deep: false },
+    );
+
+    watch(
       () => isConnected.value,
       (connected) => {
         if (connected) {
@@ -1880,6 +2037,8 @@ export default defineComponent({
       const hiEn = fingeringMaskHi10Enable.value || [];
       const noteArr = fingeringNote.value || [];
 
+      const usable = normalizeUsableMask(fingeringUiUsableKeyMask.value);
+
       return Array.from({ length: fingeringEntryCount }, (_, index) => {
         const lo14 = Number(lo[index] || 0) & 0x3fff;
         const hiEnVal = Number(hiEn[index] || 0) & (fingeringHiMask | fingeringEnableBit);
@@ -1888,11 +2047,13 @@ export default defineComponent({
         const mask = (lo14 | (hi << 14)) >>> 0;
         const note = Math.max(0, Math.min(127, Math.floor(Number(noteArr[index] || 0))));
 
+        const displayMask = (mask & usable) >>> 0;
+
         return {
           index,
           enabled,
-          mask,
-          keysText: maskToKeysText(mask),
+          mask: displayMask,
+          keysText: maskToKeysText(displayMask),
           note,
         };
       });
@@ -2380,6 +2541,13 @@ export default defineComponent({
       fingeringFilterOnlyWithNote,
       fingeringFilterIndexFrom,
       fingeringFilterIndexTo,
+      fingeringUiUsableKeyMask,
+      fingeringUsableKeyCount,
+      showFingeringUsableKeySelector,
+      hideUnusableFingeringKeys,
+      hideUnselectedKeysInKeySelector,
+      applyFingeringControllerPreset,
+      fingeringKeyPadLayoutMode,
       resetFingeringFilters,
       reloadFingering,
       captureFingeringEntry,
