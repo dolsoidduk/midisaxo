@@ -186,7 +186,7 @@ export default defineComponent({
         "LOW Bb",
         "FRONT F",
         "HIGH F#",
-        "ALT 1",
+        "LOW C#",
         "ALT 2",
         "LOW A",
       ];
@@ -240,14 +240,15 @@ export default defineComponent({
           // 실제 색소폰 느낌(왼손 새끼손가락 클러스터: G#/B/Bb, 오른손 새끼손가락: C/Eb)
           // 인덱스 의미는 그대로 두고, 표시 순서만 더 직관적으로 정리합니다.
           // 바리톤(LOW A 포함) 기준으로 LOW A(25)도 로우 클러스터에 포함합니다.
-          keys: [19, 20, 25, 18, 17, 7],
-          columns: 6,
+          // LOW C#은 ALT1(23)을 재지정해서 사용(표시/편의 목적)
+          keys: [19, 20, 23, 25, 18, 17, 7],
+          columns: 7,
         },
         {
           key: "alt",
           title: "보조/알티시모",
-          keys: [21, 22, 23, 24, 8],
-          columns: 5,
+          keys: [21, 22, 24, 8],
+          columns: 4,
         },
       ];
     });
@@ -293,6 +294,9 @@ export default defineComponent({
         { idx: 19, row: 11, col: 1, colSpan: 2 },
         { idx: 20, row: 12, col: 1, colSpan: 2 },
 
+        // LOW C# (repurpose ALT1=23): place to the right of LOW B/Bb cluster
+        { idx: 23, row: 11, col: 3, colSpan: 2 },
+
         // RH pinky cluster (C / Eb) + low F# (often sits further right)
         // Option A: C를 Eb보다 살짝 아래로 내려 롤러 느낌을 만듭니다.
         { idx: 18, row: 12, col: 7, colSpan: 2 },
@@ -307,7 +311,6 @@ export default defineComponent({
 
         // alt keys (extra)
         { idx: 8, row: 13, col: 7, colSpan: 2 },
-        { idx: 23, row: 14, col: 5, colSpan: 2 },
         { idx: 24, row: 14, col: 7, colSpan: 2 },
       ];
     });
