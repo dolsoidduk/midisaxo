@@ -138,6 +138,13 @@ Recommended flow (safe + repeatable):
 npm run release -- 0.1.5
 ```
 
+By default, the script also auto-fills the release notes "Changes" section from git log (since the previous tag).
+Disable it if you prefer writing notes manually:
+
+```bash
+npm run release -- --no-auto-notes 0.1.5
+```
+
 Dry-run (no changes, just prints commands):
 
 ```bash

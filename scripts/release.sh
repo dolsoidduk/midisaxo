@@ -4,16 +4,18 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/release.sh [--dry-run] <version>
+  scripts/release.sh [--dry-run] [--no-auto-notes] <version>
 
 Examples:
   ./scripts/release.sh 0.1.5
   ./scripts/release.sh --dry-run 0.1.5
+  ./scripts/release.sh --no-auto-notes 0.1.5
 
 What it does:
   - Verifies clean git state and up-to-date master
   - Bumps package.json/package-lock.json version (npm)
   - Prepends a template section to RELEASE_NOTES_DRAFT.md (if missing)
+    - By default, auto-fills the "Changes" section using git log since the previous tag
   - Commits, tags (v<version>), and pushes master + tag
 
 Notes:
@@ -23,6 +25,7 @@ EOF
 }
 
 DRY_RUN=0
+AUTO_NOTES=1
 VERSION=""
 
 while [[ $# -gt 0 ]]; do
@@ -33,6 +36,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN=1
+      shift
+      ;;
+    --no-auto-notes)
+      AUTO_NOTES=0
       shift
       ;;
     *)
@@ -127,19 +134,71 @@ run npm version "$VERSION" --no-git-tag-version
 
 # Prepend release note section if missing
 if [[ $DRY_RUN -eq 1 ]]; then
-  echo "+ (would update RELEASE_NOTES_DRAFT.md to add a template section for midisaxo-$VERSION if missing)"
+  if [[ $AUTO_NOTES -eq 1 ]]; then
+    echo "+ (would update RELEASE_NOTES_DRAFT.md to add a template section for midisaxo-$VERSION if missing; auto-notes: ON)"
+  else
+    echo "+ (would update RELEASE_NOTES_DRAFT.md to add a template section for midisaxo-$VERSION if missing; auto-notes: OFF)"
+  fi
 else
   python3 - <<PY
 import datetime
 from pathlib import Path
+import subprocess
+from typing import List, Optional
 
 version = "${VERSION}"
+auto_notes = ${AUTO_NOTES}
 path = Path("RELEASE_NOTES_DRAFT.md")
 text = path.read_text(encoding="utf-8")
 
 marker = f"- midisaxo-{version}"
 if marker in text:
     raise SystemExit(0)
+
+def _run_git(args: List[str]) -> str:
+  completed = subprocess.run(["git", *args], check=True, capture_output=True, text=True)
+  return completed.stdout.strip()
+
+def _get_prev_tag() -> Optional[str]:
+  try:
+    return _run_git(["describe", "--tags", "--abbrev=0", "--match", "v*"])
+  except Exception:
+    return None
+
+def _get_change_bullets(prev_tag: Optional[str]) -> List[str]:
+  # Keep it short and useful; users can edit later.
+  range_spec = f"{prev_tag}..HEAD" if prev_tag else "HEAD"
+  try:
+    raw = _run_git(["log", "--no-merges", "--pretty=format:%s", range_spec])
+  except Exception:
+    return []
+
+  subjects = [s.strip() for s in raw.splitlines() if s.strip()]
+  # Drop noisy housekeeping commits.
+  drop_prefixes = (
+    "chore(release):",
+    "chore:",
+    "docs:",
+  )
+  filtered = [s for s in subjects if not s.startswith(drop_prefixes)]
+  # De-dup consecutive identical subjects.
+  deduped: List[str] = []
+  for s in filtered:
+    if not deduped or deduped[-1] != s:
+      deduped.append(s)
+  # Cap length to avoid giant draft notes.
+  deduped = deduped[:20]
+  return [f"- {s}" for s in deduped]
+
+prev_tag = _get_prev_tag() if auto_notes else None
+change_bullets = _get_change_bullets(prev_tag) if auto_notes else []
+
+changes_block = "- (TODO) 변경사항 요약"
+if auto_notes and change_bullets:
+  if prev_tag:
+    changes_block = f"- Changes since {prev_tag}\n" + "\n".join(change_bullets)
+  else:
+    changes_block = "\n".join(change_bullets)
 
 lines = text.splitlines(True)
 out = []
@@ -153,7 +212,7 @@ template = (
     f"- Midisaxo-{version}.AppImage (오프라인 스탠드얼론 UI)\n"
     f"- Midisaxo-{version}.tar.gz (오프라인 스탠드얼론 UI, portable)\n\n"
     "## Changes\n"
-    "- (TODO) 변경사항 요약\n\n"
+  f"{changes_block}\n\n"
     "---\n"
 )
 
