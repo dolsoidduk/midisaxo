@@ -33,6 +33,9 @@ Notes:
 - Default dev URL: `http://localhost:3004/`
 - If you need a different port, prefer CLI args (config avoids duplication):
     - Example: `npm run dev -- --port 5173`
+- If you need to bind outside localhost (e.g. dev container), prefer env vars:
+    - Example: `VITE_HOST=0.0.0.0 VITE_PORT=3004 npm run dev`
+    - Note: Vite v1 uses `--hostname` (not `--host`).
 
 ## Firmware (Midisaxo RP2040)
 
