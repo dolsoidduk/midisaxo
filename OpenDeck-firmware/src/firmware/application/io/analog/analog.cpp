@@ -589,15 +589,14 @@ std::optional<uint8_t> Analog::sysConfigSet(sys::Config::Section::analog_t secti
             static constexpr size_t   SAX_PB_CENTER_SETTING_INDEX = 13;
             static constexpr uint16_t PB_CENTER_DEFAULT           = 8192;
 
-            uint16_t storedCenter = _database.read(database::Config::Section::system_t::SYSTEM_SETTINGS,
-                                                   SAX_PB_CENTER_SETTING_INDEX);
+            uint32_t storedCenter = _database.readSystem(SAX_PB_CENTER_SETTING_INDEX);
 
             if (storedCenter > midi::MAX_VALUE_14BIT)
             {
                 storedCenter = PB_CENTER_DEFAULT;
             }
 
-            setPitchBendCenter(index, storedCenter);
+            setPitchBendCenter(index, static_cast<uint16_t>(storedCenter));
         }
     }
     break;

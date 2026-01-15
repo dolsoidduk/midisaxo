@@ -226,6 +226,21 @@ namespace database
             return _admin.getPreset();
         }
 
+        uint32_t readSystem(size_t index)
+        {
+            return _admin.read(Config::Section::system_t::SYSTEM_SETTINGS, index);
+        }
+
+        bool readSystem(size_t index, uint32_t& value)
+        {
+            return _admin.read(Config::Section::system_t::SYSTEM_SETTINGS, index, value);
+        }
+
+        bool updateSystem(size_t index, uint32_t value)
+        {
+            return _admin.update(Config::Section::system_t::SYSTEM_SETTINGS, index, value);
+        }
+
         private:
         Admin& _admin;
     };

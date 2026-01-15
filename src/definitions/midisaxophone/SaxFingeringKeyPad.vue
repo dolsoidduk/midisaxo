@@ -2,7 +2,7 @@
   <div class="surface-neutral border rounded px-2 py-2">
     <div class="flex items-center justify-between mb-2">
       <div class="text-xs text-gray-400">
-        <strong class="text-gray-200">26키</strong>
+        <strong class="text-gray-200">{{ visibleKeyCount }}키</strong>
         <span class="ml-2">클릭해서 토글</span>
       </div>
 
@@ -38,6 +38,7 @@
             :style="keyStyle(k)"
             :aria-pressed="isActive(k.idx) ? 'true' : 'false'"
             :title="`#${k.idx} ${labelFor(k.idx)}`"
+            :disabled="disabled || !isUsableKey(k.idx)"
             @click="toggle(k.idx)"
           >
             <span
@@ -51,6 +52,34 @@
             }}</span>
           </button>
         </div>
+      </div>
+    </div>
+
+    <div v-else-if="layoutMode === 'linear'" class="grid gap-2">
+      <div
+        class="grid gap-1"
+        :style="{ gridTemplateColumns: `repeat(${Math.min(8, Math.max(1, visibleKeyCount))}, minmax(0, 1fr))` }"
+      >
+        <button
+          v-for="idx in linearKeys"
+          :key="`lin-${idx}`"
+          type="button"
+          class="group relative select-none rounded-md border font-semibold transition flex items-center justify-center"
+          :class="[keyClass(idx), 'text-sm']"
+          :style="{ height: '42px' }"
+          :aria-pressed="isActive(idx) ? 'true' : 'false'"
+          :title="`#${idx} ${labelFor(idx)}`"
+          :disabled="disabled"
+          @click="toggle(idx)"
+        >
+          <span
+            v-if="showIndex"
+            class="absolute left-1 top-1 text-[10px] font-mono text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            {{ idx }}
+          </span>
+          <span class="px-1 text-center leading-tight">{{ labelFor(idx) }}</span>
+        </button>
       </div>
     </div>
 
@@ -80,6 +109,7 @@
               :style="{ height: group.big ? '42px' : '34px' }"
               :aria-pressed="isActive(idx) ? 'true' : 'false'"
               :title="`#${idx} ${labelFor(idx)}`"
+              :disabled="disabled || !isUsableKey(idx)"
               @click="toggle(idx)"
             >
               <span
@@ -130,23 +160,49 @@ export default defineComponent({
     mask: { type: Number, required: true },
     disabled: { type: Boolean, default: false },
     keyCount: { type: Number, default: 26 },
+    usableMask: { type: Number, default: null },
+    visibleMask: { type: Number, default: null },
+    hideUnusableKeys: { type: Boolean, default: false },
     labels: {
       type: (Array as unknown) as () => string[] | null,
       default: null,
     },
     showIndex: { type: Boolean, default: false },
     layoutMode: {
-      type: (String as unknown) as () => "sax" | "grouped",
+      type: (String as unknown) as () => "sax" | "grouped" | "linear",
       default: "sax",
     },
   },
   emits: ["update:mask"],
   setup(props, { emit }) {
+    const effectiveKeyCount = computed(() => {
+      return Math.max(0, Math.min(26, Math.floor(Number(props.keyCount) || 26)));
+    });
+
+    const full26Mask = 0x03ffffff;
+
+    const normalizedUsableMask = computed((): number | null => {
+      const raw = props.usableMask;
+      if (typeof raw !== "number") {
+        return null;
+      }
+      return (Number(raw) >>> 0) & full26Mask;
+    });
+
+    const normalizedVisibleMask = computed((): number | null => {
+      const raw = props.visibleMask;
+      if (typeof raw !== "number") {
+        return null;
+      }
+      return (Number(raw) >>> 0) & full26Mask;
+    });
+
     const allMask = computed(() => {
-      const count = Math.max(
-        0,
-        Math.min(26, Math.floor(Number(props.keyCount) || 26)),
-      );
+      const usable = normalizedUsableMask.value;
+      if (typeof usable === "number") {
+        return usable;
+      }
+      const count = effectiveKeyCount.value;
       // 26 is safe for JS bitwise ops (<= 31)
       return ((1 << count) - 1) >>> 0;
     });
@@ -253,6 +309,19 @@ export default defineComponent({
       ];
     });
 
+    const visibleGroups = computed((): KeyGroup[] => {
+      if (!props.hideUnusableKeys && typeof normalizedVisibleMask.value !== "number") {
+        return groups.value;
+      }
+
+      return groups.value
+        .map((g) => ({
+          ...g,
+          keys: g.keys.filter((k) => isVisibleKey(k)),
+        }))
+        .filter((g) => g.keys.length > 0);
+    });
+
     const saxLayout = computed((): SaxLayoutKey[] => {
       // 대략적인 색소폰 실루엣 레이아웃 (12 columns grid)
       // IMPORTANT: idx(0..25) 의미는 MIDI Saxophone 페이지의 라벨 프리셋과 동일해야 함.
@@ -315,6 +384,44 @@ export default defineComponent({
       ];
     });
 
+    const visibleSaxLayout = computed((): SaxLayoutKey[] => {
+      if (!props.hideUnusableKeys && typeof normalizedVisibleMask.value !== "number") {
+        return saxLayout.value;
+      }
+      return saxLayout.value.filter((k) => isVisibleKey(k.idx));
+    });
+
+    const visibleKeys = computed((): number[] => {
+      const visible = normalizedVisibleMask.value;
+      if (typeof visible === "number") {
+        const keys: number[] = [];
+        for (let i = 0; i < 26; i++) {
+          if ((visible >>> i) & 1) {
+            keys.push(i);
+          }
+        }
+        return keys;
+      }
+
+      const usable = normalizedUsableMask.value;
+      if (typeof usable === "number") {
+        const keys: number[] = [];
+        for (let i = 0; i < 26; i++) {
+          if ((usable >>> i) & 1) {
+            keys.push(i);
+          }
+        }
+        return keys;
+      }
+
+      const count = effectiveKeyCount.value;
+      return Array.from({ length: count }, (_, i) => i);
+    });
+
+    const visibleKeyCount = computed((): number => visibleKeys.value.length);
+
+    const linearKeys = computed((): number[] => visibleKeys.value);
+
     const keyStyle = (k: SaxLayoutKey) => {
       const rowSpan = Math.max(1, Math.floor(Number(k.rowSpan) || 1));
       const colSpan = Math.max(1, Math.floor(Number(k.colSpan) || 1));
@@ -342,9 +449,34 @@ export default defineComponent({
       return ((safeMask.value >>> i) & 1) === 1;
     };
 
+    const isUsableKey = (index: number): boolean => {
+      const i = Math.max(0, Math.min(25, Math.floor(Number(index) || 0)));
+      const usable = normalizedUsableMask.value;
+      if (typeof usable === "number") {
+        return ((usable >>> i) & 1) === 1;
+      }
+      return i < effectiveKeyCount.value;
+    };
+
+    const isVisibleKey = (index: number): boolean => {
+      const i = Math.max(0, Math.min(25, Math.floor(Number(index) || 0)));
+      const visible = normalizedVisibleMask.value;
+      if (typeof visible === "number") {
+        return ((visible >>> i) & 1) === 1;
+      }
+      if (props.hideUnusableKeys) {
+        return isUsableKey(i);
+      }
+      return true;
+    };
+
     const keyClass = (index: number): string => {
       if (props.disabled) {
         return "opacity-50 cursor-not-allowed border-gray-800";
+      }
+
+      if (!isUsableKey(index)) {
+        return "opacity-35 cursor-not-allowed border-gray-800 bg-gray-900/20 text-gray-500";
       }
 
       if (isActive(index)) {
@@ -359,6 +491,11 @@ export default defineComponent({
         return;
       }
       const i = Math.max(0, Math.min(25, Math.floor(Number(index) || 0)));
+
+      if (!isUsableKey(i)) {
+        return;
+      }
+
       const next = (safeMask.value ^ (1 << i)) >>> 0;
       emit("update:mask", next);
     };
@@ -378,11 +515,15 @@ export default defineComponent({
     };
 
     return {
+      effectiveKeyCount,
+      visibleKeyCount,
       maskHex,
-      groups,
-      saxLayout,
+      groups: visibleGroups,
+      saxLayout: visibleSaxLayout,
+      linearKeys,
       activeCount,
       isActive,
+      isUsableKey,
       keyClass,
       keyStyle,
       labelFor,
