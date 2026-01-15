@@ -294,10 +294,11 @@ export default defineComponent({
         { idx: 19, row: 11, col: 1, colSpan: 2 },
         { idx: 20, row: 12, col: 1, colSpan: 2 },
 
+        // RH pinky cluster (C / Eb) + low F# (often sits further right)
         { idx: 18, row: 11, col: 7, colSpan: 2 },
         { idx: 17, row: 11, col: 9, colSpan: 2 },
 
-        { idx: 7, row: 12, col: 9, colSpan: 2 },
+        { idx: 7, row: 12, col: 11, colSpan: 2 },
         // baritone LOW A extension (place under left-hand spatula cluster)
         { idx: 25, row: 13, col: 1, colSpan: 2 },
 
