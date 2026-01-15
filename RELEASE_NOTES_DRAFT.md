@@ -1,6 +1,31 @@
 # Release notes (draft)
 
 ## Version
+- midisaxo-0.1.6 (candidate)
+
+## Artifacts
+- (TBD) Midisaxo-0.1.6.AppImage
+- (TBD) Midisaxo-0.1.6.tar.gz
+- (TBD) midisaxo_pico-0.1.6.uf2
+- (TBD) midisaxo_pico-0.1.6.sysex
+
+## Changes
+- Firmware(Midisaxo): 자동 비브라토(피치벤드 오버레이) 게이팅 기준을 “센서 #2(피치) + 캡처된 센터(pbCenter)”로 정리
+	- gate 판정: pbCenter + threshold 기준
+	- sax 모드에서 비브라토 대상 analog index도 빠른 폴링에 포함
+- UI: 2x MPXV7002DP(브레스+피치벤드) 구성 및 자동 비브라토(압력 게이트) 설정 절차/도움말 문구 정리
+- Dev/Build: 의존성/개발 서버 안정화
+	- yarn.lock 파싱 오류 복구 및 package-lock.json 혼용 제거
+	- Vue(3.5.x)와 @vue/compiler-sfc 버전 정합성 맞춤 (Vite 경고/에러 방지)
+	- Vite v1 호스트/포트 설정 가이드 정리(--hostname 및 VITE_HOST/VITE_PORT)
+
+## Test checklist (when hardware is ready)
+- 브레스 센서(#1): CC2/CC11 전송, 곡선/오프셋 동작
+- 피치 센서(#2): Pitch Bend 출력, PB Center Capture(캘리브레이션) 동작
+- 자동 비브라토: gate threshold에서만 비브라토 오버레이가 켜지는지 확인
+- UI 저장/복원: 설정 저장(SysEx) 후 재연결/재부팅 시 동일 동작
+
+## Version
 - midisaxo-0.1.4
 
 ## Artifacts
