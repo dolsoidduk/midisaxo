@@ -295,7 +295,8 @@ export default defineComponent({
         { idx: 20, row: 12, col: 1, colSpan: 2 },
 
         // RH pinky cluster (C / Eb) + low F# (often sits further right)
-        { idx: 18, row: 11, col: 7, colSpan: 2 },
+        // Option A: C를 Eb보다 살짝 아래로 내려 롤러 느낌을 만듭니다.
+        { idx: 18, row: 12, col: 7, colSpan: 2 },
         { idx: 17, row: 11, col: 9, colSpan: 2 },
 
         { idx: 7, row: 12, col: 11, colSpan: 2 },
