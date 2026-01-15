@@ -1348,14 +1348,6 @@ export default defineComponent({
     const fingeringBackupApplyProgressText = ref<string>("");
 
     const hasPendingFingeringBackup = computed(() => pendingFingeringBackup.value !== null);
-    const pendingFingeringBackupSummary = computed(() => {
-      const backup = pendingFingeringBackup.value;
-      if (!backup) {
-        return "";
-      }
-      return `${backup.entryCount}개 엔트리 / ${backup.keyCount}키 / ${backup.entries.length}개 항목`;
-    });
-
     const formatBackupTimestampForDisplay = (value: string): string => {
       const raw = String(value || "").trim();
       if (!raw) {
@@ -1372,12 +1364,10 @@ export default defineComponent({
       }
     };
 
-    const pendingFingeringBackupMetaText = computed(() => {
-      const backup = pendingFingeringBackup.value;
-      if (!backup) {
-        return "";
-      }
+    const buildFingeringBackupSummaryText = (backup: FingeringBackupV1): string =>
+      `${backup.entryCount}개 엔트리 / ${backup.keyCount}키 / ${backup.entries.length}개 항목`;
 
+    const buildFingeringBackupMetaText = (backup: FingeringBackupV1): string => {
       const parts: string[] = [];
       const createdAt = formatBackupTimestampForDisplay(backup.createdAt);
       if (createdAt) {
@@ -1406,6 +1396,23 @@ export default defineComponent({
       }
 
       return parts.join(" / ");
+    };
+
+    const pendingFingeringBackupSummary = computed(() => {
+      const backup = pendingFingeringBackup.value;
+      if (!backup) {
+        return "";
+      }
+      return buildFingeringBackupSummaryText(backup);
+    });
+
+    const pendingFingeringBackupMetaText = computed(() => {
+      const backup = pendingFingeringBackup.value;
+      if (!backup) {
+        return "";
+      }
+
+      return buildFingeringBackupMetaText(backup);
     });
 
     const createFingeringBackupFromCurrent = (): FingeringBackupV1 => {
@@ -1589,8 +1596,19 @@ export default defineComponent({
         return;
       }
 
+      const summaryText = buildFingeringBackupSummaryText(backup);
+      const metaText = buildFingeringBackupMetaText(backup);
       const ok = window.confirm(
-        "현재 기기의 핑거링 테이블(전체 128개)을 백업 내용으로 덮어씁니다. 계속할까요?",
+        [
+          "현재 기기의 핑거링 테이블(전체 128개)을 백업 내용으로 덮어씁니다.",
+          "",
+          `백업: ${summaryText}`,
+          metaText ? metaText : "",
+          "",
+          "계속할까요?",
+        ]
+          .filter(Boolean)
+          .join("\n"),
       );
       if (!ok) {
         return;
