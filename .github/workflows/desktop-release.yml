@@ -40,7 +40,12 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --legacy-peer-deps
+          else
+            npm install --legacy-peer-deps
+          fi
 
       - name: Build AppImage
         env:
@@ -77,7 +82,13 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        shell: pwsh
+        run: |
+          if (Test-Path package-lock.json) {
+            npm ci --legacy-peer-deps
+          } else {
+            npm install --legacy-peer-deps
+          }
 
       - name: Build Windows artifacts
         env:
