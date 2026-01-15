@@ -223,37 +223,6 @@
             <Button size="sm" variant="secondary" @click.prevent="reloadFingering">
               새로고침
             </Button>
-
-            <div class="flex items-center gap-2">
-              <div class="text-xs text-gray-300 font-semibold">엔트리 표시</div>
-              <select
-                class="text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
-                :value="fingeringEntryLayoutMode"
-                @change="onFingeringEntryLayoutModeChange($event)"
-              >
-                <option value="horizontal">가로(스크롤)</option>
-                <option value="grid">세로(그리드)</option>
-              </select>
-
-              <div v-if="fingeringEntryLayoutMode === 'horizontal'" class="flex items-center gap-1">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  :disabled="!canScrollFingeringLeft"
-                  @click.prevent="scrollFingeringEntriesByPage(-1)"
-                >
-                  ◀
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  :disabled="!canScrollFingeringRight"
-                  @click.prevent="scrollFingeringEntriesByPage(1)"
-                >
-                  ▶
-                </Button>
-              </div>
-            </div>
           </div>
 
           <div v-if="fingeringSupport !== 'unsupported'" class="surface-neutral border rounded px-3 py-2 mb-3">
