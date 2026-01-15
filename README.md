@@ -131,6 +131,19 @@ Push a tag like `v0.1.0` to trigger GitHub Actions to build and attach:
 - Linux `.AppImage`
 - Linux portable `.tar.gz`
 
+Recommended flow (safe + repeatable):
+
+```bash
+# bumps version, updates release notes draft (template), commits, tags, pushes
+npm run release -- 0.1.5
+```
+
+Dry-run (no changes, just prints commands):
+
+```bash
+npm run release -- --dry-run 0.1.5
+```
+
 ### Development (Electron)
 
 Run Vite + Electron together:

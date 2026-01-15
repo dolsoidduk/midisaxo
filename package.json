@@ -32,7 +32,8 @@
     "dist:win": "npm run build && electron-builder --win nsis",
     "dist:win:portable": "npm run build && electron-builder --win zip",
     "dist:win:exe": "npm run build && electron-builder --win portable",
-    "dist:all": "npm run build && electron-builder -wl"
+    "dist:all": "npm run build && electron-builder -wl",
+    "release": "bash scripts/release.sh"
   },
   "dependencies": {
     "@tailwindcss/ui": "^0.5.0",
