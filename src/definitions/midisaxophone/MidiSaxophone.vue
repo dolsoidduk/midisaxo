@@ -1330,6 +1330,12 @@ export default defineComponent({
       keyCount: number;
       entryCount: number;
       entries: FingeringBackupEntryV1[];
+      meta?: {
+        boardName?: string;
+        firmwareVersion?: string | null;
+        buildSha?: string;
+        buildTime?: string;
+      };
     };
 
     const fingeringBackupFileInput = ref<HTMLInputElement | null>(null);
@@ -1353,12 +1359,26 @@ export default defineComponent({
         note: clampMidiNote(Number(e.note) || 0),
       }));
 
+      const buildSha =
+        (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_BUILD_SHA) || "";
+      const buildTime =
+        (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_BUILD_TIME) || "";
+
+      const boardName = (deviceStore.state && deviceStore.state.boardName) || "";
+      const firmwareVersion = (deviceStore.state && deviceStore.state.firmwareVersion) || null;
+
       return {
         schema: "midisaxo.fingering-backup.v1",
         createdAt: new Date().toISOString(),
         keyCount: fingeringKeyCount,
         entryCount: fingeringEntryCount,
         entries,
+        meta: {
+          boardName,
+          firmwareVersion,
+          buildSha,
+          buildTime,
+        },
       };
     };
 
@@ -1369,6 +1389,38 @@ export default defineComponent({
         .replace(/\..+$/, "")
         .replace(/[-:]/g, "")
         .replace("T", "-");
+    };
+
+    const sanitizeFilenameToken = (value: unknown, maxLen = 32): string => {
+      const raw = String(value || "")
+        .trim()
+        .toLowerCase();
+      if (!raw) {
+        return "";
+      }
+
+      const safe = raw
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+/, "")
+        .replace(/-+$/, "")
+        .replace(/-+/g, "-");
+
+      if (!safe) {
+        return "";
+      }
+
+      return safe.slice(0, Math.max(1, Math.floor(maxLen)));
+    };
+
+    const buildFingeringBackupFilename = (base: string, timestamp: string): string => {
+      const board = sanitizeFilenameToken(deviceStore.state?.boardName, 24);
+      const fw = sanitizeFilenameToken(deviceStore.state?.firmwareVersion, 16);
+      const shaFull =
+        (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_BUILD_SHA) || "";
+      const sha = sanitizeFilenameToken(String(shaFull).slice(0, 7), 7);
+
+      const parts = [base, board, fw, sha, timestamp].filter(Boolean);
+      return `${parts.join("-")}.json`;
     };
 
     const downloadJson = (filename: string, data: unknown): void => {
@@ -1390,7 +1442,7 @@ export default defineComponent({
       }
       const backup = createFingeringBackupFromCurrent();
       const ts = formatTimestampForFilename(new Date());
-      downloadJson(`midisaxo-fingering-backup-${ts}.json`, backup);
+      downloadJson(buildFingeringBackupFilename("midisaxo-fingering-backup", ts), backup);
     };
 
     const triggerFingeringBackupImport = (): void => {
@@ -1477,7 +1529,7 @@ export default defineComponent({
       try {
         const safety = createFingeringBackupFromCurrent();
         const ts = formatTimestampForFilename(new Date());
-        downloadJson(`midisaxo-fingering-safety-backup-before-apply-${ts}.json`, safety);
+        downloadJson(buildFingeringBackupFilename("midisaxo-fingering-safety-backup-before-apply", ts), safety);
       } catch {
         // Ignore auto-backup failures and continue.
       }
