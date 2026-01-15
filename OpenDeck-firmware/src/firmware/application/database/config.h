@@ -29,7 +29,9 @@ namespace database
         Config() = delete;
 
         static constexpr size_t MAX_PRESETS                = 10;
-        static constexpr size_t MAX_CUSTOM_SYSTEM_SETTINGS = 11;
+        // Custom system settings start at index 2 (CUSTOM_SYSTEM_SETTING_START).
+        // midisaxo uses indices up to 18 (e.g. sax auto vibrato settings).
+        static constexpr size_t MAX_CUSTOM_SYSTEM_SETTINGS = 20;
 
         enum class block_t : uint8_t
         {
