@@ -1,6 +1,6 @@
 name: Release Desktop Apps
 
-on:
+"on":
   workflow_dispatch:
 
 permissions:
