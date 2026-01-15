@@ -228,7 +228,12 @@
             {{ fingeringBackupApplyProgressText }}
           </div>
           <div v-else-if="hasPendingFingeringBackup" class="text-xs text-gray-400 mb-2">
-            가져온 백업: <strong class="text-gray-200">{{ pendingFingeringBackupSummary }}</strong>
+            <div>
+              가져온 백업: <strong class="text-gray-200">{{ pendingFingeringBackupSummary }}</strong>
+            </div>
+            <div v-if="pendingFingeringBackupMetaText" class="mt-1 text-[11px] text-gray-500">
+              {{ pendingFingeringBackupMetaText }}
+            </div>
           </div>
           <p class="text-sm mb-3">
             키 조합(눌린 키 목록) → 노트(0-127)를 테이블로 지정합니다. 매칭은 “가장 많은 키가 일치하는 항목”이 우선입니다.
@@ -1351,6 +1356,58 @@ export default defineComponent({
       return `${backup.entryCount}개 엔트리 / ${backup.keyCount}키 / ${backup.entries.length}개 항목`;
     });
 
+    const formatBackupTimestampForDisplay = (value: string): string => {
+      const raw = String(value || "").trim();
+      if (!raw) {
+        return "";
+      }
+      const date = new Date(raw);
+      if (Number.isNaN(date.getTime())) {
+        return raw;
+      }
+      try {
+        return date.toLocaleString();
+      } catch {
+        return date.toISOString();
+      }
+    };
+
+    const pendingFingeringBackupMetaText = computed(() => {
+      const backup = pendingFingeringBackup.value;
+      if (!backup) {
+        return "";
+      }
+
+      const parts: string[] = [];
+      const createdAt = formatBackupTimestampForDisplay(backup.createdAt);
+      if (createdAt) {
+        parts.push(`생성: ${createdAt}`);
+      }
+
+      const meta = backup.meta || {};
+      const board = String(meta.boardName || "").trim();
+      if (board) {
+        parts.push(`보드: ${board}`);
+      }
+
+      const fw = meta.firmwareVersion == null ? "" : String(meta.firmwareVersion).trim();
+      if (fw) {
+        parts.push(`FW: ${fw}`);
+      }
+
+      const shaFull = String(meta.buildSha || "").trim();
+      if (shaFull) {
+        parts.push(`UI: ${shaFull.slice(0, 7)}`);
+      }
+
+      const buildTime = formatBackupTimestampForDisplay(String(meta.buildTime || ""));
+      if (buildTime) {
+        parts.push(`빌드: ${buildTime}`);
+      }
+
+      return parts.join(" / ");
+    });
+
     const createFingeringBackupFromCurrent = (): FingeringBackupV1 => {
       const entries: FingeringBackupEntryV1[] = fingeringEntries.value.map((e) => ({
         index: e.index,
@@ -1469,12 +1526,26 @@ export default defineComponent({
         }))
         .filter((e) => Number.isFinite(e.index) && e.index >= 0 && e.index < entryCount);
 
+      const metaRaw = raw && typeof raw.meta === "object" ? raw.meta : null;
+      const meta = metaRaw
+        ? {
+            boardName: String((metaRaw as any).boardName || "").trim() || undefined,
+            firmwareVersion:
+              (metaRaw as any).firmwareVersion == null
+                ? undefined
+                : String((metaRaw as any).firmwareVersion),
+            buildSha: String((metaRaw as any).buildSha || "").trim() || undefined,
+            buildTime: String((metaRaw as any).buildTime || "").trim() || undefined,
+          }
+        : undefined;
+
       return {
         schema: "midisaxo.fingering-backup.v1",
         createdAt,
         keyCount,
         entryCount,
         entries,
+        meta,
       };
     };
 
@@ -1674,6 +1745,7 @@ export default defineComponent({
       applyFingeringBackup,
       hasPendingFingeringBackup,
       pendingFingeringBackupSummary,
+      pendingFingeringBackupMetaText,
       fingeringBackupApplyProgressText,
       fingeringBackupFileInput,
 
