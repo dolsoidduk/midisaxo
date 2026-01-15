@@ -372,6 +372,11 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
                                           ? _pitchBendCenter[index]
                                           : PB_CENTER_DEFAULT;
 
+            // Keep a pre-shaping PB value for optional sax auto-vibrato gating.
+            // This represents the sensor value around the captured pbCenter (player calibration)
+            // and is intentionally evaluated before deadzone/curve shaping.
+            uint16_t pbGateValue = descriptor.event.value;
+
             if (index != PITCH_AMOUNT_ANALOG_INDEX)
             {
                 auto amount = _lastValue[PITCH_AMOUNT_ANALOG_INDEX];
@@ -381,7 +386,14 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
                     const int32_t delta       = static_cast<int32_t>(descriptor.event.value) - static_cast<int32_t>(pbCenter);
                     const int32_t scaledDelta = (delta * static_cast<int32_t>(amount)) / 127;
                     descriptor.event.value    = static_cast<uint16_t>(static_cast<int32_t>(pbCenter) + scaledDelta);
+
+                    pbGateValue = descriptor.event.value;
                 }
+            }
+            else
+            {
+                // Even if this input is the historical "pitch amount" index, keep pbGateValue accurate.
+                pbGateValue = descriptor.event.value;
             }
 
             // Pitch bend shaping: deadzone around center + cubic curve.
@@ -480,13 +492,12 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
                         static_cast<uint16_t>(0),
                         static_cast<uint16_t>(300));
 
-                    // Gate condition: only apply vibrato if PB is above (center + threshold).
-                    const uint16_t gateLevel = static_cast<uint16_t>(
-                        core::util::CONSTRAIN(static_cast<int32_t>(PB_CENTER_DEFAULT) + static_cast<int32_t>(threshold),
-                                              static_cast<int32_t>(0),
-                                              static_cast<int32_t>(midi::MAX_VALUE_14BIT)));
+                    // Gate condition: only apply vibrato if sensor value is above (captured center + threshold).
+                    const int32_t gateLevelRaw = core::util::CONSTRAIN(static_cast<int32_t>(pbCenter) + static_cast<int32_t>(threshold),
+                                                                        static_cast<int32_t>(0),
+                                                                        static_cast<int32_t>(midi::MAX_VALUE_14BIT));
 
-                    if ((depth > 0) && (hz10 > 0) && (descriptor.event.value > gateLevel))
+                    if ((depth > 0) && (hz10 > 0) && (static_cast<int32_t>(pbGateValue) > gateLevelRaw))
                     {
                         const uint32_t periodMs = core::util::CONSTRAIN(
                             static_cast<uint32_t>(10000u / static_cast<uint32_t>(hz10)),
