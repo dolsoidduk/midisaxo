@@ -75,6 +75,7 @@ export enum AnalogType {
   NRPN14bit = 5,
   PitchBend = 6,
   ControlChange14Bit = 7,
+  Reserved = 8,
 }
 
 export enum ButtonMessageType {
@@ -220,8 +221,8 @@ export const HideButtonMidiChannelOnTypes = [
   ButtonMessageType.SaxFingeringKey,
 ];
 
-export const HideAnalogMidiIdOnTypes = [AnalogType.Button];
-export const HideAnalogMidiChannelOnTypes = [AnalogType.Button];
+export const HideAnalogMidiIdOnTypes = [AnalogType.Button, AnalogType.Reserved];
+export const HideAnalogMidiChannelOnTypes = [AnalogType.Button, AnalogType.Reserved];
 
 export const HideEncoderMidiIdOnTypes = [];
 

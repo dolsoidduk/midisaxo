@@ -142,7 +142,9 @@ const sections: Dictionary<ISectionDefinition> = {
     settingIndex: 6,
     component: FormInputComponent.Toggle,
     label: "색소폰 브레스 컨트롤러 (MPXV7002DP)",
-    helpText: `활성화하면 선택한 아날로그 입력(브레스 센서 값)을 MIDI CC(호흡/표현)로 변환해 전송합니다.`,
+    helpText: `활성화하면 선택한 아날로그 입력(브레스 센서 값)을 MIDI CC(호흡/표현)로 변환해 전송합니다.
+
+피치벤드를 MPXV7002DP로 제어하려면 이 옵션을 끄고, Analog 블록에서 해당 입력 타입을 "Pitch bend"로 설정하는 구성을 추천합니다.`,
   },
   SaxBreathControllerAnalogIndex: {
     showIf: (formState: FormState): boolean =>
@@ -201,8 +203,15 @@ RP2040 Pico + native ADC 3채널 추천 구성:
   일반적으로는 CC2(Breath) 또는 CC11(Expression)를 사용합니다.`,
   },
   SaxPitchBendDeadzone: {
-    showIf: (formState: FormState): boolean =>
-      !!formState.saxBreathControllerEnable,
+    showIf: (formState: FormState): boolean => {
+      if (!!formState.saxBreathControllerEnable)
+      {
+        return true;
+      }
+
+      const board = String(deviceStore.state?.boardName || "").toLowerCase();
+      return board.includes("midisaxo");
+    },
     block: Block.Global,
     key: "saxPitchBendDeadzone",
     type: SectionType.Setting,

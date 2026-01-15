@@ -580,6 +580,25 @@ std::optional<uint8_t> Analog::sysConfigSet(sys::Config::Section::analog_t secti
     case sys::Config::Section::analog_t::TYPE:
     {
         reset(index);
+
+        // If this input is switched to PITCH_BEND at runtime (via UI/config),
+        // apply the stored sax PB center immediately so the neutral point is
+        // consistent without requiring a reboot.
+        if (static_cast<type_t>(value) == type_t::PITCH_BEND)
+        {
+            static constexpr size_t   SAX_PB_CENTER_SETTING_INDEX = 13;
+            static constexpr uint16_t PB_CENTER_DEFAULT           = 8192;
+
+            uint16_t storedCenter = _database.read(database::Config::Section::system_t::SYSTEM_SETTINGS,
+                                                   SAX_PB_CENTER_SETTING_INDEX);
+
+            if (storedCenter > midi::MAX_VALUE_14BIT)
+            {
+                storedCenter = PB_CENTER_DEFAULT;
+            }
+
+            setPitchBendCenter(index, storedCenter);
+        }
     }
     break;
 

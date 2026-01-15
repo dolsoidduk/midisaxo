@@ -92,8 +92,103 @@
               {{ pbCenterCaptureNotice }}
             </span>
           </div>
+
+          <div class="mt-3 text-xs text-gray-300 whitespace-nowrap">
+            현재 출력:
+            <span class="ml-2 font-mono text-yellow-300">{{ pitchBendStatusLine }}</span>
+            <span v-if="lastPitchBendTime" class="ml-2 text-gray-500">({{ lastPitchBendTime }})</span>
+            <button
+              class="ml-2 px-1.5 py-0.5 border border-gray-700 rounded text-[10px] text-gray-200 hover:border-gray-500"
+              @click.prevent="clearPitchBendActivity"
+            >
+              clear
+            </button>
+          </div>
           <div class="mt-2 text-xs text-gray-400">
             팁: 캡처 후에도 흔들리면 "피치벤드 중앙 민감도(데드존)" 값을 조금 올려보세요.
+          </div>
+
+          <div class="mt-4 border-t border-gray-700/60 pt-4">
+            <div class="text-gray-200 font-semibold">현재 모드</div>
+
+            <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <span
+                class="px-2 py-0.5 rounded border"
+                :class="currentMode.badgeClass"
+              >
+                {{ currentMode.badgeText }}
+              </span>
+              <span class="text-gray-400">Sax Breath CC 자동 전송:</span>
+              <span class="font-mono" :class="breathSenderEnabled ? 'text-yellow-300' : 'text-gray-300'">
+                {{ breathSenderEnabled ? "ON" : "OFF" }}
+              </span>
+              <span class="text-gray-500">|</span>
+              <span class="text-gray-400">Analog 1~3:</span>
+              <span class="font-mono text-gray-300">{{ analogSummaryText }}</span>
+            </div>
+
+            <div v-if="currentMode.detailsText" class="mt-2 text-xs text-gray-300 whitespace-pre-line">
+              {{ currentMode.detailsText }}
+            </div>
+
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="secondary" :disabled="modeStatusLoading" @click.prevent="refreshModeStatus">
+                {{ modeStatusLoading ? "..." : "상태 새로고침" }}
+              </Button>
+              <span v-if="modeStatusError" class="text-xs text-red-300">{{ modeStatusError }}</span>
+            </div>
+          </div>
+
+          <div
+            v-if="isConnected && isMidisaxoBoard"
+            class="mt-4 border-t border-gray-700/60 pt-4"
+          >
+            <div class="text-gray-200 font-semibold">압력 → 피치벤드 추천 설정</div>
+            <div class="mt-2 text-gray-300 whitespace-pre-line text-xs">
+              MPXV7002DP(압력 센서)를 피치벤드로 쓰는 구성입니다.
+              적용 시 Analog #1을 Pitch bend로, Analog #2를 Reserved(피치 amount)로 설정합니다.
+
+              주의: RP2040 ADC는 3.3V 입력입니다. MPXV7002DP(보통 5V 구동) 출력은 분압/레벨시프팅 없이 직접 연결하면 위험할 수 있습니다.
+            </div>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                :disabled="pressurePbPresetBusy"
+                @click.prevent="applyPressurePitchBendPreset"
+              >
+                {{ pressurePbPresetBusy ? "APPLY..." : "추천 설정 적용" }}
+              </Button>
+              <span v-if="pressurePbPresetNotice" class="text-xs text-green-300">
+                {{ pressurePbPresetNotice }}
+              </span>
+            </div>
+
+            <div class="mt-4 border-t border-gray-700/60 pt-4">
+              <div class="text-gray-200 font-semibold">3채널 추천 설정 (CC2 / CC11 / Pitch Bend)</div>
+              <div class="mt-2 text-gray-300 whitespace-pre-line text-xs">
+                아날로그 입력 3개를 아래처럼 배치합니다.
+
+                - Analog 1: CC2 (Breath)
+                - Analog 2: CC11 (Expression)
+                - Analog 3: Pitch Bend
+
+                참고: 이 프리셋은 Sax Breath Controller(CC 자동 전송)는 끄고, Analog 블록에서 직접 CC/PB를 내보내는 방식입니다.
+              </div>
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  :disabled="cc2cc11pbPresetBusy"
+                  @click.prevent="applyCc2Cc11PitchBendPreset"
+                >
+                  {{ cc2cc11pbPresetBusy ? "APPLY..." : "CC2/CC11/PB 적용" }}
+                </Button>
+                <span v-if="cc2cc11pbPresetNotice" class="text-xs text-green-300">
+                  {{ cc2cc11pbPresetNotice }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -559,7 +654,7 @@
 
 <script lang="ts">
 import { defineComponent, computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
-import { Block, SectionType, BlockMap } from "../index";
+import { Block, SectionType, BlockMap, AnalogType } from "../index";
 import { useDeviceForm } from "../../composables";
 import { midiStoreMapped, deviceStoreMapped, deviceStore } from "../../store";
 import SaxFingeringKeyPad from "./SaxFingeringKeyPad.vue";
@@ -574,6 +669,17 @@ export default defineComponent({
 
     const pbCenterCaptureBusy = ref(false);
     const pbCenterCaptureNotice = ref<string>("");
+
+    const pressurePbPresetBusy = ref(false);
+    const pressurePbPresetNotice = ref<string>("");
+
+    const cc2cc11pbPresetBusy = ref(false);
+    const cc2cc11pbPresetNotice = ref<string>("");
+
+    const isMidisaxoBoard = computed((): boolean => {
+      const board = String(deviceStore.state?.boardName || "").toLowerCase();
+      return board.includes("midisaxo");
+    });
 
     const runPbCenterCapture = async (): Promise<void> => {
       if (pbCenterCaptureBusy.value) {
@@ -844,6 +950,371 @@ export default defineComponent({
     const { formData, loading, onSettingChange, showField } =
       useDeviceForm(Block.Global, SectionType.Setting);
 
+    type AnalogConfig = Record<string, number>;
+    const modeStatusLoading = ref(false);
+    const modeStatusError = ref<string>("");
+    const analogConfigs = ref<Record<number, AnalogConfig | null>>({});
+
+    const refreshModeStatus = async (): Promise<void> => {
+      if (!isConnected.value || modeStatusLoading.value) {
+        return;
+      }
+
+      modeStatusLoading.value = true;
+      modeStatusError.value = "";
+
+      try {
+        const [a0, a1, a2] = await Promise.all([
+          deviceStore.actions.getComponentSettings(Block.Analog, SectionType.Value, 0).catch(() => null),
+          deviceStore.actions.getComponentSettings(Block.Analog, SectionType.Value, 1).catch(() => null),
+          deviceStore.actions.getComponentSettings(Block.Analog, SectionType.Value, 2).catch(() => null),
+        ]);
+        analogConfigs.value = {
+          0: a0 as any,
+          1: a1 as any,
+          2: a2 as any,
+        };
+      } catch {
+        modeStatusError.value = "상태 읽기 실패 (연결/권한을 확인하세요)";
+      } finally {
+        modeStatusLoading.value = false;
+      }
+    };
+
+    watch(
+      () => isConnected.value,
+      (connected) => {
+        if (connected) {
+          refreshModeStatus();
+        } else {
+          analogConfigs.value = {};
+          modeStatusError.value = "";
+        }
+      },
+      { immediate: true },
+    );
+
+    const breathSenderEnabled = computed((): boolean => !!(formData as any).saxBreathControllerEnable);
+
+    const analogLabelFor = (cfg: AnalogConfig | null | undefined): string => {
+      if (!cfg) {
+        return "?";
+      }
+
+      const enabled = Number(cfg.enabled) === 1;
+      if (!enabled) {
+        return "OFF";
+      }
+
+      const type = Number(cfg.type);
+
+      if (type === AnalogType.PitchBend) {
+        return "PB";
+      }
+      if (type === AnalogType.Reserved) {
+        return "RES";
+      }
+      if (type === AnalogType.ControlChange7Bit) {
+        const cc = Number(cfg.midiIdLSB);
+        if (cc === 2) {
+          return "CC2";
+        }
+        if (cc === 11) {
+          return "CC11";
+        }
+        return `CC${Number.isFinite(cc) ? cc : "?"}`;
+      }
+
+      return `T${Number.isFinite(type) ? type : "?"}`;
+    };
+
+    const analogSummaryText = computed((): string => {
+      const a0 = analogConfigs.value[0];
+      const a1 = analogConfigs.value[1];
+      const a2 = analogConfigs.value[2];
+      return `${analogLabelFor(a0)} / ${analogLabelFor(a1)} / ${analogLabelFor(a2)}`;
+    });
+
+    const isCc2Cc11PbPreset = computed((): boolean => {
+      const a0 = analogConfigs.value[0];
+      const a1 = analogConfigs.value[1];
+      const a2 = analogConfigs.value[2];
+
+      return (
+        !!a0 &&
+        !!a1 &&
+        !!a2 &&
+        Number(a0.enabled) === 1 &&
+        Number(a0.type) === AnalogType.ControlChange7Bit &&
+        Number(a0.midiIdLSB) === 2 &&
+        Number(a1.enabled) === 1 &&
+        Number(a1.type) === AnalogType.ControlChange7Bit &&
+        Number(a1.midiIdLSB) === 11 &&
+        Number(a2.enabled) === 1 &&
+        Number(a2.type) === AnalogType.PitchBend
+      );
+    });
+
+    const isPressurePbPreset = computed((): boolean => {
+      const a1 = analogConfigs.value[1];
+      const a2 = analogConfigs.value[2];
+      return (
+        !!a1 &&
+        !!a2 &&
+        Number(a1.enabled) === 1 &&
+        Number(a1.type) === AnalogType.PitchBend &&
+        Number(a2.enabled) === 1 &&
+        Number(a2.type) === AnalogType.Reserved
+      );
+    });
+
+    const currentMode = computed((): { badgeText: string; badgeClass: string; detailsText: string } => {
+      if (!isConnected.value) {
+        return {
+          badgeText: "연결 필요",
+          badgeClass: "border-gray-700 text-gray-300",
+          detailsText: "보드에 연결되면 현재 설정을 읽어서 모드를 표시합니다.",
+        };
+      }
+
+      if (isCc2Cc11PbPreset.value) {
+        const details = breathSenderEnabled.value
+          ? "현재 Analog에서 CC2/CC11/PB를 직접 내보내고 있습니다.\n또한 Sax Breath CC 자동 전송이 켜져 있어 CC가 중복될 수 있습니다. (Sax Breath Controller를 OFF 권장)"
+          : "현재 Analog에서 CC2/CC11/PB를 직접 내보내는 구성입니다.\nSax Breath CC 자동 전송은 OFF라서 중복이 없습니다.";
+        return {
+          badgeText: "Analog 직결 (CC2/CC11/PB)",
+          badgeClass: breathSenderEnabled.value
+            ? "border-red-500/60 text-red-300"
+            : "border-green-500/60 text-green-300",
+          detailsText: details,
+        };
+      }
+
+      if (isPressurePbPreset.value) {
+        return {
+          badgeText: "압력 → PB (+ amount)",
+          badgeClass: "border-green-500/60 text-green-300",
+          detailsText: "Analog #2가 Reserved로 잡혀 있으면 펌웨어 내부에서 피치벤드 amount 스케일링에 사용될 수 있습니다.",
+        };
+      }
+
+      if (breathSenderEnabled.value) {
+        return {
+          badgeText: "Sax Breath Controller",
+          badgeClass: "border-yellow-500/60 text-yellow-300",
+          detailsText: "Sax Breath Controller가 CC를 자동으로 전송합니다.\n(Analog에서 CC2/CC11을 동시에 출력 중이라면 중복이 생길 수 있어요)",
+        };
+      }
+
+      return {
+        badgeText: "커스텀",
+        badgeClass: "border-gray-700 text-gray-300",
+        detailsText: "프리셋과 일치하지 않는 커스텀 구성입니다. Analog 1~3 요약을 참고하세요.",
+      };
+    });
+
+    const applyPressurePitchBendPreset = async (): Promise<void> => {
+      if (!isConnected.value || pressurePbPresetBusy.value) {
+        return;
+      }
+
+      if (!isMidisaxoBoard.value) {
+        return;
+      }
+
+      const ok = window.confirm(
+        [
+          "압력 → 피치벤드 추천 설정을 적용할까요?\n",
+          "- Analog #1: Pitch bend (압력 센서)",
+          "- Analog #2: Reserved (internal: pitch amount)",
+          "- Sax Breath Controller(CC 전송): OFF\n",
+          "주의: 센서 전압이 RP2040 ADC(3.3V)를 넘지 않도록 하드웨어 분압/레벨시프팅이 필요합니다.",
+        ].join("\n"),
+      );
+
+      if (!ok) {
+        return;
+      }
+
+      pressurePbPresetBusy.value = true;
+      pressurePbPresetNotice.value = "";
+
+      const write = async (config: { block: number; section: number; index: number; value: number }) =>
+        deviceStore.actions.setComponentSectionValue(config as any, () => {});
+
+      const split14 = (v: number): { lsb: number; msb: number } => {
+        const value = Math.max(0, Math.min(16383, Math.floor(Number(v) || 0)));
+        return {
+          lsb: value & 0x7f,
+          msb: (value >> 7) & 0x7f,
+        };
+      };
+
+      const sensorIndex = 1;
+      const pitchAmountIndex = 2;
+
+      const desiredUpperPb = split14(16383);
+
+      const globalChannelRaw = Number((formData as any).globalChannel);
+      const desiredChannel = Number.isFinite(globalChannelRaw)
+        ? Math.max(1, Math.min(17, Math.floor(globalChannelRaw)))
+        : 1;
+
+      try {
+        // Disable breath CC sender (we're using pressure for pitch bend instead).
+        await write({ block: Block.Global, section: 2, index: 6, value: 0 });
+        // Keep the recommended breath analog index so re-enabling later is sane.
+        await write({ block: Block.Global, section: 2, index: 7, value: sensorIndex });
+
+        // Analog #1: Pitch bend.
+        await write({ block: Block.Analog, section: 0, index: sensorIndex, value: 1 }); // enabled
+        await write({ block: Block.Analog, section: 1, index: sensorIndex, value: 0 }); // invert
+        await write({ block: Block.Analog, section: 2, index: sensorIndex, value: AnalogType.PitchBend }); // type
+        await write({ block: Block.Analog, section: 3, index: sensorIndex, value: 0 }); // MIDI ID LSB (unused for PB)
+        await write({ block: Block.Analog, section: 4, index: sensorIndex, value: 0 }); // MIDI ID MSB
+        await write({ block: Block.Analog, section: 5, index: sensorIndex, value: 0 }); // lower limit LSB
+        await write({ block: Block.Analog, section: 6, index: sensorIndex, value: 0 }); // lower limit MSB
+        await write({ block: Block.Analog, section: 7, index: sensorIndex, value: desiredUpperPb.lsb }); // upper limit LSB
+        await write({ block: Block.Analog, section: 8, index: sensorIndex, value: desiredUpperPb.msb }); // upper limit MSB
+        await write({ block: Block.Analog, section: 9, index: sensorIndex, value: desiredChannel }); // midi channel
+        await write({ block: Block.Analog, section: 10, index: sensorIndex, value: 0 }); // lower adc offset
+        await write({ block: Block.Analog, section: 11, index: sensorIndex, value: 0 }); // upper adc offset
+
+        // Analog #2: Reserved pitch amount pot (0..127, internal only).
+        await write({ block: Block.Analog, section: 0, index: pitchAmountIndex, value: 1 }); // enabled
+        await write({ block: Block.Analog, section: 1, index: pitchAmountIndex, value: 0 }); // invert
+        await write({ block: Block.Analog, section: 2, index: pitchAmountIndex, value: AnalogType.Reserved }); // type
+        await write({ block: Block.Analog, section: 3, index: pitchAmountIndex, value: 0 });
+        await write({ block: Block.Analog, section: 4, index: pitchAmountIndex, value: 0 });
+        await write({ block: Block.Analog, section: 5, index: pitchAmountIndex, value: 0 });
+        await write({ block: Block.Analog, section: 6, index: pitchAmountIndex, value: 0 });
+        await write({ block: Block.Analog, section: 7, index: pitchAmountIndex, value: 127 });
+        await write({ block: Block.Analog, section: 8, index: pitchAmountIndex, value: 0 });
+        await write({ block: Block.Analog, section: 9, index: pitchAmountIndex, value: desiredChannel });
+        await write({ block: Block.Analog, section: 10, index: pitchAmountIndex, value: 0 });
+        await write({ block: Block.Analog, section: 11, index: pitchAmountIndex, value: 0 });
+
+        pressurePbPresetNotice.value = "추천 설정 적용 완료";
+        refreshModeStatus();
+      } catch {
+        pressurePbPresetNotice.value = "추천 설정 적용 실패 (연결/권한을 확인하세요)";
+      } finally {
+        pressurePbPresetBusy.value = false;
+        window.setTimeout(() => {
+          pressurePbPresetNotice.value = "";
+        }, 3000);
+      }
+    };
+
+    const applyCc2Cc11PitchBendPreset = async (): Promise<void> => {
+      if (!isConnected.value || cc2cc11pbPresetBusy.value) {
+        return;
+      }
+
+      if (!isMidisaxoBoard.value) {
+        return;
+      }
+
+      const ok = window.confirm(
+        [
+          "3채널(CC2/CC11/PB) 추천 설정을 적용할까요?\n",
+          "- Analog 1: CC2 (Breath)",
+          "- Analog 2: CC11 (Expression)",
+          "- Analog 3: Pitch Bend\n",
+          "이 설정은 Sax Breath Controller(CC 자동 전송)는 끄고, Analog 블록에서 직접 CC/PB를 내보냅니다.",
+        ].join("\n"),
+      );
+
+      if (!ok) {
+        return;
+      }
+
+      cc2cc11pbPresetBusy.value = true;
+      cc2cc11pbPresetNotice.value = "";
+
+      const write = async (config: { block: number; section: number; index: number; value: number }) =>
+        deviceStore.actions.setComponentSectionValue(config as any, () => {});
+
+      const split14 = (v: number): { lsb: number; msb: number } => {
+        const value = Math.max(0, Math.min(16383, Math.floor(Number(v) || 0)));
+        return {
+          lsb: value & 0x7f,
+          msb: (value >> 7) & 0x7f,
+        };
+      };
+
+      const desiredUpperPb = split14(16383);
+
+      const useGlobal = !!(formData as any).useGlobalChannel;
+      const globalChannelRaw = Number((formData as any).globalChannel);
+      const desiredChannel =
+        useGlobal && Number.isFinite(globalChannelRaw)
+          ? Math.max(1, Math.min(17, Math.floor(globalChannelRaw)))
+          : 1;
+
+      // UI text uses 1-based numbering; firmware/UI config uses 0-based indices.
+      const analogCc2 = 0;
+      const analogCc11 = 1;
+      const analogPb = 2;
+
+      try {
+        // Disable sax breath CC sender to avoid duplicates.
+        await write({ block: Block.Global, section: 2, index: 6, value: 0 });
+
+        // Analog 1 (index 0): CC2
+        await write({ block: Block.Analog, section: 0, index: analogCc2, value: 1 });
+        await write({ block: Block.Analog, section: 1, index: analogCc2, value: 0 });
+        await write({ block: Block.Analog, section: 2, index: analogCc2, value: AnalogType.ControlChange7Bit });
+        await write({ block: Block.Analog, section: 3, index: analogCc2, value: 2 });
+        await write({ block: Block.Analog, section: 4, index: analogCc2, value: 0 });
+        await write({ block: Block.Analog, section: 5, index: analogCc2, value: 0 });
+        await write({ block: Block.Analog, section: 6, index: analogCc2, value: 0 });
+        await write({ block: Block.Analog, section: 7, index: analogCc2, value: 127 });
+        await write({ block: Block.Analog, section: 8, index: analogCc2, value: 0 });
+        await write({ block: Block.Analog, section: 9, index: analogCc2, value: desiredChannel });
+        await write({ block: Block.Analog, section: 10, index: analogCc2, value: 0 });
+        await write({ block: Block.Analog, section: 11, index: analogCc2, value: 0 });
+
+        // Analog 2 (index 1): CC11
+        await write({ block: Block.Analog, section: 0, index: analogCc11, value: 1 });
+        await write({ block: Block.Analog, section: 1, index: analogCc11, value: 0 });
+        await write({ block: Block.Analog, section: 2, index: analogCc11, value: AnalogType.ControlChange7Bit });
+        await write({ block: Block.Analog, section: 3, index: analogCc11, value: 11 });
+        await write({ block: Block.Analog, section: 4, index: analogCc11, value: 0 });
+        await write({ block: Block.Analog, section: 5, index: analogCc11, value: 0 });
+        await write({ block: Block.Analog, section: 6, index: analogCc11, value: 0 });
+        await write({ block: Block.Analog, section: 7, index: analogCc11, value: 127 });
+        await write({ block: Block.Analog, section: 8, index: analogCc11, value: 0 });
+        await write({ block: Block.Analog, section: 9, index: analogCc11, value: desiredChannel });
+        await write({ block: Block.Analog, section: 10, index: analogCc11, value: 0 });
+        await write({ block: Block.Analog, section: 11, index: analogCc11, value: 0 });
+
+        // Analog 3 (index 2): Pitch Bend
+        await write({ block: Block.Analog, section: 0, index: analogPb, value: 1 });
+        await write({ block: Block.Analog, section: 1, index: analogPb, value: 0 });
+        await write({ block: Block.Analog, section: 2, index: analogPb, value: AnalogType.PitchBend });
+        await write({ block: Block.Analog, section: 3, index: analogPb, value: 0 });
+        await write({ block: Block.Analog, section: 4, index: analogPb, value: 0 });
+        await write({ block: Block.Analog, section: 5, index: analogPb, value: 0 });
+        await write({ block: Block.Analog, section: 6, index: analogPb, value: 0 });
+        await write({ block: Block.Analog, section: 7, index: analogPb, value: desiredUpperPb.lsb });
+        await write({ block: Block.Analog, section: 8, index: analogPb, value: desiredUpperPb.msb });
+        await write({ block: Block.Analog, section: 9, index: analogPb, value: desiredChannel });
+        await write({ block: Block.Analog, section: 10, index: analogPb, value: 0 });
+        await write({ block: Block.Analog, section: 11, index: analogPb, value: 0 });
+
+        cc2cc11pbPresetNotice.value = "CC2/CC11/PB 적용 완료";
+        refreshModeStatus();
+      } catch {
+        cc2cc11pbPresetNotice.value = "적용 실패 (연결/권한을 확인하세요)";
+      } finally {
+        cc2cc11pbPresetBusy.value = false;
+        window.setTimeout(() => {
+          cc2cc11pbPresetNotice.value = "";
+        }, 3000);
+      }
+    };
+
     const lastBreathCc2 = ref<number | null>(null);
     const lastBreathCc11 = ref<number | null>(null);
     const lastBreathCcTime = ref<string | null>(null);
@@ -871,6 +1342,25 @@ export default defineComponent({
 
       // 13 = CC2 + CC11, or unknown -> show both.
       return `CC2 v${fmt(cc2)} | CC11 v${fmt(cc11)}`;
+    });
+
+    const lastPitchBendRaw = ref<number | null>(null);
+    const lastPitchBendTime = ref<string | null>(null);
+    const clearPitchBendActivity = (): void => {
+      lastPitchBendRaw.value = null;
+      lastPitchBendTime.value = null;
+    };
+
+    const pitchBendStatusLine = computed((): string => {
+      const raw = lastPitchBendRaw.value;
+      if (raw === null) {
+        return "PB ---";
+      }
+
+      const r = Math.max(0, Math.min(16383, Math.floor(raw)));
+      const delta = r - 8192;
+      const deltaText = delta === 0 ? "0" : `${delta > 0 ? "+" : ""}${delta}`;
+      return `PB ${String(r).padStart(5, "0")} (Δ${deltaText})`;
     });
 
     const attachBreathActivityListener = (input: any): (() => void) => {
@@ -915,6 +1405,48 @@ export default defineComponent({
 
     let detachBreathActivityListener: (() => void) | null = null;
 
+    const attachPitchBendActivityListener = (input: any): (() => void) => {
+      if (!input || typeof input.addListener !== "function") {
+        return () => {};
+      }
+
+      const handler = (event: any) => {
+        // WebMidi pitchbend event: value is often -1..1 float, rawValue is 0..16383.
+        const rawValue = Number(event?.rawValue);
+        const value = Number(event?.value);
+
+        let raw = Number.isFinite(rawValue) ? rawValue : NaN;
+
+        if (!Number.isFinite(raw) && Number.isFinite(value)) {
+          // Map [-1..1] -> [0..16383].
+          raw = Math.round((value + 1) * 8192);
+        }
+
+        if (!Number.isFinite(raw)) {
+          return;
+        }
+
+        const normalizedRaw = Math.max(0, Math.min(16383, Math.floor(raw)));
+        const now = new Date();
+        const time = now.toTimeString().slice(0, 8);
+
+        lastPitchBendRaw.value = normalizedRaw;
+        lastPitchBendTime.value = time;
+      };
+
+      input.addListener("pitchbend", "all", handler);
+
+      return () => {
+        try {
+          input.removeListener("pitchbend", "all", handler);
+        } catch {
+          // ignore
+        }
+      };
+    };
+
+    let detachPitchBendActivityListener: (() => void) | null = null;
+
     const onSaxSettingChange = (params: any) => {
       if (!isConnected.value) {
         return;
@@ -927,6 +1459,7 @@ export default defineComponent({
       "saxBreathControllerAnalogIndex",
       "saxBreathControllerMidPercent",
       "saxBreathControllerCC",
+      "saxPitchBendDeadzone",
     ]);
 
     const saxSections = computed(() => {
@@ -1231,11 +1764,17 @@ export default defineComponent({
       // Keep a lightweight activity panel in this view regardless of the global Activity toggle.
       detachBreathActivityListener?.();
       detachBreathActivityListener = attachBreathActivityListener(deviceStore.state.input as any);
+
+      detachPitchBendActivityListener?.();
+      detachPitchBendActivityListener = attachPitchBendActivityListener(deviceStore.state.input as any);
     });
 
     onUnmounted(() => {
       detachBreathActivityListener?.();
       detachBreathActivityListener = null;
+
+      detachPitchBendActivityListener?.();
+      detachPitchBendActivityListener = null;
     });
 
     watch(
@@ -1276,14 +1815,21 @@ export default defineComponent({
           loadFingeringTable();
           detachBreathActivityListener?.();
           detachBreathActivityListener = attachBreathActivityListener(deviceStore.state.input as any);
+
+          detachPitchBendActivityListener?.();
+          detachPitchBendActivityListener = attachPitchBendActivityListener(deviceStore.state.input as any);
         } else {
           fingeringMaskLo14.value = null;
           fingeringMaskHi10Enable.value = null;
           fingeringNote.value = null;
           fingeringSupport.value = "unknown";
           clearBreathActivity();
+          clearPitchBendActivity();
           detachBreathActivityListener?.();
           detachBreathActivityListener = null;
+
+          detachPitchBendActivityListener?.();
+          detachPitchBendActivityListener = null;
         }
       },
     );
@@ -1296,6 +1842,9 @@ export default defineComponent({
         }
         detachBreathActivityListener?.();
         detachBreathActivityListener = attachBreathActivityListener(input as any);
+
+        detachPitchBendActivityListener?.();
+        detachPitchBendActivityListener = attachPitchBendActivityListener(input as any);
       },
     );
 
@@ -1748,13 +2297,33 @@ export default defineComponent({
       saxHelpItems,
       isConnected,
 
+      modeStatusLoading,
+      modeStatusError,
+      refreshModeStatus,
+      breathSenderEnabled,
+      analogSummaryText,
+      currentMode,
+
       pbCenterCaptureBusy,
       pbCenterCaptureNotice,
       runPbCenterCapture,
 
+      isMidisaxoBoard,
+      pressurePbPresetBusy,
+      pressurePbPresetNotice,
+      applyPressurePitchBendPreset,
+
+      cc2cc11pbPresetBusy,
+      cc2cc11pbPresetNotice,
+      applyCc2Cc11PitchBendPreset,
+
       clearBreathActivity,
       breathCcStatusLine,
       lastBreathCcTime,
+
+      clearPitchBendActivity,
+      pitchBendStatusLine,
+      lastPitchBendTime,
       showFingeringTable,
 
       exportFingeringBackup,

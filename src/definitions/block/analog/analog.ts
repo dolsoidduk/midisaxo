@@ -11,8 +11,8 @@ import {
   HideAnalogMidiChannelOnTypes,
 } from "../../interface";
 
-import DeviceForm from "../../device/DeviceForm.vue";
-import DeviceGrid from "../../device/DeviceGrid.vue";
+import AnalogForm from "./AnalogForm.vue";
+import AnalogList from "./AnalogList.vue";
 import RouteWrapper from "../../../components/RouteWrapper.vue";
 import AnalogIcon from "./AnalogIcon.vue";
 
@@ -48,6 +48,8 @@ const sections: Dictionary<ISectionDefinition> = {
     component: FormInputComponent.Select,
     options: [
       { value: AnalogType.ControlChange7Bit, text: "Control change 7-bit" },
+      { value: 1002, text: "Breath Controller (CC2 preset)" },
+      { value: 1011, text: "Expression (CC11 preset)" },
       { value: AnalogType.Note, text: "Note" },
       { value: AnalogType.FSR, text: "FSR" },
       { value: AnalogType.Button, text: "Button" },
@@ -55,9 +57,10 @@ const sections: Dictionary<ISectionDefinition> = {
       { value: AnalogType.NRPN14bit, text: "NRPN 14-bit" },
       { value: AnalogType.PitchBend, text: "Pitch bend" },
       { value: AnalogType.ControlChange14Bit, text: "Control change 14-bit" },
+      { value: AnalogType.Reserved, text: "Reserved (internal, no MIDI output)" },
     ],
     label: "Message type",
-    helpText: ``,
+    helpText: `Tip: Breath/Expression presets automatically set message type to Control change 7-bit and MIDI ID to CC2/CC11.`,
     block: Block.Analog,
   },
   MidiIdLSB: {
@@ -225,7 +228,7 @@ export const AnalogBlock: IBlockDefinition = {
         {
           path: "list",
           name: "device-analogs-list",
-          component: DeviceGrid,
+          component: AnalogList,
           props: {
             block: Block.Analog,
             routeName: "device-analogs-form",
@@ -235,7 +238,7 @@ export const AnalogBlock: IBlockDefinition = {
         {
           path: "analogs/:index",
           name: "device-analogs-form",
-          component: DeviceForm,
+          component: AnalogForm,
           props: {
             block: Block.Analog,
           },
