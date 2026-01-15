@@ -237,7 +237,9 @@ export default defineComponent({
         {
           key: "low",
           title: "로우(하단)",
-          keys: [17, 18, 19, 20, 7],
+          // 실제 색소폰 느낌(왼손 새끼손가락 클러스터: G#/B/Bb, 오른손 새끼손가락: C/Eb)
+          // 인덱스 의미는 그대로 두고, 표시 순서만 더 직관적으로 정리합니다.
+          keys: [19, 20, 18, 17, 7],
           columns: 5,
         },
         {
@@ -286,10 +288,14 @@ export default defineComponent({
         { idx: 16, row: 9, col: 11, colSpan: 2 },
 
         // low keys cluster
-        { idx: 17, row: 11, col: 1, colSpan: 2 },
+        // 목표: 실제 색소폰처럼 왼손 새끼손가락(G#) 아래에 LOW B / LOW Bb를 배치.
+        // 오른손 새끼손가락 쪽(C/Eb)은 우측에 모아 배치.
+        { idx: 19, row: 11, col: 1, colSpan: 2 },
+        { idx: 20, row: 12, col: 1, colSpan: 2 },
+
         { idx: 18, row: 11, col: 7, colSpan: 2 },
-        { idx: 19, row: 11, col: 9, colSpan: 2 },
-        { idx: 20, row: 12, col: 7, colSpan: 2 },
+        { idx: 17, row: 11, col: 9, colSpan: 2 },
+
         { idx: 7, row: 12, col: 9, colSpan: 2 },
         { idx: 25, row: 12, col: 11, colSpan: 2 },
 
