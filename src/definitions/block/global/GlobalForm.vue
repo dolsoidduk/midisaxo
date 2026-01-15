@@ -155,7 +155,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, provide } from "vue";
 import { Block } from "../../interface";
 import { GlobalBlock } from "./global";
 import { deviceStoreMapped } from "../../device/device-store";
@@ -170,6 +170,11 @@ export default defineComponent({
     GlobalIcon,
   },
   setup() {
+    // Global 페이지에서는 툴팁 말풍선이 입력을 가리는 경우가 많아
+    // 라벨 위로 뜨도록 기본 위치를 되돌립니다.
+    // (MIDI Saxophone 설정 탭/페이지는 별도 라우트이므로 여기서 제외됩니다.)
+    provide("formFieldTooltipPlacement", "top");
+
     const { sections } = GlobalBlock;
     const { supportedPresetsCount } = deviceStoreMapped;
 

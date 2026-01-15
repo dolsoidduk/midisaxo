@@ -1,19 +1,22 @@
 # Release notes (draft)
 
 ## Version
-- midisaxo-0.1.6 (candidate)
+- midisaxo-0.1.6
+
+## Firmware baseline (first hardware)
+- midisaxo_pico firmware: 0.1.0
+  - Version source: `OpenDeck-firmware/MIDISAXO_FIRMWARE_VERSION`
 
 ## Artifacts
-- (TBD) Midisaxo-0.1.6.AppImage
-- (TBD) Midisaxo-0.1.6.tar.gz
+- Midisaxo-0.1.6.AppImage
+- Midisaxo-0.1.6.tar.gz
+- Midisaxo Setup 0.1.6.exe (NSIS installer)
+- Midisaxo-0.1.6.exe (portable)
+- Midisaxo-0.1.6-win.zip (portable)
 - (TBD) midisaxo_pico-0.1.6.uf2
 - (TBD) midisaxo_pico-0.1.6.sysex
 
 ## Changes
-- Firmware(Midisaxo): 자동 비브라토(피치벤드 오버레이) 게이팅 기준을 “센서 #2(피치) + 캡처된 센터(pbCenter)”로 정리
-  - gate 판정: pbCenter + threshold 기준
-  - sax 모드에서 비브라토 대상 analog index도 빠른 폴링에 포함
-- UI: 2x MPXV7002DP(브레스+피치벤드) 구성 및 자동 비브라토(압력 게이트) 설정 절차/도움말 문구 정리
 - Dev/Build: 의존성/개발 서버 안정화
   - yarn.lock 파싱 오류 복구 및 package-lock.json 혼용 제거
   - Vue(3.5.x)와 @vue/compiler-sfc 버전 정합성 맞춤 (Vite 경고/에러 방지)
@@ -31,14 +34,9 @@
   - 무압력(중립) 상태에서 Pitch Bend가 0 근처(센터)로 안정적으로 유지되는지 확인
   - PB Center Capture(CAL)를 실행한 뒤, 중립 상태의 Pitch Bend가 다시 센터로 정렬되는지 확인
   - 중립 주변에서 흔들림이 크면 PB deadzone(중앙 민감도)을 조절해 안정화되는지 확인
-- 자동 비브라토(피치벤드 오버레이): 게이트 기반
-  - 자동 비브라토 기능을 ON으로 두고, 게이트 기준을 센서 #2(피치)로 설정했는지 확인
-  - “gate threshold”를 낮게/높게 바꿔가며 동작 경계가 달라지는지 확인
-  - 게이트 미만: 비브라토 오버레이가 꺼져서 Pitch Bend가 센서 입력만 반영되는지 확인
-  - 게이트 이상: LFO에 의한 Pitch Bend 변조(주기적 변화)가 추가로 보이는지 확인
 - 저장/복원(SysEx)
   - UI에서 설정 저장(SysEx) 후, 전원 재부팅/재연결해도 동일하게 복원되는지 확인
-  - 특히 PB center(pbCenter) 캡처값과 auto-vibrato gate threshold가 유지되는지 확인
+  - 특히 PB center(pbCenter) 캡처값이 유지되는지 확인
 
 ## Version
 - midisaxo-0.1.4

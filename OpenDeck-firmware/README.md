@@ -136,6 +136,11 @@ This fork adds custom targets under `config/target/`, for example:
 - `midisaxo_pico` (RP2040 Pico)
 - `midisaxo_xiao_rp2040` (Seeed XIAO RP2040)
 
+### Firmware version (Midisaxo)
+
+Midisaxo 펌웨어 버전은 upstream OpenDeck 태그(v7.x)와 분리되어 있으며,
+Midisaxo 타겟(`midisaxo_*`) 빌드 시 `MIDISAXO_FIRMWARE_VERSION` 파일의 값을 사용합니다.
+
 ### Build
 
 ```bash

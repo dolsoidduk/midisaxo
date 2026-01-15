@@ -38,7 +38,7 @@
   # MIDI Saxophone (XIAO RP2040) analog mapping (native ADC):
   # - Analog index 0: Offset trim potentiometer (reserved)
   # - Analog index 1: MPXV7002DP breath sensor
-  # - Analog index 2: (Optional) Pitch amount (bend/vibrato scale) OR dedicated Pitch Bend sensor
+  # - Analog index 2: (Optional) Pitch Bend deadzone trim (Reserved) OR dedicated Pitch Bend sensor
   analog:
     type: "native"
     inputVoltage: "3.3"

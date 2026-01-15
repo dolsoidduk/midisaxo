@@ -168,7 +168,7 @@ const sections: Dictionary<ISectionDefinition> = {
 RP2040 Pico + native ADC 3채널 추천 구성:
   - 0: 오프셋 트림(예약)
   - 1: 브레스 센서(권장)
-  - 2: (선택) 피치 Amount(밴딩/비브라토 스케일) 또는 Pitch Bend 센서`,
+  - 2: (선택) 피치 데드존 트림(예약) 또는 Pitch Bend 센서`,
   },
   SaxBreathControllerMidPercent: {
     showIf: (formState: FormState): boolean =>
@@ -233,94 +233,6 @@ RP2040 Pico + native ADC 3채널 추천 구성:
   버튼 메시지 타입을 "PB Center Capture"로 설정하고 ‘평소에 무는 정도’에서 한 번 캡처해 두는 걸 추천합니다.
 
   이 설정은 장치에 저장되며 전원을 껐다 켜도 유지됩니다.`,
-  },
-
-  SaxAutoVibratoEnable: {
-    showIf: (): boolean => {
-      const board = String(deviceStore.state?.boardName || "").toLowerCase();
-      return board.includes("midisaxo");
-    },
-    block: Block.Global,
-    key: "saxAutoVibratoEnable",
-    type: SectionType.Setting,
-    section: 2,
-    settingIndex: 14,
-    component: FormInputComponent.Toggle,
-    label: "자동 비브라토 (압력 게이트)",
-    helpText:
-      "활성화하면 선택한 Pitch Bend 센서가 일정 압력(임계값) 이상일 때만 자동으로 비브라토(LFO)를 오버레이합니다.\n\n팁: ‘원하는 타이밍’에만 비브라토를 걸고 싶을 때 유용합니다.",
-  },
-
-  SaxAutoVibratoAnalogIndex: {
-    showIf: (formState: FormState): boolean => {
-      const board = String(deviceStore.state?.boardName || "").toLowerCase();
-      return board.includes("midisaxo") && !!formState.saxAutoVibratoEnable;
-    },
-    block: Block.Global,
-    key: "saxAutoVibratoAnalogIndex",
-    type: SectionType.Setting,
-    section: 2,
-    settingIndex: 18,
-    min: 0,
-    max: 255,
-    component: FormInputComponent.Input,
-    label: "비브라토 대상 아날로그 인덱스 (0-255)",
-    helpText:
-      "자동 비브라토를 적용할 Pitch Bend 센서의 아날로그 인덱스입니다.\n\nRP2040 Pico + midisaxo_pico 기본 구성에서는 Pitch Bend 센서를 보통 2번(ADC2)에 연결합니다.",
-  },
-
-  SaxAutoVibratoGateThreshold: {
-    showIf: (formState: FormState): boolean => {
-      const board = String(deviceStore.state?.boardName || "").toLowerCase();
-      return board.includes("midisaxo") && !!formState.saxAutoVibratoEnable;
-    },
-    block: Block.Global,
-    key: "saxAutoVibratoGateThreshold",
-    type: SectionType.Setting,
-    section: 2,
-    settingIndex: 15,
-    min: 0,
-    max: 8192,
-    component: FormInputComponent.Input,
-    label: "비브라토 임계값 (0-8192)",
-    helpText:
-      "Pitch Bend 센서 값이 ‘센터(중립점) + 임계값’을 넘을 때만 비브라토가 켜집니다.\n\n센터(중립점)는 PB Center Capture(버튼)로 캡처한 값 기준이며, UI/DAW로 나가는 피치벤드 ‘중립’은 항상 8192로 정규화됩니다.\n\n값이 작을수록 쉽게 켜지고, 값이 클수록 더 강하게 불어야(눌러야) 켜집니다.",
-  },
-
-  SaxAutoVibratoDepth: {
-    showIf: (formState: FormState): boolean => {
-      const board = String(deviceStore.state?.boardName || "").toLowerCase();
-      return board.includes("midisaxo") && !!formState.saxAutoVibratoEnable;
-    },
-    block: Block.Global,
-    key: "saxAutoVibratoDepth",
-    type: SectionType.Setting,
-    section: 2,
-    settingIndex: 16,
-    min: 0,
-    max: 8192,
-    component: FormInputComponent.Input,
-    label: "비브라토 깊이(진폭) (0-8192)",
-    helpText:
-      "비브라토의 최대 진폭(14-bit Pitch Bend 기준)입니다.\n\n값이 클수록 더 크게 흔들립니다.",
-  },
-
-  SaxAutoVibratoRateHz10: {
-    showIf: (formState: FormState): boolean => {
-      const board = String(deviceStore.state?.boardName || "").toLowerCase();
-      return board.includes("midisaxo") && !!formState.saxAutoVibratoEnable;
-    },
-    block: Block.Global,
-    key: "saxAutoVibratoRateHz10",
-    type: SectionType.Setting,
-    section: 2,
-    settingIndex: 17,
-    min: 10,
-    max: 200,
-    component: FormInputComponent.Input,
-    label: "비브라토 속도 (Hz×10, 예: 60=6.0Hz)",
-    helpText:
-      "비브라토 속도입니다. 값은 ‘Hz × 10’로 저장됩니다.\n예) 50=5.0Hz, 60=6.0Hz, 70=7.0Hz",
   },
   ActivePreset: {
     block: Block.Global,

@@ -15,6 +15,7 @@
       <InfoTooltip
         v-if="normalizedHelpText"
         :text="normalizedHelpText"
+        :placement="tooltipPlacement"
       />
       <small v-if="!isDisabled && (min || max)" class="instructions"
         >{{ min }} - {{ (!showMsbControls && max2Byte) || max }}</small
@@ -82,7 +83,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, toRefs, computed } from "vue";
+import { defineComponent, toRefs, computed, inject } from "vue";
 import {
   FormInputComponent,
   ISectionDefinition,
@@ -192,6 +193,11 @@ export default defineComponent({
 
     const isDisabled = computed(() =>
       deviceStoreMapped.isControlDisabled(props.fieldDefinition),
+    );
+
+    const tooltipPlacement = inject<"top" | "bottom">(
+      "formFieldTooltipPlacement",
+      "bottom",
     );
 
     const valueRef = toRefs(props).value;
@@ -310,6 +316,7 @@ export default defineComponent({
       helpText,
       normalizedHelpText,
       isDisabled,
+      tooltipPlacement,
       isMsb,
       isLsb,
       min,

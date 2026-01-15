@@ -39,9 +39,63 @@ Notes:
     - Example: `VITE_HOST=0.0.0.0 VITE_PORT=3004 npm run dev`
     - Note: Vite v1 uses `--hostname` (not `--host`).
 
+## Desktop에서도 사용하기
+
+Midisaxo UI는 아래 두 방식 모두 지원합니다.
+
+### 1) 데스크탑 브라우저로 사용 (LAN 원격 접속)
+
+이 방식은 "설정 UI"가 떠 있는 머신(예: dev container/서버)에 접속만 하면 됩니다.
+
+- UI 서버 실행: `npm run dev:lan`
+- 데스크탑에서 접속: `http://<서버의_IP>:3004/`
+
+예: 이더넷 IP가 `192.168.219.104` 라면
+
+- `http://192.168.219.104:3004/`
+
+주의:
+
+- 방화벽/공유기 AP isolation 설정에 따라 다른 기기에서 접속이 막힐 수 있습니다.
+
+### 2) 데스크탑 앱으로 사용 (AppImage/Windows 실행 파일)
+
+이 방식은 UI를 "데스크탑에 설치/실행"해서, USB로 연결된 장치(MIDI)를 로컬에서 직접 제어할 때 유용합니다.
+
+Linux (AppImage):
+
+```bash
+chmod +x Midisaxo-*.AppImage
+./Midisaxo-*.AppImage
+```
+
+만약 실행 시 FUSE 관련 에러가 나오면 Ubuntu/Debian 계열에서 아래가 필요할 수 있습니다:
+
+```bash
+sudo apt update
+sudo apt install -y libfuse2
+```
+
+Windows:
+
+- `Midisaxo-*.exe` (portable) 또는 `Midisaxo-*-win.zip`을 내려받아 실행합니다.
+
+MIDI가 안 보일 때(데스크탑 앱):
+
+- 장치가 OS에서 인식되는지 먼저 확인(USB 케이블/포트, 장치 전원, BOOTSEL 모드 아님)
+- 앱을 실행한 뒤 화면에서 한 번 클릭/조작 후 다시 MIDI 목록 확인(권한/사용자 제스처 이슈 회피)
+- Linux에서 AppImage 실행 시 권한 에러가 나면 `chmod +x` 적용 여부 확인
+
+## Desktop packaging (Linux/Windows)
+
 ## Firmware (Midisaxo RP2040)
 
 This repo includes the firmware sources under `OpenDeck-firmware/`.
+
+Firmware version note (Midisaxo):
+
+- Midisaxo 타겟(`midisaxo_*`)의 펌웨어 버전은 upstream OpenDeck 태그(v7.x)와 분리되어 있으며
+    `OpenDeck-firmware/MIDISAXO_FIRMWARE_VERSION` 파일의 값을 사용합니다.
 
 ### Build
 
@@ -87,7 +141,7 @@ MPXV7002DP(차압 센서) 2개를 다음처럼 분리해서 쓰는 구성을 지
 
 - Analog index 0: GPIO26 / ADC0 (트림/예약 용도)
 - Analog index 1: GPIO27 / ADC1 (브레스 센서 추천)
-- Analog index 2: GPIO28 / ADC2 (피치 Amount 또는 Pitch Bend 센서)
+- Analog index 2: GPIO28 / ADC2 (피치 데드존 트림(예약) 또는 Pitch Bend 센서)
 
 즉, 2개의 MPXV7002DP를 쓰려면 보통:
 
@@ -106,12 +160,6 @@ MPXV7002DP(차압 센서) 2개를 다음처럼 분리해서 쓰는 구성을 지
 2. Analog 블록
     - 센서 #2가 연결된 아날로그 입력을 선택
     - 타입(Type)을 `Pitch Bend`로 설정
-
-3. (선택) Global → 자동 비브라토 (압력 게이트)
-    - Enable: ON
-    - 비브라토 대상 아날로그 인덱스: 센서 #2(피치)가 연결된 인덱스(기본 `2`)
-    - 비브라토 임계값: 센서 #2가 ‘중립점 + 임계값’을 넘을 때만 비브라토가 켜짐
-    - 팁: 중립점은 버튼 타입 `PB Center Capture`로 캡처해 둘 수 있음
 
 주의:
 
@@ -179,7 +227,8 @@ This repo can be packaged as a cross-platform desktop app via Electron.
 
 ### GitHub Releases (recommended)
 
-Push a tag like `v0.1.0` to trigger GitHub Actions to build and attach:
+Push a tag like `v0.1.0` to trigger GitHub Actions (`.github/workflows/desktop-release.yml`) to build and attach:
+- Windows installer `.exe` (NSIS)
 - Windows single-file `.exe` (portable)
 - Windows portable `.zip`
 - Linux `.AppImage`
@@ -211,6 +260,12 @@ Run Vite + Electron together:
 
 ```bash
 npm run electron:dev
+```
+
+컨테이너 환경(샌드박스 제한)에서 Electron을 띄워야 하면:
+
+```bash
+npm run electron:dev:container
 ```
 
 ### Build UI (static)

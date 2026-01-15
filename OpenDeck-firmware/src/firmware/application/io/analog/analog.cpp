@@ -362,38 +362,33 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
     {
         if (descriptor.type == type_t::PITCH_BEND)
         {
-            // Optional scaling for pitch bend amount.
-            // Dedicated sax targets reserve analog index 2 as a "pitch amount" pot.
-            // Value range is 0..127, where 127 means full scale.
-            static constexpr size_t   PITCH_AMOUNT_ANALOG_INDEX = 2;
-            static constexpr uint16_t PB_CENTER_DEFAULT          = 8192;
+            // Dedicated sax targets can use analog index 2 as a trim pot to adjust
+            // pitch bend deadzone (center sensitivity) in real time.
+            // Value range is 0..127, centered at ~64.
+            static constexpr size_t   PB_DEADZONE_TRIM_ANALOG_INDEX = 2;
+            static constexpr uint16_t PB_CENTER_DEFAULT             = 8192;
 
             const uint16_t pbCenter = (_pitchBendCenter[index] <= midi::MAX_VALUE_14BIT)
                                           ? _pitchBendCenter[index]
                                           : PB_CENTER_DEFAULT;
 
-            // Keep a pre-shaping PB value for optional sax auto-vibrato gating.
-            // This represents the sensor value around the captured pbCenter (player calibration)
-            // and is intentionally evaluated before deadzone/curve shaping.
-            uint16_t pbGateValue = descriptor.event.value;
+            int32_t effectiveDeadzone = static_cast<int32_t>(_pitchBendDeadzone);
 
-            if (index != PITCH_AMOUNT_ANALOG_INDEX)
+            if (index != PB_DEADZONE_TRIM_ANALOG_INDEX)
             {
-                auto amount = _lastValue[PITCH_AMOUNT_ANALOG_INDEX];
+                const uint16_t trimRaw = _lastValue[PB_DEADZONE_TRIM_ANALOG_INDEX];
 
-                if ((amount != 0xFFFF) && (amount <= 127) && (amount != 127))
+                if ((trimRaw != 0xFFFF) && (trimRaw <= 127))
                 {
-                    const int32_t delta       = static_cast<int32_t>(descriptor.event.value) - static_cast<int32_t>(pbCenter);
-                    const int32_t scaledDelta = (delta * static_cast<int32_t>(amount)) / 127;
-                    descriptor.event.value    = static_cast<uint16_t>(static_cast<int32_t>(pbCenter) + scaledDelta);
+                    // Centered at 64: 0 => reduce deadzone, 127 => increase deadzone.
+                    static constexpr int32_t TRIM_RANGE = 1200;
+                    const int32_t centered              = static_cast<int32_t>(trimRaw) - 64;
+                    const int32_t deltaDZ               = (centered * TRIM_RANGE) / 64;
 
-                    pbGateValue = descriptor.event.value;
+                    effectiveDeadzone = core::util::CONSTRAIN(effectiveDeadzone + deltaDZ,
+                                                             static_cast<int32_t>(0),
+                                                             static_cast<int32_t>(8192));
                 }
-            }
-            else
-            {
-                // Even if this input is the historical "pitch amount" index, keep pbGateValue accurate.
-                pbGateValue = descriptor.event.value;
             }
 
             // Pitch bend shaping: deadzone around center + cubic curve.
@@ -404,7 +399,6 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
 
             const int32_t value = static_cast<int32_t>(descriptor.event.value);
 
-            // MIDI PB is 14-bit: 0..16383.
             // Use captured pbCenter to define the neutral point, but always output
             // PB_CENTER_DEFAULT as "no bend".
             const int32_t delta = value - static_cast<int32_t>(pbCenter);
@@ -415,19 +409,15 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
                 const int32_t maxAbs = (sign < 0)
                                            ? static_cast<int32_t>(pbCenter)
                                            : static_cast<int32_t>(midi::MAX_VALUE_14BIT) - static_cast<int32_t>(pbCenter);
-
-                    const int32_t deadzone = core::util::CONSTRAIN(static_cast<int32_t>(_pitchBendDeadzone),
-                                                                  static_cast<int32_t>(0),
-                                                                  maxAbs);
+                const int32_t deadzone = core::util::CONSTRAIN(effectiveDeadzone, static_cast<int32_t>(0), maxAbs);
                 const int32_t absDeltaRaw = (delta < 0) ? -delta : delta;
                 const int32_t absDelta    = core::util::CONSTRAIN(absDeltaRaw, static_cast<int32_t>(0), maxAbs);
-
                 int32_t shapedDelta = 0;
 
-                    if (absDelta > deadzone)
+                if (absDelta > deadzone)
                 {
-                        const int32_t absNoDZ = absDelta - deadzone;
-                        const int32_t denom   = maxAbs - deadzone;
+                    const int32_t absNoDZ = absDelta - deadzone;
+                    const int32_t denom   = maxAbs - deadzone;
 
                     // Normalize to Q15: n in [0..Q15].
                     uint32_t n = 0;
@@ -458,72 +448,6 @@ void Analog::sendMessage(size_t index, Descriptor& descriptor)
             else
             {
                 descriptor.event.value = PB_CENTER_DEFAULT;
-            }
-
-            // Optional gated "auto vibrato" for sax targets using a pressure sensor as Pitch Bend.
-            // When enabled, and when the PB value exceeds a configurable threshold above center,
-            // apply a triangle LFO around the current PB value.
-            static constexpr size_t   SAX_VIB_ENABLE_SETTING_INDEX    = 14;
-            static constexpr size_t   SAX_VIB_THRESHOLD_SETTING_INDEX = 15;
-            static constexpr size_t   SAX_VIB_DEPTH_SETTING_INDEX     = 16;
-            static constexpr size_t   SAX_VIB_RATE_SETTING_INDEX      = 17; // Hz * 10
-            static constexpr size_t   SAX_VIB_ANALOG_INDEX_SETTING    = 18;
-
-            const uint16_t vibEnabled = static_cast<uint16_t>(_database.readSystem(SAX_VIB_ENABLE_SETTING_INDEX));
-
-            if (vibEnabled)
-            {
-                const size_t vibIndex = static_cast<size_t>(_database.readSystem(SAX_VIB_ANALOG_INDEX_SETTING));
-
-                if (index == vibIndex)
-                {
-                    const uint16_t threshold = core::util::CONSTRAIN(
-                        static_cast<uint16_t>(_database.readSystem(SAX_VIB_THRESHOLD_SETTING_INDEX)),
-                        static_cast<uint16_t>(0),
-                        static_cast<uint16_t>(8192));
-
-                    const uint16_t depth = core::util::CONSTRAIN(
-                        static_cast<uint16_t>(_database.readSystem(SAX_VIB_DEPTH_SETTING_INDEX)),
-                        static_cast<uint16_t>(0),
-                        static_cast<uint16_t>(8192));
-
-                    const uint16_t hz10 = core::util::CONSTRAIN(
-                        static_cast<uint16_t>(_database.readSystem(SAX_VIB_RATE_SETTING_INDEX)),
-                        static_cast<uint16_t>(0),
-                        static_cast<uint16_t>(300));
-
-                    // Gate condition: only apply vibrato if sensor value is above (captured center + threshold).
-                    const int32_t gateLevelRaw = core::util::CONSTRAIN(static_cast<int32_t>(pbCenter) + static_cast<int32_t>(threshold),
-                                                                        static_cast<int32_t>(0),
-                                                                        static_cast<int32_t>(midi::MAX_VALUE_14BIT));
-
-                    if ((depth > 0) && (hz10 > 0) && (static_cast<int32_t>(pbGateValue) > gateLevelRaw))
-                    {
-                        const uint32_t periodMs = core::util::CONSTRAIN(
-                            static_cast<uint32_t>(10000u / static_cast<uint32_t>(hz10)),
-                            static_cast<uint32_t>(20),
-                            static_cast<uint32_t>(2000));
-
-                        const uint32_t nowMs  = core::mcu::timing::ms();
-                        const uint32_t posMs  = (periodMs > 0) ? (nowMs % periodMs) : 0;
-                        const uint32_t phaseQ = (periodMs > 0)
-                                                    ? static_cast<uint32_t>((static_cast<uint64_t>(posMs) * 32767u) /
-                                                                            static_cast<uint64_t>(periodMs))
-                                                    : 0;
-
-                        // Triangle wave in signed Q14-ish range: [-16383..+16383].
-                        const uint32_t tri = (phaseQ < 16384u) ? phaseQ : (32767u - phaseQ);
-                        const int32_t  triSigned = (phaseQ < 16384u) ? static_cast<int32_t>(tri)
-                                                                    : -static_cast<int32_t>(tri);
-
-                        const int32_t lfoDelta = (triSigned * static_cast<int32_t>(depth)) / 16383;
-
-                        const int32_t outValue = static_cast<int32_t>(descriptor.event.value) + lfoDelta;
-                        descriptor.event.value = static_cast<uint16_t>(core::util::CONSTRAIN(outValue,
-                                                                                              static_cast<int32_t>(0),
-                                                                                              static_cast<int32_t>(midi::MAX_VALUE_14BIT)));
-                    }
-                }
             }
         }
 

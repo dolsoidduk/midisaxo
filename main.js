@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, session } = require("electron");
 const path = require("path");
 
 // Keep a global reference of the window object, if you don't, the window will
@@ -8,12 +8,31 @@ let win
 // WebMIDI can be gated behind Chromium switches on some builds.
 // If unsupported, Electron will ignore unknown switches.
 try {
+  // Chromium uses --enable-web-midi (hyphenated).
+  // Keep the older/non-hyphenated variant too, for compatibility.
+  app.commandLine.appendSwitch("enable-web-midi");
   app.commandLine.appendSwitch("enable-webmidi");
 } catch {
   // ignore
 }
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
+
+function configurePermissions() {
+  // Desktop app should be able to access local MIDI devices.
+  // Electron does not always present a user prompt for WebMIDI, so explicitly allow it.
+  // Keep a deny-by-default stance for other permission types.
+  try {
+    session.defaultSession.setPermissionRequestHandler(
+      (webContents, permission, callback) => {
+        const allowed = permission === "midi" || permission === "midiSysex";
+        callback(allowed);
+      }
+    );
+  } catch {
+    // ignore
+  }
+}
 
 function createWindow() {
   // Create the browser window.
@@ -45,7 +64,10 @@ function createWindow() {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow)
+app.whenReady().then(() => {
+  configurePermissions();
+  createWindow();
+})
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {

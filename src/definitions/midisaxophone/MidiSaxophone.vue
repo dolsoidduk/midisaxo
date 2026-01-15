@@ -79,79 +79,6 @@
           v-if="isConnected"
           class="surface-neutral border border-gray-700/60 rounded px-4 py-3 mb-6 text-sm"
         >
-          <div class="text-gray-200 font-semibold">피치벤드(입) 캘리브레이션 안내</div>
-          <div class="mt-2 text-gray-300 whitespace-pre-line">
-            피치벤드 기본값이 0(센터)로만 느껴지거나, ‘입으로 무는 정도’ 기준이 안 맞으면
-            버튼 메시지 타입을 <strong>PB Center Capture</strong>로 설정한 뒤 아래처럼 한 번 캡처하세요.
-          </div>
-          <ol class="mt-2 text-gray-300 list-decimal list-inside space-y-1">
-            <li>평소 연주할 때처럼 ‘입으로 무는 정도’를 유지</li>
-            <li>그 상태에서 PB Center Capture 버튼을 1번 눌러 캡처</li>
-            <li>이후부터 그 상태가 0(센터) 기준이 되고, 입을 떼면 음의 방향(−쪽)으로 자연스럽게 내려갑니다</li>
-          </ol>
-          <div class="mt-3 flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              :disabled="pbCenterCaptureBusy"
-              @click.prevent="runPbCenterCapture"
-            >
-              {{ pbCenterCaptureBusy ? "CAL..." : "CAL" }}
-            </Button>
-            <span class="text-xs text-gray-400">
-              UI에서 바로 캡처(= PB Center Capture 요청 전송)
-            </span>
-            <span v-if="pbCenterCaptureNotice" class="text-xs text-green-300">
-              {{ pbCenterCaptureNotice }}
-            </span>
-          </div>
-
-          <div class="mt-3 text-xs text-gray-300 whitespace-nowrap">
-            현재 출력:
-            <span class="ml-2 font-mono text-yellow-300">{{ pitchBendStatusLine }}</span>
-            <span v-if="lastPitchBendTime" class="ml-2 text-gray-500">({{ lastPitchBendTime }})</span>
-            <button
-              class="ml-2 px-1.5 py-0.5 border border-gray-700 rounded text-[10px] text-gray-200 hover:border-gray-500"
-              @click.prevent="clearPitchBendActivity"
-            >
-              clear
-            </button>
-          </div>
-          <div class="mt-2 text-xs text-gray-400">
-            팁: 캡처 후에도 흔들리면 "피치벤드 중앙 민감도(데드존)" 값을 조금 올려보세요.
-          </div>
-
-          <div class="mt-4 border-t border-gray-700/60 pt-4">
-            <div class="text-gray-200 font-semibold">현재 모드</div>
-
-            <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <span
-                class="px-2 py-0.5 rounded border"
-                :class="currentMode.badgeClass"
-              >
-                {{ currentMode.badgeText }}
-              </span>
-              <span class="text-gray-400">Sax Breath CC 자동 전송:</span>
-              <span class="font-mono" :class="breathSenderEnabled ? 'text-yellow-300' : 'text-gray-300'">
-                {{ breathSenderEnabled ? "ON" : "OFF" }}
-              </span>
-              <span class="text-gray-500">|</span>
-              <span class="text-gray-400">Analog 1~3:</span>
-              <span class="font-mono text-gray-300">{{ analogSummaryText }}</span>
-            </div>
-
-            <div v-if="currentMode.detailsText" class="mt-2 text-xs text-gray-300 whitespace-pre-line">
-              {{ currentMode.detailsText }}
-            </div>
-
-            <div class="mt-3 flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="secondary" :disabled="modeStatusLoading" @click.prevent="refreshModeStatus">
-                {{ modeStatusLoading ? "..." : "상태 새로고침" }}
-              </Button>
-              <span v-if="modeStatusError" class="text-xs text-red-300">{{ modeStatusError }}</span>
-            </div>
-          </div>
-
           <div
             v-if="isConnected && isMidisaxoBoard"
             class="mt-4 border-t border-gray-700/60 pt-4"
@@ -159,7 +86,7 @@
             <div class="text-gray-200 font-semibold">압력 → 피치벤드 추천 설정</div>
             <div class="mt-2 text-gray-300 whitespace-pre-line text-xs">
               MPXV7002DP(압력 센서)를 피치벤드로 쓰는 구성입니다.
-              적용 시 Analog #1을 Pitch bend로, Analog #2를 Reserved(피치 amount)로 설정합니다.
+              적용 시 Analog #1을 Pitch bend로, Analog #2를 Reserved(피치 데드존 트림)로 설정합니다.
 
               주의: RP2040 ADC는 3.3V 입력입니다. MPXV7002DP(보통 5V 구동) 출력은 분압/레벨시프팅 없이 직접 연결하면 위험할 수 있습니다.
             </div>
@@ -175,89 +102,6 @@
               <span v-if="pressurePbPresetNotice" class="text-xs text-green-300">
                 {{ pressurePbPresetNotice }}
               </span>
-            </div>
-
-            <div class="mt-4 border-t border-gray-700/60 pt-4">
-              <div class="text-gray-200 font-semibold">3채널 추천 설정 (CC2 / CC11 / Pitch Bend)</div>
-              <div class="mt-2 text-gray-300 whitespace-pre-line text-xs">
-                아날로그 입력 3개를 아래처럼 배치합니다.
-
-                - Analog 1: CC2 (Breath)
-                - Analog 2: CC11 (Expression)
-                - Analog 3: Pitch Bend
-
-                참고: 이 프리셋은 Sax Breath Controller(CC 자동 전송)는 끄고, Analog 블록에서 직접 CC/PB를 내보내는 방식입니다.
-              </div>
-              <div class="mt-3 flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  :disabled="cc2cc11pbPresetBusy"
-                  @click.prevent="applyCc2Cc11PitchBendPreset"
-                >
-                  {{ cc2cc11pbPresetBusy ? "APPLY..." : "CC2/CC11/PB 적용" }}
-                </Button>
-                <span v-if="cc2cc11pbPresetNotice" class="text-xs text-green-300">
-                  {{ cc2cc11pbPresetNotice }}
-                </span>
-              </div>
-            </div>
-
-            <div class="mt-4 border-t border-gray-700/60 pt-4">
-              <div class="text-gray-200 font-semibold">SWAM 추천: 자동 비브라토(압력 게이트)</div>
-              <div class="mt-2 text-gray-300 whitespace-pre-line text-xs">
-                SWAM(가상 색소폰)에서 피치 센서(Pitch Bend)를 ‘원할 때만’ 흔들리게 하고 싶을 때 쓰는 추천값입니다.
-
-                SWAM 권장 설정:
-                - Pitch Bend Range는 우선 ±2 semitone(또는 ±1)로 시작하는 걸 추천합니다.
-                  Range가 커질수록 같은 Depth라도 실제 음정 흔들림이 훨씬 커집니다.
-
-                참고:
-                - SWAM의 Pitch Bend Range(반음 범위)가 커질수록 같은 Depth 값이 더 크게 들립니다.
-                - 기본값(±2 semitone) 기준으로 Depth 200~350은 대략 수~10 cent 정도의 진폭에 해당합니다.
-              </div>
-
-              <div class="mt-3 flex flex-wrap items-center gap-2">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-400">SWAM PB Range:</span>
-                  <select
-                    class="text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
-                    :disabled="swamVibratoPresetBusy"
-                    :value="swamPitchBendRangeSemitones"
-                    @change="onSwamPitchBendRangeChange"
-                    title="SWAM의 Pitch Bend Range(±반음) 값과 맞추세요"
-                  >
-                    <option :value="1">±1</option>
-                    <option :value="2">±2</option>
-                    <option :value="12">±12</option>
-                  </select>
-                </div>
-
-                <select
-                  class="text-sm px-2 py-1 border border-gray-700 rounded bg-transparent text-gray-200"
-                  :disabled="swamVibratoPresetBusy"
-                  :value="swamVibratoPreset"
-                  @change="onSwamVibratoPresetChange"
-                >
-                  <option value="off">OFF</option>
-                  <option value="swam-soft">SWAM Soft</option>
-                  <option value="swam-normal">SWAM Normal</option>
-                  <option value="swam-strong">SWAM Strong</option>
-                </select>
-
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  :disabled="swamVibratoPresetBusy"
-                  @click.prevent="applySwamAutoVibratoPreset"
-                >
-                  {{ swamVibratoPresetBusy ? "APPLY..." : "자동 비브라토 프리셋 적용" }}
-                </Button>
-
-                <span v-if="swamVibratoPresetNotice" class="text-xs text-green-300">
-                  {{ swamVibratoPresetNotice }}
-                </span>
-              </div>
             </div>
           </div>
         </div>
@@ -810,40 +654,14 @@ export default defineComponent({
   setup() {
     const { isConnected } = midiStoreMapped;
 
-    const pbCenterCaptureBusy = ref(false);
-    const pbCenterCaptureNotice = ref<string>("");
-
     const pressurePbPresetBusy = ref(false);
     const pressurePbPresetNotice = ref<string>("");
-
-    const cc2cc11pbPresetBusy = ref(false);
-    const cc2cc11pbPresetNotice = ref<string>("");
 
     const isMidisaxoBoard = computed((): boolean => {
       const board = String(deviceStore.state?.boardName || "").toLowerCase();
       return board.includes("midisaxo");
     });
 
-    const runPbCenterCapture = async (): Promise<void> => {
-      if (pbCenterCaptureBusy.value) {
-        return;
-      }
-
-      pbCenterCaptureBusy.value = true;
-      pbCenterCaptureNotice.value = "";
-
-      try {
-        await deviceStore.actions.saxPitchBendCenterCapture();
-        pbCenterCaptureNotice.value = "캡처 요청 전송됨 (평소 무는 상태 유지 중에 눌러주세요)";
-      } catch {
-        pbCenterCaptureNotice.value = "캡처 요청 실패 (연결/권한을 확인하세요)";
-      } finally {
-        pbCenterCaptureBusy.value = false;
-        window.setTimeout(() => {
-          pbCenterCaptureNotice.value = "";
-        }, 3000);
-      }
-    };
 
     const fingeringMaskLo14 = ref<number[] | null>(null);
     const fingeringMaskHi10Enable = ref<number[] | null>(null);
@@ -1178,169 +996,6 @@ export default defineComponent({
     const { formData, loading, onSettingChange, showField } =
       useDeviceForm(Block.Global, SectionType.Setting);
 
-    type AnalogConfig = Record<string, number>;
-    const modeStatusLoading = ref(false);
-    const modeStatusError = ref<string>("");
-    const analogConfigs = ref<Record<number, AnalogConfig | null>>({});
-
-    const refreshModeStatus = async (): Promise<void> => {
-      if (!isConnected.value || modeStatusLoading.value) {
-        return;
-      }
-
-      modeStatusLoading.value = true;
-      modeStatusError.value = "";
-
-      try {
-        const [a0, a1, a2] = await Promise.all([
-          deviceStore.actions.getComponentSettings(Block.Analog, SectionType.Value, 0).catch(() => null),
-          deviceStore.actions.getComponentSettings(Block.Analog, SectionType.Value, 1).catch(() => null),
-          deviceStore.actions.getComponentSettings(Block.Analog, SectionType.Value, 2).catch(() => null),
-        ]);
-        analogConfigs.value = {
-          0: a0 as any,
-          1: a1 as any,
-          2: a2 as any,
-        };
-      } catch {
-        modeStatusError.value = "상태 읽기 실패 (연결/권한을 확인하세요)";
-      } finally {
-        modeStatusLoading.value = false;
-      }
-    };
-
-    watch(
-      () => isConnected.value,
-      (connected) => {
-        if (connected) {
-          refreshModeStatus();
-        } else {
-          analogConfigs.value = {};
-          modeStatusError.value = "";
-        }
-      },
-      { immediate: true },
-    );
-
-    const breathSenderEnabled = computed((): boolean => !!(formData as any).saxBreathControllerEnable);
-
-    const analogLabelFor = (cfg: AnalogConfig | null | undefined): string => {
-      if (!cfg) {
-        return "?";
-      }
-
-      const enabled = Number(cfg.enabled) === 1;
-      if (!enabled) {
-        return "OFF";
-      }
-
-      const type = Number(cfg.type);
-
-      if (type === AnalogType.PitchBend) {
-        return "PB";
-      }
-      if (type === AnalogType.Reserved) {
-        return "RES";
-      }
-      if (type === AnalogType.ControlChange7Bit) {
-        const cc = Number(cfg.midiIdLSB);
-        if (cc === 2) {
-          return "CC2";
-        }
-        if (cc === 11) {
-          return "CC11";
-        }
-        return `CC${Number.isFinite(cc) ? cc : "?"}`;
-      }
-
-      return `T${Number.isFinite(type) ? type : "?"}`;
-    };
-
-    const analogSummaryText = computed((): string => {
-      const a0 = analogConfigs.value[0];
-      const a1 = analogConfigs.value[1];
-      const a2 = analogConfigs.value[2];
-      return `${analogLabelFor(a0)} / ${analogLabelFor(a1)} / ${analogLabelFor(a2)}`;
-    });
-
-    const isCc2Cc11PbPreset = computed((): boolean => {
-      const a0 = analogConfigs.value[0];
-      const a1 = analogConfigs.value[1];
-      const a2 = analogConfigs.value[2];
-
-      return (
-        !!a0 &&
-        !!a1 &&
-        !!a2 &&
-        Number(a0.enabled) === 1 &&
-        Number(a0.type) === AnalogType.ControlChange7Bit &&
-        Number(a0.midiIdLSB) === 2 &&
-        Number(a1.enabled) === 1 &&
-        Number(a1.type) === AnalogType.ControlChange7Bit &&
-        Number(a1.midiIdLSB) === 11 &&
-        Number(a2.enabled) === 1 &&
-        Number(a2.type) === AnalogType.PitchBend
-      );
-    });
-
-    const isPressurePbPreset = computed((): boolean => {
-      const a1 = analogConfigs.value[1];
-      const a2 = analogConfigs.value[2];
-      return (
-        !!a1 &&
-        !!a2 &&
-        Number(a1.enabled) === 1 &&
-        Number(a1.type) === AnalogType.PitchBend &&
-        Number(a2.enabled) === 1 &&
-        Number(a2.type) === AnalogType.Reserved
-      );
-    });
-
-    const currentMode = computed((): { badgeText: string; badgeClass: string; detailsText: string } => {
-      if (!isConnected.value) {
-        return {
-          badgeText: "연결 필요",
-          badgeClass: "border-gray-700 text-gray-300",
-          detailsText: "보드에 연결되면 현재 설정을 읽어서 모드를 표시합니다.",
-        };
-      }
-
-      if (isCc2Cc11PbPreset.value) {
-        const details = breathSenderEnabled.value
-          ? "현재 Analog에서 CC2/CC11/PB를 직접 내보내고 있습니다.\n또한 Sax Breath CC 자동 전송이 켜져 있어 CC가 중복될 수 있습니다. (Sax Breath Controller를 OFF 권장)"
-          : "현재 Analog에서 CC2/CC11/PB를 직접 내보내는 구성입니다.\nSax Breath CC 자동 전송은 OFF라서 중복이 없습니다.";
-        return {
-          badgeText: "Analog 직결 (CC2/CC11/PB)",
-          badgeClass: breathSenderEnabled.value
-            ? "border-red-500/60 text-red-300"
-            : "border-green-500/60 text-green-300",
-          detailsText: details,
-        };
-      }
-
-      if (isPressurePbPreset.value) {
-        return {
-          badgeText: "압력 → PB (+ amount)",
-          badgeClass: "border-green-500/60 text-green-300",
-          detailsText: "Analog #2가 Reserved로 잡혀 있으면 펌웨어 내부에서 피치벤드 amount 스케일링에 사용될 수 있습니다.",
-        };
-      }
-
-      if (breathSenderEnabled.value) {
-        return {
-          badgeText: "Sax Breath Controller",
-          badgeClass: "border-yellow-500/60 text-yellow-300",
-          detailsText: "Sax Breath Controller가 CC를 자동으로 전송합니다.\n(Analog에서 CC2/CC11을 동시에 출력 중이라면 중복이 생길 수 있어요)",
-        };
-      }
-
-      return {
-        badgeText: "커스텀",
-        badgeClass: "border-gray-700 text-gray-300",
-        detailsText: "프리셋과 일치하지 않는 커스텀 구성입니다. Analog 1~3 요약을 참고하세요.",
-      };
-    });
-
     const applyPressurePitchBendPreset = async (): Promise<void> => {
       if (!isConnected.value || pressurePbPresetBusy.value) {
         return;
@@ -1354,7 +1009,7 @@ export default defineComponent({
         [
           "압력 → 피치벤드 추천 설정을 적용할까요?\n",
           "- Analog #1: Pitch bend (압력 센서)",
-          "- Analog #2: Reserved (internal: pitch amount)",
+          "- Analog #2: Reserved (internal: PB deadzone trim)",
           "- Sax Breath Controller(CC 전송): OFF\n",
           "주의: 센서 전압이 RP2040 ADC(3.3V)를 넘지 않도록 하드웨어 분압/레벨시프팅이 필요합니다.",
         ].join("\n"),
@@ -1379,7 +1034,7 @@ export default defineComponent({
       };
 
       const sensorIndex = 1;
-      const pitchAmountIndex = 2;
+      const pbDeadzoneTrimIndex = 2;
 
       const desiredUpperPb = split14(16383);
 
@@ -1408,137 +1063,27 @@ export default defineComponent({
         await write({ block: Block.Analog, section: 10, index: sensorIndex, value: 0 }); // lower adc offset
         await write({ block: Block.Analog, section: 11, index: sensorIndex, value: 0 }); // upper adc offset
 
-        // Analog #2: Reserved pitch amount pot (0..127, internal only).
-        await write({ block: Block.Analog, section: 0, index: pitchAmountIndex, value: 1 }); // enabled
-        await write({ block: Block.Analog, section: 1, index: pitchAmountIndex, value: 0 }); // invert
-        await write({ block: Block.Analog, section: 2, index: pitchAmountIndex, value: AnalogType.Reserved }); // type
-        await write({ block: Block.Analog, section: 3, index: pitchAmountIndex, value: 0 });
-        await write({ block: Block.Analog, section: 4, index: pitchAmountIndex, value: 0 });
-        await write({ block: Block.Analog, section: 5, index: pitchAmountIndex, value: 0 });
-        await write({ block: Block.Analog, section: 6, index: pitchAmountIndex, value: 0 });
-        await write({ block: Block.Analog, section: 7, index: pitchAmountIndex, value: 127 });
-        await write({ block: Block.Analog, section: 8, index: pitchAmountIndex, value: 0 });
-        await write({ block: Block.Analog, section: 9, index: pitchAmountIndex, value: desiredChannel });
-        await write({ block: Block.Analog, section: 10, index: pitchAmountIndex, value: 0 });
-        await write({ block: Block.Analog, section: 11, index: pitchAmountIndex, value: 0 });
+        // Analog #2: Reserved deadzone trim pot (0..127, internal only).
+        await write({ block: Block.Analog, section: 0, index: pbDeadzoneTrimIndex, value: 1 }); // enabled
+        await write({ block: Block.Analog, section: 1, index: pbDeadzoneTrimIndex, value: 0 }); // invert
+        await write({ block: Block.Analog, section: 2, index: pbDeadzoneTrimIndex, value: AnalogType.Reserved }); // type
+        await write({ block: Block.Analog, section: 3, index: pbDeadzoneTrimIndex, value: 0 });
+        await write({ block: Block.Analog, section: 4, index: pbDeadzoneTrimIndex, value: 0 });
+        await write({ block: Block.Analog, section: 5, index: pbDeadzoneTrimIndex, value: 0 });
+        await write({ block: Block.Analog, section: 6, index: pbDeadzoneTrimIndex, value: 0 });
+        await write({ block: Block.Analog, section: 7, index: pbDeadzoneTrimIndex, value: 127 });
+        await write({ block: Block.Analog, section: 8, index: pbDeadzoneTrimIndex, value: 0 });
+        await write({ block: Block.Analog, section: 9, index: pbDeadzoneTrimIndex, value: desiredChannel });
+        await write({ block: Block.Analog, section: 10, index: pbDeadzoneTrimIndex, value: 0 });
+        await write({ block: Block.Analog, section: 11, index: pbDeadzoneTrimIndex, value: 0 });
 
         pressurePbPresetNotice.value = "추천 설정 적용 완료";
-        refreshModeStatus();
       } catch {
         pressurePbPresetNotice.value = "추천 설정 적용 실패 (연결/권한을 확인하세요)";
       } finally {
         pressurePbPresetBusy.value = false;
         window.setTimeout(() => {
           pressurePbPresetNotice.value = "";
-        }, 3000);
-      }
-    };
-
-    const applyCc2Cc11PitchBendPreset = async (): Promise<void> => {
-      if (!isConnected.value || cc2cc11pbPresetBusy.value) {
-        return;
-      }
-
-      if (!isMidisaxoBoard.value) {
-        return;
-      }
-
-      const ok = window.confirm(
-        [
-          "3채널(CC2/CC11/PB) 추천 설정을 적용할까요?\n",
-          "- Analog 1: CC2 (Breath)",
-          "- Analog 2: CC11 (Expression)",
-          "- Analog 3: Pitch Bend\n",
-          "이 설정은 Sax Breath Controller(CC 자동 전송)는 끄고, Analog 블록에서 직접 CC/PB를 내보냅니다.",
-        ].join("\n"),
-      );
-
-      if (!ok) {
-        return;
-      }
-
-      cc2cc11pbPresetBusy.value = true;
-      cc2cc11pbPresetNotice.value = "";
-
-      const write = async (config: { block: number; section: number; index: number; value: number }) =>
-        deviceStore.actions.setComponentSectionValue(config as any, () => {});
-
-      const split14 = (v: number): { lsb: number; msb: number } => {
-        const value = Math.max(0, Math.min(16383, Math.floor(Number(v) || 0)));
-        return {
-          lsb: value & 0x7f,
-          msb: (value >> 7) & 0x7f,
-        };
-      };
-
-      const desiredUpperPb = split14(16383);
-
-      const useGlobal = !!(formData as any).useGlobalChannel;
-      const globalChannelRaw = Number((formData as any).globalChannel);
-      const desiredChannel =
-        useGlobal && Number.isFinite(globalChannelRaw)
-          ? Math.max(1, Math.min(17, Math.floor(globalChannelRaw)))
-          : 1;
-
-      // UI text uses 1-based numbering; firmware/UI config uses 0-based indices.
-      const analogCc2 = 0;
-      const analogCc11 = 1;
-      const analogPb = 2;
-
-      try {
-        // Disable sax breath CC sender to avoid duplicates.
-        await write({ block: Block.Global, section: 2, index: 6, value: 0 });
-
-        // Analog 1 (index 0): CC2
-        await write({ block: Block.Analog, section: 0, index: analogCc2, value: 1 });
-        await write({ block: Block.Analog, section: 1, index: analogCc2, value: 0 });
-        await write({ block: Block.Analog, section: 2, index: analogCc2, value: AnalogType.ControlChange7Bit });
-        await write({ block: Block.Analog, section: 3, index: analogCc2, value: 2 });
-        await write({ block: Block.Analog, section: 4, index: analogCc2, value: 0 });
-        await write({ block: Block.Analog, section: 5, index: analogCc2, value: 0 });
-        await write({ block: Block.Analog, section: 6, index: analogCc2, value: 0 });
-        await write({ block: Block.Analog, section: 7, index: analogCc2, value: 127 });
-        await write({ block: Block.Analog, section: 8, index: analogCc2, value: 0 });
-        await write({ block: Block.Analog, section: 9, index: analogCc2, value: desiredChannel });
-        await write({ block: Block.Analog, section: 10, index: analogCc2, value: 0 });
-        await write({ block: Block.Analog, section: 11, index: analogCc2, value: 0 });
-
-        // Analog 2 (index 1): CC11
-        await write({ block: Block.Analog, section: 0, index: analogCc11, value: 1 });
-        await write({ block: Block.Analog, section: 1, index: analogCc11, value: 0 });
-        await write({ block: Block.Analog, section: 2, index: analogCc11, value: AnalogType.ControlChange7Bit });
-        await write({ block: Block.Analog, section: 3, index: analogCc11, value: 11 });
-        await write({ block: Block.Analog, section: 4, index: analogCc11, value: 0 });
-        await write({ block: Block.Analog, section: 5, index: analogCc11, value: 0 });
-        await write({ block: Block.Analog, section: 6, index: analogCc11, value: 0 });
-        await write({ block: Block.Analog, section: 7, index: analogCc11, value: 127 });
-        await write({ block: Block.Analog, section: 8, index: analogCc11, value: 0 });
-        await write({ block: Block.Analog, section: 9, index: analogCc11, value: desiredChannel });
-        await write({ block: Block.Analog, section: 10, index: analogCc11, value: 0 });
-        await write({ block: Block.Analog, section: 11, index: analogCc11, value: 0 });
-
-        // Analog 3 (index 2): Pitch Bend
-        await write({ block: Block.Analog, section: 0, index: analogPb, value: 1 });
-        await write({ block: Block.Analog, section: 1, index: analogPb, value: 0 });
-        await write({ block: Block.Analog, section: 2, index: analogPb, value: AnalogType.PitchBend });
-        await write({ block: Block.Analog, section: 3, index: analogPb, value: 0 });
-        await write({ block: Block.Analog, section: 4, index: analogPb, value: 0 });
-        await write({ block: Block.Analog, section: 5, index: analogPb, value: 0 });
-        await write({ block: Block.Analog, section: 6, index: analogPb, value: 0 });
-        await write({ block: Block.Analog, section: 7, index: analogPb, value: desiredUpperPb.lsb });
-        await write({ block: Block.Analog, section: 8, index: analogPb, value: desiredUpperPb.msb });
-        await write({ block: Block.Analog, section: 9, index: analogPb, value: desiredChannel });
-        await write({ block: Block.Analog, section: 10, index: analogPb, value: 0 });
-        await write({ block: Block.Analog, section: 11, index: analogPb, value: 0 });
-
-        cc2cc11pbPresetNotice.value = "CC2/CC11/PB 적용 완료";
-        refreshModeStatus();
-      } catch {
-        cc2cc11pbPresetNotice.value = "적용 실패 (연결/권한을 확인하세요)";
-      } finally {
-        cc2cc11pbPresetBusy.value = false;
-        window.setTimeout(() => {
-          cc2cc11pbPresetNotice.value = "";
         }, 3000);
       }
     };
@@ -1572,24 +1117,6 @@ export default defineComponent({
       return `CC2 v${fmt(cc2)} | CC11 v${fmt(cc11)}`;
     });
 
-    const lastPitchBendRaw = ref<number | null>(null);
-    const lastPitchBendTime = ref<string | null>(null);
-    const clearPitchBendActivity = (): void => {
-      lastPitchBendRaw.value = null;
-      lastPitchBendTime.value = null;
-    };
-
-    const pitchBendStatusLine = computed((): string => {
-      const raw = lastPitchBendRaw.value;
-      if (raw === null) {
-        return "PB ---";
-      }
-
-      const r = Math.max(0, Math.min(16383, Math.floor(raw)));
-      const delta = r - 8192;
-      const deltaText = delta === 0 ? "0" : `${delta > 0 ? "+" : ""}${delta}`;
-      return `PB ${String(r).padStart(5, "0")} (Δ${deltaText})`;
-    });
 
     const attachBreathActivityListener = (input: any): (() => void) => {
       if (!input || typeof input.addListener !== "function") {
@@ -1633,47 +1160,6 @@ export default defineComponent({
 
     let detachBreathActivityListener: (() => void) | null = null;
 
-    const attachPitchBendActivityListener = (input: any): (() => void) => {
-      if (!input || typeof input.addListener !== "function") {
-        return () => {};
-      }
-
-      const handler = (event: any) => {
-        // WebMidi pitchbend event: value is often -1..1 float, rawValue is 0..16383.
-        const rawValue = Number(event?.rawValue);
-        const value = Number(event?.value);
-
-        let raw = Number.isFinite(rawValue) ? rawValue : NaN;
-
-        if (!Number.isFinite(raw) && Number.isFinite(value)) {
-          // Map [-1..1] -> [0..16383].
-          raw = Math.round((value + 1) * 8192);
-        }
-
-        if (!Number.isFinite(raw)) {
-          return;
-        }
-
-        const normalizedRaw = Math.max(0, Math.min(16383, Math.floor(raw)));
-        const now = new Date();
-        const time = now.toTimeString().slice(0, 8);
-
-        lastPitchBendRaw.value = normalizedRaw;
-        lastPitchBendTime.value = time;
-      };
-
-      input.addListener("pitchbend", "all", handler);
-
-      return () => {
-        try {
-          input.removeListener("pitchbend", "all", handler);
-        } catch {
-          // ignore
-        }
-      };
-    };
-
-    let detachPitchBendActivityListener: (() => void) | null = null;
 
     const onSaxSettingChange = (params: any) => {
       if (!isConnected.value) {
@@ -1688,116 +1174,7 @@ export default defineComponent({
       "saxBreathControllerMidPercent",
       "saxBreathControllerCC",
       "saxPitchBendDeadzone",
-      "saxAutoVibratoEnable",
-      "saxAutoVibratoAnalogIndex",
-      "saxAutoVibratoGateThreshold",
-      "saxAutoVibratoDepth",
-      "saxAutoVibratoRateHz10",
     ]);
-
-    type SwamVibratoPresetId = "off" | "swam-soft" | "swam-normal" | "swam-strong";
-    const swamVibratoPreset = ref<SwamVibratoPresetId>("swam-normal");
-    const swamPitchBendRangeSemitones = ref<number>(2);
-    const swamVibratoPresetBusy = ref(false);
-    const swamVibratoPresetNotice = ref<string>("");
-
-    const onSwamVibratoPresetChange = (event: Event): void => {
-      const target = event && (event.target as unknown as HTMLSelectElement);
-      const value = target && typeof target.value === "string" ? target.value : "";
-
-      if (
-        value === "off" ||
-        value === "swam-soft" ||
-        value === "swam-normal" ||
-        value === "swam-strong"
-      ) {
-        swamVibratoPreset.value = value;
-      }
-    };
-
-    const onSwamPitchBendRangeChange = (event: Event): void => {
-      const target = event && (event.target as unknown as HTMLSelectElement);
-      const raw = target && typeof target.value === "string" ? target.value : "";
-      const parsed = Math.floor(Number(raw));
-
-      // Keep it simple: only support common SWAM values.
-      if (parsed === 1 || parsed === 2 || parsed === 12) {
-        swamPitchBendRangeSemitones.value = parsed;
-      }
-    };
-
-    const applySwamAutoVibratoPreset = async (): Promise<void> => {
-      if (!isConnected.value || swamVibratoPresetBusy.value) {
-        return;
-      }
-
-      if (!isMidisaxoBoard.value) {
-        return;
-      }
-
-      swamVibratoPresetBusy.value = true;
-      swamVibratoPresetNotice.value = "";
-
-      const write = async (config: { block: number; section: number; index: number; value: number }) =>
-        deviceStore.actions.setComponentSectionValue(config as any, () => {});
-
-      const analogIndexRaw = Number((formData as any).saxAutoVibratoAnalogIndex);
-      const analogIndex = Number.isFinite(analogIndexRaw)
-        ? Math.max(0, Math.min(255, Math.floor(analogIndexRaw)))
-        : 2;
-
-      const preset = swamVibratoPreset.value;
-
-      // Presets are calibrated for ±2 semitone PB range.
-      const rangeSemitones = Math.max(1, Math.floor(Number(swamPitchBendRangeSemitones.value) || 2));
-      const depthScaleNum = 2;
-      const depthScaleDen = rangeSemitones;
-
-      const presetValues: Record<Exclude<SwamVibratoPresetId, "off">, { threshold: number; depth: number; rateHz10: number }> = {
-        "swam-soft": { threshold: 450, depth: 180, rateHz10: 55 },
-        "swam-normal": { threshold: 550, depth: 260, rateHz10: 62 },
-        "swam-strong": { threshold: 650, depth: 360, rateHz10: 70 },
-      };
-
-      try {
-        if (preset === "off") {
-          await write({ block: Block.Global, section: 2, index: 14, value: 0 });
-          (formData as any).saxAutoVibratoEnable = 0;
-          swamVibratoPresetNotice.value = "자동 비브라토 OFF 적용";
-          return;
-        }
-
-        const v = presetValues[preset];
-
-        // Scale depth to keep a similar "cents" feel across different PB ranges.
-        const scaledDepth = Math.max(
-          0,
-          Math.min(8192, Math.round((v.depth * depthScaleNum) / depthScaleDen)),
-        );
-
-        await write({ block: Block.Global, section: 2, index: 14, value: 1 });
-        await write({ block: Block.Global, section: 2, index: 18, value: analogIndex });
-        await write({ block: Block.Global, section: 2, index: 15, value: v.threshold });
-        await write({ block: Block.Global, section: 2, index: 16, value: scaledDepth });
-        await write({ block: Block.Global, section: 2, index: 17, value: v.rateHz10 });
-
-        // Keep UI in sync without forcing a full reload.
-        (formData as any).saxAutoVibratoEnable = 1;
-        (formData as any).saxAutoVibratoAnalogIndex = analogIndex;
-        (formData as any).saxAutoVibratoGateThreshold = v.threshold;
-        (formData as any).saxAutoVibratoDepth = scaledDepth;
-        (formData as any).saxAutoVibratoRateHz10 = v.rateHz10;
-
-        swamVibratoPresetNotice.value = "SWAM 자동 비브라토 프리셋 적용 완료";
-      } catch {
-        swamVibratoPresetNotice.value = "프리셋 적용 실패 (연결/권한을 확인하세요)";
-      } finally {
-        swamVibratoPresetBusy.value = false;
-        window.setTimeout(() => {
-          swamVibratoPresetNotice.value = "";
-        }, 3000);
-      }
-    };
 
     const saxSections = computed(() => {
       const globalSections = Object.values(BlockMap[Block.Global].sections);
@@ -2105,17 +1482,11 @@ export default defineComponent({
       // Keep a lightweight activity panel in this view regardless of the global Activity toggle.
       detachBreathActivityListener?.();
       detachBreathActivityListener = attachBreathActivityListener(deviceStore.state.input as any);
-
-      detachPitchBendActivityListener?.();
-      detachPitchBendActivityListener = attachPitchBendActivityListener(deviceStore.state.input as any);
     });
 
     onUnmounted(() => {
       detachBreathActivityListener?.();
       detachBreathActivityListener = null;
-
-      detachPitchBendActivityListener?.();
-      detachPitchBendActivityListener = null;
     });
 
     watch(
@@ -2165,21 +1536,14 @@ export default defineComponent({
           loadFingeringTable();
           detachBreathActivityListener?.();
           detachBreathActivityListener = attachBreathActivityListener(deviceStore.state.input as any);
-
-          detachPitchBendActivityListener?.();
-          detachPitchBendActivityListener = attachPitchBendActivityListener(deviceStore.state.input as any);
         } else {
           fingeringMaskLo14.value = null;
           fingeringMaskHi10Enable.value = null;
           fingeringNote.value = null;
           fingeringSupport.value = "unknown";
           clearBreathActivity();
-          clearPitchBendActivity();
           detachBreathActivityListener?.();
           detachBreathActivityListener = null;
-
-          detachPitchBendActivityListener?.();
-          detachPitchBendActivityListener = null;
         }
       },
     );
@@ -2192,9 +1556,6 @@ export default defineComponent({
         }
         detachBreathActivityListener?.();
         detachBreathActivityListener = attachBreathActivityListener(input as any);
-
-        detachPitchBendActivityListener?.();
-        detachPitchBendActivityListener = attachPitchBendActivityListener(input as any);
       },
     );
 
@@ -2653,41 +2014,14 @@ export default defineComponent({
       toggleSaxHelpPanel,
       isConnected,
 
-      modeStatusLoading,
-      modeStatusError,
-      refreshModeStatus,
-      breathSenderEnabled,
-      analogSummaryText,
-      currentMode,
-
-      pbCenterCaptureBusy,
-      pbCenterCaptureNotice,
-      runPbCenterCapture,
-
       isMidisaxoBoard,
       pressurePbPresetBusy,
       pressurePbPresetNotice,
       applyPressurePitchBendPreset,
 
-      cc2cc11pbPresetBusy,
-      cc2cc11pbPresetNotice,
-      applyCc2Cc11PitchBendPreset,
-
-      swamVibratoPreset,
-      swamPitchBendRangeSemitones,
-      swamVibratoPresetBusy,
-      swamVibratoPresetNotice,
-      onSwamVibratoPresetChange,
-      onSwamPitchBendRangeChange,
-      applySwamAutoVibratoPreset,
-
       clearBreathActivity,
       breathCcStatusLine,
       lastBreathCcTime,
-
-      clearPitchBendActivity,
-      pitchBendStatusLine,
-      lastPitchBendTime,
       showFingeringTable,
 
       exportFingeringBackup,

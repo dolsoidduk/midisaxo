@@ -3,23 +3,44 @@ if(NOT "PROJECT_TARGET_USB_OVER_SERIAL_HOST" IN_LIST PROJECT_TARGET_DEFINES)
     add_executable(application)
     list(APPEND FIRMWARE_TARGETS application)
 
-    execute_process(
-        COMMAND sh "-c" "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0); ver=$(printf '%s' \"$tag\" | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+' | head -n1); [ -z \"$ver\" ] && ver=0.0.0; echo \"$ver\" | cut -d. -f1"
-        OUTPUT_VARIABLE SW_VERSION_MAJOR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+    # Firmware version used by:
+    # - SysEx custom request: SYSEX_CR_FIRMWARE_VERSION
+    # - Display overlay: "FW: vX.Y.Z"
+    #
+    # Upstream OpenDeck tags are v7.x, but Midisaxo firmware is versioned separately.
+    set(SW_VERSION_STRING "")
 
-    execute_process(
-        COMMAND sh "-c" "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0); ver=$(printf '%s' \"$tag\" | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+' | head -n1); [ -z \"$ver\" ] && ver=0.0.0; echo \"$ver\" | cut -d. -f2"
-        OUTPUT_VARIABLE SW_VERSION_MINOR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+    if("${TARGET}" MATCHES "^midisaxo_")
+        set(MIDISAXO_VERSION_FILE "${PROJECT_ROOT}/MIDISAXO_FIRMWARE_VERSION")
 
-    execute_process(
-        COMMAND sh "-c" "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0); ver=$(printf '%s' \"$tag\" | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+' | head -n1); [ -z \"$ver\" ] && ver=0.0.0; echo \"$ver\" | cut -d. -f3"
-        OUTPUT_VARIABLE SW_VERSION_REVISION
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+        if(EXISTS "${MIDISAXO_VERSION_FILE}")
+            file(READ "${MIDISAXO_VERSION_FILE}" SW_VERSION_STRING)
+            string(STRIP "${SW_VERSION_STRING}" SW_VERSION_STRING)
+        endif()
+
+        if(SW_VERSION_STRING STREQUAL "")
+            # Official first hardware firmware baseline.
+            set(SW_VERSION_STRING "0.1.0")
+        endif()
+    else()
+        execute_process(
+            COMMAND sh "-c" "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0); ver=$(printf '%s' \"$tag\" | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+' | head -n1); [ -z \"$ver\" ] && ver=0.0.0; echo \"$ver\""
+            OUTPUT_VARIABLE SW_VERSION_STRING
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif()
+
+    string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _SW_VER_MATCH "${SW_VERSION_STRING}")
+
+    if(NOT _SW_VER_MATCH)
+        set(SW_VERSION_MAJOR 0)
+        set(SW_VERSION_MINOR 0)
+        set(SW_VERSION_REVISION 0)
+    else()
+        set(SW_VERSION_MAJOR "${CMAKE_MATCH_1}")
+        set(SW_VERSION_MINOR "${CMAKE_MATCH_2}")
+        set(SW_VERSION_REVISION "${CMAKE_MATCH_3}")
+    endif()
 
     target_include_directories(application
         PRIVATE

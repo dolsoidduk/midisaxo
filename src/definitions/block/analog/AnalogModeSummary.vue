@@ -232,7 +232,7 @@ export default defineComponent({
             badgeText: "압력 → PB (+ amount)",
             badgeClass: "border-green-500/60 text-green-300",
             detailsText:
-              "Analog #2가 Reserved로 잡혀 있으면 펌웨어 내부에서 피치벤드 amount(밴딩/비브라토 스케일) 소스로 사용될 수 있습니다.\n또는 Analog #2 자체를 Pitch Bend 센서로 구성해도 됩니다.",
+              "Analog #2가 Reserved로 잡혀 있으면 펌웨어 내부에서 피치벤드 데드존 트림(센터 민감도 보정) 소스로 사용될 수 있습니다.\n또는 Analog #2 자체를 Pitch Bend 센서로 구성해도 됩니다.",
           };
         }
 

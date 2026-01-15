@@ -173,6 +173,7 @@ export const HideButtonVelocityOnTypes = [
   ButtonMessageType.BpmInc,
   ButtonMessageType.BpmDec,
   ButtonMessageType.CustomSysEx,
+  ButtonMessageType.SaxPitchBendCenterCapture,
   ButtonMessageType.SaxFingeringKey,
 ];
 
@@ -192,6 +193,7 @@ export const HideButtonMidiIdOnTypes = [
   ButtonMessageType.CustomSysEx,
   ButtonMessageType.SaxTransposeInc,
   ButtonMessageType.SaxTransposeDec,
+  ButtonMessageType.SaxPitchBendCenterCapture,
   ButtonMessageType.SaxFingeringKey,
 ];
 
@@ -215,6 +217,7 @@ export const HideButtonMidiChannelOnTypes = [
   ButtonMessageType.CustomSysEx,
   ButtonMessageType.SaxTransposeInc,
   ButtonMessageType.SaxTransposeDec,
+  ButtonMessageType.SaxPitchBendCenterCapture,
   ButtonMessageType.SaxFingeringKey,
 ];
 

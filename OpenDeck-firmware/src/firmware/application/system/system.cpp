@@ -539,25 +539,31 @@ void System::updateSax()
         _analog->updateSingle(TRIM_ANALOG_INDEX);
     }
     // Also poll pitch-related analog input fast for sax playability.
-    // Keep legacy index 2 (historical "pitch amount") and additionally poll
-    // the configured auto-vibrato target PB analog index.
-    _analog->updateSingle(2);
-
-    static constexpr size_t SAX_VIB_ENABLE_SETTING_INDEX     = 14;
-    static constexpr size_t SAX_VIB_ANALOG_INDEX_SETTING     = 18;
-
-    const uint16_t vibEnabled = _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
-                                                            SAX_VIB_ENABLE_SETTING_INDEX);
-
-    if (vibEnabled)
+    // Keep legacy index 2 (used as an internal trim pot), but if Pitch Bend is
+    // configured on a different analog input, fast-poll it too.
+    if (2 < ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS))
     {
-        const size_t vibIndex = static_cast<size_t>(
-            _components.database().read(database::Config::Section::system_t::SYSTEM_SETTINGS,
-                                       SAX_VIB_ANALOG_INDEX_SETTING));
+        _analog->updateSingle(2);
+    }
 
-        if (vibIndex < ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS))
+    for (size_t i = 0; i < ::io::analog::Collection::SIZE(::io::analog::GROUP_ANALOG_INPUTS); i++)
+    {
+        if ((i == breathIndex) || (i == TRIM_ANALOG_INDEX) || (i == 2))
         {
-            _analog->updateSingle(vibIndex);
+            continue;
+        }
+
+        const uint16_t enabled = _components.database().read(database::Config::Section::analog_t::ENABLE, i);
+        if (!enabled)
+        {
+            continue;
+        }
+
+        const uint16_t type = _components.database().read(database::Config::Section::analog_t::TYPE, i);
+        if (type == static_cast<uint16_t>(::io::analog::type_t::PITCH_BEND))
+        {
+            _analog->updateSingle(i);
+            break;
         }
     }
 

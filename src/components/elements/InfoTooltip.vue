@@ -10,7 +10,8 @@
     </span>
 
     <span
-      class="info-tooltip__bubble absolute left-1/2 top-full mt-1 z-50 rounded border border-gray-700 bg-gray-900 text-gray-200 text-xs px-3 py-2 shadow-lg whitespace-normal break-words leading-relaxed"
+      class="info-tooltip__bubble rounded border border-gray-700 bg-gray-900 text-gray-200 text-xs px-3 py-2 shadow-lg whitespace-normal break-words leading-relaxed"
+      :class="bubblePlacementClass"
     >
       {{ text }}
     </span>
@@ -18,7 +19,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, computed } from "vue";
 
 export default defineComponent({
   name: "InfoTooltip",
@@ -27,6 +28,21 @@ export default defineComponent({
       type: String,
       required: true,
     },
+    placement: {
+      type: String as () => "top" | "bottom",
+      default: "bottom",
+    },
+  },
+  setup(props) {
+    const bubblePlacementClass = computed((): string => {
+      return props.placement === "top"
+        ? "absolute left-1/2 bottom-full mb-1 z-50"
+        : "absolute left-1/2 top-full mt-1 z-50";
+    });
+
+    return {
+      bubblePlacementClass,
+    };
   },
 });
 </script>

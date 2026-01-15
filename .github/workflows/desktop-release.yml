@@ -1,6 +1,6 @@
 name: Desktop Release (Linux + Windows)
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       tag:
@@ -47,7 +47,7 @@ jobs:
           VITE_FIRMWARE_REPO: ${{ vars.FIRMWARE_REPO || 'dolsoidduk/OpenDeck' }}
         run: |
           npm run build
-          npx electron-builder --linux AppImage --publish never
+          npx electron-builder --linux AppImage tar.gz --publish never
 
       - name: Upload linux artifacts
         uses: actions/upload-artifact@v4
@@ -55,6 +55,7 @@ jobs:
           name: linux
           path: |
             release/*.AppImage
+            release/*.tar.gz
             release/latest-linux.yml
             release/builder-effective-config.yaml
             release/builder-debug.yml
@@ -78,12 +79,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Build NSIS installer
+      - name: Build Windows artifacts
         env:
           VITE_FIRMWARE_REPO: ${{ vars.FIRMWARE_REPO || 'dolsoidduk/OpenDeck' }}
         run: |
           npm run build
-          npx electron-builder --win nsis --publish never
+          npx electron-builder --win nsis portable zip --publish never
 
       - name: Upload windows artifacts
         uses: actions/upload-artifact@v4
@@ -92,6 +93,7 @@ jobs:
           path: |
             release/*.exe
             release/*.exe.blockmap
+            release/*win*.zip
             release/latest.yml
             release/builder-effective-config.yaml
             release/builder-debug.yml
@@ -129,9 +131,11 @@ jobs:
           body: |
             Desktop builds for Midisaxo.
 
-            - Windows: download `Midisaxo Setup *.exe` and run the installer.
+            - Windows (installer): download `Midisaxo Setup *.exe` and run the installer.
+            - Windows (portable): download `Midisaxo-*.exe` (single-file) or `Midisaxo-*-win.zip` (portable zip).
             - Linux: download `Midisaxo-*.AppImage`, then run:
               `chmod +x Midisaxo-*.AppImage && ./Midisaxo-*.AppImage`
+            - Linux (portable): download `Midisaxo-*.tar.gz` and extract.
 
             Web UI: https://dolsoidduk.github.io/midisaxo/
 
