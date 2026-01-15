@@ -12,6 +12,10 @@
           ? label.replace("(LSB)", "").replace("LSB", "")
           : label
       }}
+      <InfoTooltip
+        v-if="normalizedHelpText"
+        :text="normalizedHelpText"
+      />
       <small v-if="!isDisabled && (min || max)" class="instructions"
         >{{ min }} - {{ (!showMsbControls && max2Byte) || max }}</small
       >
@@ -73,14 +77,6 @@
       </template>
     </p>
 
-    <p v-if="helpText && !simpleLayout" class="help-text">
-      {{
-        !showMsbControls && helpText
-          ? helpText.replace("(LSB)", "").replace("LSB", "")
-          : helpText
-      }}
-    </p>
-
     <FormErrorDisplay class="error-message" :errors="errors" />
   </div>
 </template>
@@ -105,6 +101,7 @@ import FormSelect from "./FormSelect.vue";
 import FormToggle from "./FormToggle.vue";
 import FormInput from "./FormInput.vue";
 import FormErrorDisplay from "./FormErrorDisplay.vue";
+import InfoTooltip from "../elements/InfoTooltip.vue";
 
 const getValidatorForDefinition = (definition: ISectionDefinition) => {
   const validators = [required()] as any[];
@@ -152,6 +149,7 @@ export default defineComponent({
     FormInput,
     FormToggle,
     FormErrorDisplay,
+    InfoTooltip,
   },
   props: {
     value: {
@@ -269,6 +267,17 @@ export default defineComponent({
 
     const { showMsbControls } = deviceStoreMapped;
 
+    const normalizedHelpText = computed((): string => {
+      const raw = helpText || "";
+      if (!raw) {
+        return "";
+      }
+
+      return !showMsbControls.value && raw
+        ? raw.replace("(LSB)", "").replace("LSB", "")
+        : raw;
+    });
+
     const breathSliderValue = computed(() => {
       if (!isBreathOffsetField) {
         return 0;
@@ -299,6 +308,7 @@ export default defineComponent({
       onBreathSliderInput,
       label,
       helpText,
+      normalizedHelpText,
       isDisabled,
       isMsb,
       isLsb,

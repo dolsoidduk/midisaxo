@@ -37,8 +37,21 @@
         </p>
 
         <div class="surface-neutral border rounded px-4 py-3 mb-6 text-sm">
-          <div class="text-gray-200 font-semibold">설정 설명</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-gray-200 font-semibold">설정 설명</div>
+            <button
+              class="px-2 py-0.5 border border-gray-700 rounded text-[10px] text-gray-200 hover:border-gray-500"
+              :aria-expanded="showSaxHelpPanel ? 'true' : 'false'"
+              @click.prevent="toggleSaxHelpPanel"
+            >
+              {{ showSaxHelpPanel ? "접기" : "펼치기" }}
+            </button>
+          </div>
+          <div class="mt-2 text-xs text-gray-300">
+            각 항목 라벨 옆 <span class="font-mono">?</span>에 마우스를 올리면 설명이 풍선글로 표시됩니다.
+          </div>
           <div
+            v-show="showSaxHelpPanel"
             class="mt-2 grid gap-3"
             style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));"
           >
@@ -48,15 +61,15 @@
               class="text-xs"
               :class="{ 'opacity-60': !item.isVisible }"
             >
-              <div class="text-gray-200 font-semibold">
-                {{ item.label }}
-                <span v-if="item.rangeText" class="text-gray-400 font-normal">({{ item.rangeText }})</span>
+              <div class="text-gray-200 font-semibold flex items-center gap-1">
+                <span>
+                  {{ item.label }}
+                  <span v-if="item.rangeText" class="text-gray-400 font-normal">({{ item.rangeText }})</span>
+                </span>
+                <InfoTooltip v-if="item.description" :text="item.description" />
               </div>
               <div v-if="item.disabledText" class="mt-1 text-red-400">
                 {{ item.disabledText }}
-              </div>
-              <div v-else-if="item.description" class="mt-1 text-gray-300 whitespace-pre-line">
-                {{ item.description }}
               </div>
             </div>
           </div>
@@ -658,11 +671,13 @@ import { Block, SectionType, BlockMap, AnalogType } from "../index";
 import { useDeviceForm } from "../../composables";
 import { midiStoreMapped, deviceStoreMapped, deviceStore } from "../../store";
 import SaxFingeringKeyPad from "./SaxFingeringKeyPad.vue";
+import InfoTooltip from "../../components/elements/InfoTooltip.vue";
 
 export default defineComponent({
   name: "MidiSaxophone",
   components: {
     SaxFingeringKeyPad,
+    InfoTooltip,
   },
   setup() {
     const { isConnected } = midiStoreMapped;
@@ -717,6 +732,8 @@ export default defineComponent({
     const fingeringEntryCount = 128;
 
     const showFingeringTable = ref(false);
+
+    const showSaxHelpPanel = ref(false);
 
     const fingeringFilterText = ref("");
     const fingeringFilterOnlyEnabled = ref(false);
@@ -815,6 +832,10 @@ export default defineComponent({
 
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object") {
+          if (typeof parsed.showSaxHelpPanel === "boolean") {
+            showSaxHelpPanel.value = parsed.showSaxHelpPanel;
+          }
+
           if (typeof parsed.showFingeringTable === "boolean") {
             showFingeringTable.value = parsed.showFingeringTable;
           }
@@ -872,6 +893,7 @@ export default defineComponent({
         window.localStorage.setItem(
           uiStateKey,
           JSON.stringify({
+            showSaxHelpPanel: showSaxHelpPanel.value,
             showFingeringTable: showFingeringTable.value,
             fingeringFilterText: fingeringFilterText.value,
             fingeringFilterOnlyEnabled: fingeringFilterOnlyEnabled.value,
@@ -890,6 +912,11 @@ export default defineComponent({
       } catch {
         // ignore quota / private mode
       }
+    };
+
+    const toggleSaxHelpPanel = (): void => {
+      showSaxHelpPanel.value = !showSaxHelpPanel.value;
+      saveUiState();
     };
 
     const onFingeringEntryLayoutModeChange = (event: Event): void => {
@@ -1778,7 +1805,7 @@ export default defineComponent({
     });
 
     watch(
-      () => [showFingeringTable.value],
+      () => [showSaxHelpPanel.value, showFingeringTable.value],
       () => saveUiState(),
       { deep: false },
     );
@@ -2295,6 +2322,8 @@ export default defineComponent({
       saxSections,
       hasSaxSections,
       saxHelpItems,
+      showSaxHelpPanel,
+      toggleSaxHelpPanel,
       isConnected,
 
       modeStatusLoading,
