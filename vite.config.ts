@@ -1,5 +1,22 @@
 import type { UserConfig } from "vite";
 
+const hasCliFlag = (name: string): boolean => {
+  const arg = `--${name}`;
+  return process.argv.some((v) => v === arg || v.startsWith(`${arg}=`));
+};
+
+const parsePort = (raw: unknown, fallback: number): number => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) {
+    return fallback;
+  }
+  const i = Math.floor(n);
+  if (i < 1 || i > 65535) {
+    return fallback;
+  }
+  return i;
+};
+
 const repoName = process.env.GITHUB_REPOSITORY
   ? process.env.GITHUB_REPOSITORY.split("/")[1]
   : undefined;
@@ -11,10 +28,18 @@ const repoName = process.env.GITHUB_REPOSITORY
 const base =
   process.env.GITHUB_PAGES === "true" && repoName ? `/${repoName}/` : "./";
 
+// Vite v1 + Node 18: avoid passing duplicate options from both CLI and config.
+// If the user specifies --host/--port on the CLI, do not set hostname/port here.
+const defaultHost = process.env.VITE_HOST || process.env.HOST || "0.0.0.0";
+const defaultPort = parsePort(process.env.VITE_PORT || process.env.PORT, 3004);
+const hostname = hasCliFlag("host") ? undefined : defaultHost;
+const port = hasCliFlag("port") ? undefined : defaultPort;
+
 const config: UserConfig = {
   base,
-  hostname: "0.0.0.0",
-  port: 3004,
+  hostname,
+  port,
+  strictPort: true,
   optimizeDeps: {
     include: [
       "semver/functions/gt",
