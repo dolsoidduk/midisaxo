@@ -1,5 +1,5 @@
 <template>
-  <span class="relative inline-flex items-center group align-middle">
+  <span class="info-tooltip relative inline-flex items-center align-middle">
     <span
       class="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] leading-none rounded border border-gray-600 bg-gray-800 text-gray-200 cursor-help select-none"
       tabindex="0"
@@ -10,7 +10,7 @@
     </span>
 
     <span
-      class="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 w-72 max-w-[90vw] rounded border border-gray-700 bg-gray-900 text-gray-200 text-xs px-2 py-1 shadow-lg opacity-0 pointer-events-none whitespace-pre-line group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+      class="info-tooltip__bubble absolute left-1/2 top-full mt-1 z-50 w-72 max-w-[90vw] rounded border border-gray-700 bg-gray-900 text-gray-200 text-xs px-2 py-1 shadow-lg whitespace-pre-line"
     >
       {{ text }}
     </span>
@@ -30,3 +30,21 @@ export default defineComponent({
   },
 });
 </script>
+
+<style scoped>
+.info-tooltip__bubble {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 120ms ease, visibility 0s linear 120ms;
+}
+
+.info-tooltip:hover .info-tooltip__bubble,
+.info-tooltip:focus-within .info-tooltip__bubble {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 120ms ease;
+}
+</style>
