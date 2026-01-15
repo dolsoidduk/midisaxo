@@ -17,6 +17,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:lan": "cross-env VITE_HOST=0.0.0.0 VITE_PORT=3004 vite",
     "build": "vite build",
     "preview": "python3 -m http.server 4173 --directory dist --bind 0.0.0.0",
     "gen:icon": "python3 scripts/gen_icon.py",
