@@ -47,6 +47,9 @@ namespace io::buttons
         // messageType_t::SAX_FINGERING_KEY buttons. Returns nullopt unless exactly
         // 26 keys are configured.
         std::optional<uint32_t> saxFingeringMask() const;
+        
+            // Clears pressed/latching state for all buttons configured as SAX_FINGERING_KEY.
+            void clearSaxFingeringState();
 
         private:
         struct Descriptor

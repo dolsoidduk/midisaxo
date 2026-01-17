@@ -84,6 +84,22 @@ namespace sys
                 0,
                 255,
             },
+
+            // section 7: current pressed mask (read-only)
+            // index 0 -> lo14, index 1 -> hi10
+            {
+                2,
+                0,
+                16383,
+            },
+
+            // section 8: clear current pressed/latching state (write-only)
+            // index 0, value 1 -> trigger clear
+            {
+                1,
+                0,
+                1,
+            },
         };
 
         std::vector<lib::sysexconf::Section> _buttonSections = {

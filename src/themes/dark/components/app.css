@@ -18,7 +18,7 @@ body {
   @apply mr-1;
 }
 .app-board-info strong {
-  @apply text-gray-400;
+  @apply text-gray-100;
 }
 
 /* main */
@@ -33,7 +33,7 @@ body {
   @apply w-full pb-8 self-end surface-neutral;
 }
 .app-footer-wrap {
-  @apply max-w-6xl mx-auto;
+  @apply w-full max-w-none;
 }
 .app-footer .heading {
   @apply font-bold pb-4;

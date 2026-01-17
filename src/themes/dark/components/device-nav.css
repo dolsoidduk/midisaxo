@@ -4,7 +4,7 @@
 
 .device-nav .item {
   @apply relative block px-4 pt-4 ml-2 border-transparent;
-  @apply font-bold cursor-pointer text-gray-400;
+  @apply font-bold cursor-pointer text-gray-300;
 }
 
 /* icon */

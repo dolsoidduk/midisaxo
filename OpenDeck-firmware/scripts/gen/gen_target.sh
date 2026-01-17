@@ -50,7 +50,21 @@ then
     fi
 fi
 
-if [[ ! -d $gen_dir ]]
+regen_target=0
+
+# Re-generate if:
+# - output directory doesn't exist
+# - output files don't exist
+# - YAML file is newer than generated outputs
+if [[ ! -d $gen_dir || ! -f $out_header || ! -f $out_cmakelists ]]
+then
+    regen_target=1
+elif [[ $yaml_file -nt $out_header || $yaml_file -nt $out_cmakelists ]]
+then
+    regen_target=1
+fi
+
+if [[ $regen_target -eq 1 ]]
 then
     echo "Generating configuration for target: $target_name"
 

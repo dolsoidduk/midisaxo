@@ -42,6 +42,59 @@ export const useDeviceForm = (
   const showField = (sectionDef: ISectionDefinition): boolean =>
     sectionDef && (!sectionDef.showIf || sectionDef.showIf(formData));
 
+  const shouldAutoSwitchDinAndTouchscreen = (): boolean => {
+    const boardName = (deviceStore.state.boardName || "").toLowerCase();
+    return boardName.includes("midisaxo xiao rp2040");
+  };
+
+  const isTouchscreenSupported = (): boolean => {
+    const count = deviceStore.state.numberOfComponents?.[Block.Touchscreen] || 0;
+    return count > 0;
+  };
+
+  const syncDinMidiAndTouchscreenIfNeeded = async (
+    changedBlock: Block,
+    changedKey: string,
+    newValue: number,
+  ): Promise<void> => {
+    if (!shouldAutoSwitchDinAndTouchscreen() || !isTouchscreenSupported()) {
+      return;
+    }
+
+    // Enforce exclusive usage on Midisaxo XIAO RP2040 targets where DIN MIDI and
+    // touchscreen share the same UART pins.
+    if (changedBlock === Block.Global && changedKey === "dinMidiState") {
+      const desiredTouchscreen = newValue ? 0 : 1;
+      await deviceStore.actions
+        .setComponentSectionValue(
+          {
+            block: Block.Touchscreen,
+            section: 0,
+            index: 0,
+            value: desiredTouchscreen,
+          },
+          () => undefined,
+        )
+        .catch(() => undefined);
+      return;
+    }
+
+    if (changedBlock === Block.Touchscreen && changedKey === "enableTouchscreen") {
+      const desiredDinMidi = newValue ? 0 : 1;
+      await deviceStore.actions
+        .setComponentSectionValue(
+          {
+            block: Block.Global,
+            section: 0,
+            index: 3,
+            value: desiredDinMidi,
+          },
+          () => undefined,
+        )
+        .catch(() => undefined);
+    }
+  };
+
   const sections = deviceStore.actions.getFilteredSectionsForBlock(
     block,
     sectionType,
@@ -76,7 +129,7 @@ export const useDeviceForm = (
     delay(100).then(() => (loading.value = false));
   };
 
-  const onChange = (
+  const onChange = async (
     key: string,
     config: IRequestConfig,
     onLoad?: (value: number) => void,
@@ -92,7 +145,7 @@ export const useDeviceForm = (
       if (onLoad) {
         onLoad(config.value);
       }
-      return Promise.resolve();
+      return;
     }
 
     // Optimistically update local state so conditional fields can react
@@ -104,21 +157,18 @@ export const useDeviceForm = (
 
     loading.value = true;
 
-    const onSuccess = () => {
-      formData[key] = config.value;
+    try {
+      await deviceStore.actions.setComponentSectionValue(config, () => undefined);
+      await syncDinMidiAndTouchscreenIfNeeded(block, key, config.value);
       delay(100).then(() => (loading.value = false));
       if (onLoad) {
         onLoad(config.value);
       }
-    };
-
-    return deviceStore.actions
-      .setComponentSectionValue(config, onSuccess)
-      .catch((error) => {
-        logger.error("ERROR WHILE SAVING SETTING DATA", error);
-        // Try reloading the formData to reinit without failed fields
-        return loadData();
-      });
+    } catch (error) {
+      logger.error("ERROR WHILE SAVING SETTING DATA", error);
+      // Try reloading the formData to reinit without failed fields
+      await loadData();
+    }
   };
 
   interface IValueChangeParams {

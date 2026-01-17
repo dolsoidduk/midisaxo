@@ -60,6 +60,10 @@ namespace sys
                 SAX_FINGERING_MASK_HI12_ENABLE,
                 SAX_FINGERING_NOTE,
                 SAX_FINGERING_CAPTURE,
+                // Read-only: current pressed key mask (index 0=lo14, index 1=hi10)
+                SAX_FINGERING_CURRENT_MASK,
+                // Write-only: clear current pressed/latching state for SAX_FINGERING_KEY buttons
+                SAX_FINGERING_CLEAR,
                 AMOUNT
             };
 

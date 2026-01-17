@@ -20,7 +20,10 @@ const sections: Dictionary<ISectionDefinition> = {
     settingIndex: 0,
     component: FormInputComponent.Toggle,
     label: "Enable",
-    helpText: `Enables or disables the usage of touchscreen.`,
+    helpText: `Enables or disables the usage of touchscreen.
+
+참고: 터치스크린 버튼의 MIDI ID / 버튼 타입(Latching 등) / 메시지 타입(예: Sax Fingering Key)은 이 화면이 아니라
+Buttons → Touchscreen 그룹에서 설정됩니다. (Touchscreen 블록은 주로 아이콘 위치/크기/화면 전환 등을 담당합니다.)`,
   },
   DisplayManufacturer: {
     showIf: (formState: FormState): boolean => formState.enableTouchscreen,

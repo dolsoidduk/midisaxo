@@ -14,6 +14,19 @@ const registerComponentMap = (componentMap: IComponentMap) =>
 
 const app = createApp(App);
 
+if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.DEV) {
+  app.config.errorHandler = (err, instance, info) => {
+    // Keep default console visibility, but also surface it in the UI for debugging.
+    // eslint-disable-next-line no-console
+    console.error("[Vue errorHandler]", err, info, instance);
+    (window as any).__lastVueError = {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      info,
+    };
+  };
+}
+
 registerComponentMap(appComponents);
 registerComponentMap(deviceComponents);
 

@@ -1175,6 +1175,35 @@ void System::DatabaseHandlers::factoryResetDone()
 
 std::optional<uint8_t> System::sysConfigGet(sys::Config::Section::global_t section, size_t index, uint16_t& value)
 {
+    if (section == sys::Config::Section::global_t::SAX_FINGERING_CURRENT_MASK)
+    {
+        // Read-only: expose current pressed key mask without modifying the table.
+        // index 0 -> lo14, index 1 -> hi10
+        static constexpr uint8_t  KEY_COUNT = 24;
+        static constexpr uint8_t  LO_BITS   = 14;
+        static constexpr uint32_t LO_MASK   = (1u << LO_BITS) - 1u;
+        static constexpr uint8_t  HI_BITS   = KEY_COUNT - LO_BITS;
+        static constexpr uint32_t HI_MASK   = (1u << HI_BITS) - 1u;
+
+        if ((index > 1) || (_buttons == nullptr))
+        {
+            return sys::Config::Status::ERROR_NOT_SUPPORTED;
+        }
+
+        const auto maybeMask = _buttons->saxFingeringMask();
+        if (!maybeMask.has_value())
+        {
+            return sys::Config::Status::ERROR_NOT_SUPPORTED;
+        }
+
+        const uint32_t mask  = maybeMask.value() & ((1u << KEY_COUNT) - 1u);
+        const uint16_t lo14  = static_cast<uint16_t>(mask & LO_MASK);
+        const uint16_t hi10  = static_cast<uint16_t>((mask >> LO_BITS) & HI_MASK);
+
+        value = (index == 0) ? lo14 : hi10;
+        return sys::Config::Status::ACK;
+    }
+
     if ((section == sys::Config::Section::global_t::SAX_FINGERING_MASK_LO14) ||
         (section == sys::Config::Section::global_t::SAX_FINGERING_MASK_HI12_ENABLE) ||
         (section == sys::Config::Section::global_t::SAX_FINGERING_NOTE))
@@ -1232,6 +1261,23 @@ std::optional<uint8_t> System::sysConfigGet(sys::Config::Section::global_t secti
 
 std::optional<uint8_t> System::sysConfigSet(sys::Config::Section::global_t section, size_t index, uint16_t value)
 {
+    if (section == sys::Config::Section::global_t::SAX_FINGERING_CLEAR)
+    {
+        // Write-only: clear current pressed/latching state for SAX_FINGERING_KEY.
+        // index 0, value 1 -> trigger
+        if ((index != 0) || (value != 1) || (_buttons == nullptr))
+        {
+            return sys::Config::Status::ERROR_NOT_SUPPORTED;
+        }
+
+        _buttons->clearSaxFingeringState();
+
+        // Force recompute on next tick.
+        _lastSaxFingeringMask = 0xFFFFFFFFu;
+
+        return sys::Config::Status::ACK;
+    }
+
     if (section == sys::Config::Section::global_t::SAX_FINGERING_CAPTURE)
     {
         // Write-only: capture current key mask into entry 'index'.

@@ -141,23 +141,130 @@ bool Buttons::init()
 
 std::optional<uint32_t> Buttons::saxFingeringMask() const
 {
-    if (_saxFingeringKeyCount != SAX_FINGERING_KEY_COUNT)
+    // Preferred path: require exactly 24 buttons configured as SAX_FINGERING_KEY.
+    if ((_saxFingeringKeyCount == SAX_FINGERING_KEY_COUNT) && !_saxFingeringKeyOverflow)
+    {
+        uint32_t mask = 0;
+
+        for (uint8_t keyIndex = 0; keyIndex < SAX_FINGERING_KEY_COUNT; keyIndex++)
+        {
+            const size_t buttonIndex = static_cast<size_t>(_saxFingeringKeyButtonIndex[keyIndex]);
+            if (isPressed(buttonIndex))
+            {
+                mask |= (1u << keyIndex);
+            }
+        }
+
+        return mask;
+    }
+
+    // Fallback path: allow touchscreen-only operation.
+    // Touchscreen button events are routed through the Buttons collection under
+    // GROUP_TOUCHSCREEN_COMPONENTS.
+    // Primary mapping: touchscreen componentIndex 0..23 -> sax key 0..23.
+    // Secondary mapping (for displays with different component IDs):
+    // if componentIndex >= 24, use configured MIDI_ID (0..23) as the sax key index.
+    const size_t tsCount = Collection::SIZE(GROUP_TOUCHSCREEN_COMPONENTS);
+    if (tsCount == 0)
     {
         return std::nullopt;
     }
 
     uint32_t mask = 0;
+    const size_t baseIndex = Collection::START_INDEX(GROUP_TOUCHSCREEN_COMPONENTS);
 
-    for (uint8_t keyIndex = 0; keyIndex < SAX_FINGERING_KEY_COUNT; keyIndex++)
+    for (size_t tsIndex = 0; tsIndex < tsCount; tsIndex++)
     {
-        const size_t buttonIndex = static_cast<size_t>(_saxFingeringKeyButtonIndex[keyIndex]);
-        if (isPressed(buttonIndex))
+        if (!isPressed(baseIndex + tsIndex))
+        {
+            continue;
+        }
+
+        uint8_t keyIndex = 0xFF;
+
+        if (tsIndex < SAX_FINGERING_KEY_COUNT)
+        {
+            keyIndex = static_cast<uint8_t>(tsIndex);
+        }
+        else
+        {
+            const auto midiId = static_cast<uint32_t>(_database.read(database::Config::Section::button_t::MIDI_ID, baseIndex + tsIndex));
+            if (midiId < SAX_FINGERING_KEY_COUNT)
+            {
+                keyIndex = static_cast<uint8_t>(midiId);
+            }
+        }
+
+        if (keyIndex < SAX_FINGERING_KEY_COUNT)
         {
             mask |= (1u << keyIndex);
         }
     }
 
     return mask;
+}
+
+void Buttons::clearSaxFingeringState()
+{
+    // Preferred path: clear the mapped 24-key set.
+    if ((_saxFingeringKeyCount == SAX_FINGERING_KEY_COUNT) && !_saxFingeringKeyOverflow)
+    {
+        for (uint8_t keyIndex = 0; keyIndex < SAX_FINGERING_KEY_COUNT; keyIndex++)
+        {
+            const size_t buttonIndex = _saxFingeringKeyButtonIndex[keyIndex];
+            setState(buttonIndex, false);
+            setLatchingState(buttonIndex, false);
+        }
+        return;
+    }
+
+    // Fallback: also clear touchscreen-based fingering keys.
+    // In touchscreen-only mode, we build the fingering mask from the touchscreen
+    // group regardless of message type (e.g. CC-based configs). Therefore, the
+    // clear operation must reset those latching states as well.
+    const size_t tsCount = Collection::SIZE(GROUP_TOUCHSCREEN_COMPONENTS);
+    if (tsCount > 0)
+    {
+        const size_t baseIndex = Collection::START_INDEX(GROUP_TOUCHSCREEN_COMPONENTS);
+
+        for (size_t tsIndex = 0; tsIndex < tsCount; tsIndex++)
+        {
+            uint8_t keyIndex = 0xFF;
+
+            if (tsIndex < SAX_FINGERING_KEY_COUNT)
+            {
+                keyIndex = static_cast<uint8_t>(tsIndex);
+            }
+            else
+            {
+                const auto midiId = static_cast<uint32_t>(_database.read(database::Config::Section::button_t::MIDI_ID, baseIndex + tsIndex));
+                if (midiId < SAX_FINGERING_KEY_COUNT)
+                {
+                    keyIndex = static_cast<uint8_t>(midiId);
+                }
+            }
+
+            if (keyIndex < SAX_FINGERING_KEY_COUNT)
+            {
+                setState(baseIndex + tsIndex, false);
+                setLatchingState(baseIndex + tsIndex, false);
+            }
+        }
+    }
+
+    // Fallback: clear every button configured as SAX_FINGERING_KEY.
+    // This keeps behavior correct even if the exact 24-key constraint isn't met.
+    for (size_t i = 0; i < Collection::SIZE(); i++)
+    {
+        Descriptor descriptor;
+        fillDescriptor(i, descriptor);
+        if (descriptor.messageType != messageType_t::SAX_FINGERING_KEY)
+        {
+            continue;
+        }
+        setState(i, false);
+        setLatchingState(i, false);
+    }
 }
 
 void Buttons::updateSingle(size_t index, bool forceRefresh)
@@ -229,46 +336,36 @@ size_t Buttons::maxComponentUpdateIndex()
 /// param [in]: descriptor  Descriptor containing the entire configuration for the button.
 void Buttons::processButton(size_t index, bool reading, Descriptor& descriptor)
 {
+    // For latching buttons, update *effective* state on press only.
+    // This is important for SAX_FINGERING_KEY as well: it doesn't send MIDI directly,
+    // but its state drives the fingering mask logic.
+    bool effectiveState = reading;
+
+    if (descriptor.type == type_t::LATCHING)
+    {
+        // act on press only
+        if (!reading)
+        {
+            return;
+        }
+
+        const bool next = !latchingState(index);
+        setLatchingState(index, next);
+        effectiveState = next;
+    }
+
     // act on change of state only
-    if (reading == state(index))
+    if (effectiveState == state(index))
     {
         return;
     }
 
-    setState(index, reading);
+    setState(index, effectiveState);
 
     // don't process message types which don't send MIDI
     if ((descriptor.messageType != messageType_t::NONE) && (descriptor.messageType != messageType_t::SAX_FINGERING_KEY))
     {
-        bool send = true;
-
-        if (descriptor.type == type_t::LATCHING)
-        {
-            // act on press only
-            if (reading)
-            {
-                if (latchingState(index))
-                {
-                    setLatchingState(index, false);
-                    // overwrite before processing
-                    reading = false;
-                }
-                else
-                {
-                    setLatchingState(index, true);
-                    reading = true;
-                }
-            }
-            else
-            {
-                send = false;
-            }
-        }
-
-        if (send)
-        {
-            sendMessage(index, reading, descriptor);
-        }
+        sendMessage(index, effectiveState, descriptor);
     }
 }
 
@@ -794,8 +891,9 @@ void Buttons::rebuildSaxFingeringKeys()
 {
     _saxFingeringKeyCount = 0;
     _saxFingeringKeyButtonIndex.fill(0);
+    _saxFingeringKeyOverflow = false;
 
-    for (size_t i = 0; i < Collection::SIZE(GROUP_DIGITAL_INPUTS); i++)
+    for (size_t i = 0; i < Collection::SIZE(); i++)
     {
         const auto mt = static_cast<messageType_t>(_database.read(database::Config::Section::button_t::MESSAGE_TYPE, i));
         if (mt != messageType_t::SAX_FINGERING_KEY)
@@ -805,7 +903,8 @@ void Buttons::rebuildSaxFingeringKeys()
 
         if (_saxFingeringKeyCount >= SAX_FINGERING_KEY_COUNT)
         {
-            // Ignore extras.
+            // Extras are not allowed; require exactly SAX_FINGERING_KEY_COUNT keys.
+            _saxFingeringKeyOverflow = true;
             continue;
         }
 

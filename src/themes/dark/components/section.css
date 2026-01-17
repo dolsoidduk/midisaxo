@@ -5,13 +5,13 @@
   @apply surface-neutral border-b font-bold;
 }
 .section-heading-inner {
-  @apply max-w-6xl px-8 py-4 mx-auto;
+  @apply w-full max-w-none px-8 py-4;
 }
 .section-heading-inner-sm {
-  @apply max-w-6xl px-8 pt-2 pb-3 mx-auto;
+  @apply w-full max-w-none px-8 pt-2 pb-3;
 }
 .section-content {
-  @apply max-w-6xl px-8 pt-6 mx-auto;
+  @apply w-full max-w-none px-8 pt-6;
 }
 
 .section-wide .section-heading-inner,

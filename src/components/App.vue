@@ -41,8 +41,30 @@
 
     <div class="app-main">
       <div class="content">
-        <Section v-if="!isWebMidiSupported" class="h-screen">
-          <div class="max-w-screen-sm mx-auto px-4 pt-24 sm:px-6 lg:px-8">
+        <div v-if="lastVueError" class="w-full px-4 sm:px-6 lg:px-8 pt-4">
+          <div class="surface-neutral border border-red-700/60 rounded px-4 py-3 text-sm">
+            <div class="text-red-300 font-semibold">UI 런타임 오류로 화면이 비었을 수 있어요</div>
+            <div class="mt-1 text-red-200/90 text-xs whitespace-pre-wrap">{{ lastVueError.message }}</div>
+            <div v-if="lastVueError.info" class="mt-1 text-red-200/70 text-[11px] whitespace-pre-wrap">
+              {{ lastVueError.info }}
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-if="!isWebMidiSupported && isStandaloneFeaturePage && !forceUiWithoutWebMidi"
+          class="w-full px-4 sm:px-6 lg:px-8 pt-4"
+        >
+          <div class="surface-neutral border border-yellow-700/60 rounded px-4 py-3 text-sm">
+            <div class="text-yellow-200 font-semibold">WebMIDI 미지원: UI만 표시합니다</div>
+            <div class="mt-1 text-yellow-100/90 text-xs">
+              현재 브라우저에서는 WebMIDI가 동작하지 않아 일부 기능은 제한될 수 있습니다.
+            </div>
+          </div>
+        </div>
+
+        <Section v-if="!isWebMidiSupported && !forceUiWithoutWebMidi && !isStandaloneFeaturePage" class="h-screen">
+          <div class="w-full px-4 pt-24 sm:px-6 lg:px-8">
             <p class="">
               This browser does not support WebMIDI.<br />Please use a Chrome
               based browser:
@@ -59,6 +81,20 @@
           </div>
         </Section>
 
+        <div
+          v-else-if="forceUiWithoutWebMidi && !isWebMidiSupported"
+          class="w-full px-4 sm:px-6 lg:px-8 pt-4"
+        >
+          <div class="surface-neutral border border-yellow-700/60 rounded px-4 py-3 text-sm">
+            <div class="text-yellow-200 font-semibold">WebMIDI 비활성 상태로 UI 미리보기</div>
+            <div class="mt-1 text-yellow-100/90 text-xs">
+              현재 브라우저에서는 WebMIDI가 동작하지 않지만, 화면 확인을 위해 강제로 UI를 표시했습니다.
+              (URL에 <span class="font-mono">?forceUi=1</span> 사용)
+            </div>
+          </div>
+          <router-view />
+        </div>
+
         <router-view v-else-if="isStandaloneFeaturePage" />
 
         <Section
@@ -67,7 +103,7 @@
           title="Establishing connection"
         >
           <div
-            class="lg:text-center max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8"
+            class="lg:text-center w-full px-4 sm:px-6 lg:px-8"
           >
             <p>WebMidi connecting</p>
           </div>
@@ -82,7 +118,7 @@
           title="Problem connecting"
         >
           <div
-            class="lg:text-center max-w-screen-xl mx-auto px-4 pt-24 sm:px-6 lg:px-8"
+            class="lg:text-center w-full px-4 pt-24 sm:px-6 lg:px-8"
           >
             <p class="text-lg text-gray-100">WebMIDI 연결에 실패했습니다.</p>
             <p class="mt-3 text-gray-300">
@@ -182,12 +218,45 @@ export default defineComponent({
     const { isConnected, isConnecting, isWebMidiSupported } = midiStoreMapped;
     const { supportedPresetsCount, isBootloaderMode } = deviceStoreMapped;
 
+    const forceUiWithoutWebMidi = computed(() => {
+      try {
+        // Works with hash routing: /index.html?forceUi=1#/midisaxophone
+        const params = new URLSearchParams(window.location.search || "");
+        return (
+          params.has("forceUi") ||
+          params.has("forceUI") ||
+          params.has("noWebMidi") ||
+          // Convenience: allow opening capture UI without WebMIDI in constrained browsers.
+          params.has("capture") ||
+          params.has("captureOnly")
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    const lastVueError = computed(() => {
+      const w = window as any;
+      return w && w.__lastVueError ? w.__lastVueError : null;
+    });
+
     const buildSha = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_BUILD_SHA) || "";
     const buildTime = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_BUILD_TIME) || "";
     const buildShaShort = computed(() => (buildSha ? String(buildSha).slice(0, 8) : ""));
 
     onMounted(() => {
       midiStoreMapped.startMidiConnectionWatcher();
+
+      // Convenience deep-link: /?capture=1 => go straight to sax page.
+      try {
+        const params = new URLSearchParams(window.location.search || "");
+        const wantsCapture = params.has("capture") || params.has("captureOnly");
+        if (wantsCapture && router.currentRoute.value.name !== "midisaxophone") {
+          router.replace({ name: "midisaxophone" }).catch(() => void 0);
+        }
+      } catch {
+        // ignore
+      }
     });
 
     onUnmounted(() => {
@@ -199,6 +268,8 @@ export default defineComponent({
       isStandaloneFeaturePage,
       outputId,
       isWebMidiSupported,
+      forceUiWithoutWebMidi,
+      lastVueError,
       isConnected,
       isConnecting,
       boardName,

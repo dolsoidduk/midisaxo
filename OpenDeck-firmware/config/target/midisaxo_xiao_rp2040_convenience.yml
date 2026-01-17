@@ -1,0 +1,100 @@
+---
+  mcu: "rp2040"
+  usb: true
+  uart:
+    dinMIDI:
+      # DIN은 OUT 위주로 사용하는 구성을 전제로 합니다.
+      # 실제 하드웨어에서 DIN IN이 필요 없다면 RX는 미배선해도 되며,
+      # 노이즈 방지를 위해 RX를 3.3V로 10k 풀업(또는 내부 풀업) 권장.
+      pins:
+        rx:
+          port: "0"
+          index: 1
+        tx:
+          port: "0"
+          index: 0
+    # Nextion 테스트용 (DIN MIDI와 동일 UART 핀 공유)
+    # 동시에 사용 불가: DIN MIDI를 켜면 Touchscreen을 끄고, DIN MIDI를 끄면 Touchscreen을 켜는 것을 권장.
+    touchscreen:
+      pins:
+        rx:
+          port: "0"
+          index: 1
+        tx:
+          port: "0"
+          index: 0
+      components: 64
+  i2c:
+    display:
+      pins:
+        sda:
+          port: "0"
+          index: 6
+        scl:
+          port: "0"
+          index: 7
+  buttons:
+    type: "shiftRegister"
+    # Convenience mode: 74HC165 x4 = 32 inputs.
+    # Fingering table uses 24 keys; extra inputs can be mapped to utility actions.
+    shiftRegisters: 4
+    encoders: false
+    pins:
+      data:
+        port: "0"
+        index: 3
+      clock:
+        port: "0"
+        index: 4
+      latch:
+        port: "0"
+        index: 5
+
+  # Pin usage summary (XIAO RP2040):
+  # - DIN MIDI UART: GPIO0(TX), GPIO1(RX)
+  # - Buttons (74HC165 x4 = 32 inputs): GPIO3(DATA), GPIO4(CLOCK), GPIO5(LATCH)
+  # - I2C display: GPIO6(SDA), GPIO7(SCL)
+  # - Internal activity LEDs (MIDI RX/TX): GPIO9(RX), GPIO10(TX)
+  # - External LED output: GPIO2
+
+  # MIDI Saxophone (XIAO RP2040) analog mapping (native ADC):
+  # - Analog index 0: Offset trim potentiometer (reserved)
+  # - Analog index 1: MPXV7002DP breath sensor
+  # - Analog index 2: (Optional) Pitch Bend deadzone trim (Reserved) OR dedicated Pitch Bend sensor
+  analog:
+    type: "native"
+    inputVoltage: "3.3"
+    pins:
+    -
+      port: "0"
+      index: 26
+    -
+      port: "0"
+      index: 27
+    -
+      port: "0"
+      index: 28
+  leds:
+    internal:
+      invert: true
+      pins:
+        usb:
+          rx:
+            port: "0"
+            index: 9
+          tx:
+            port: "0"
+            index: 10
+        uart:
+          rx:
+            port: "0"
+            index: 9
+          tx:
+            port: "0"
+            index: 10
+    external:
+      type: "native"
+      pins:
+      -
+        port: "0"
+        index: 2

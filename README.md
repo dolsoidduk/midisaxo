@@ -64,9 +64,29 @@ Midisaxo UI는 아래 두 방식 모두 지원합니다.
 
 Linux (AppImage):
 
+빌드(인터넷 되는 PC에서 1회):
+
+```bash
+npm install
+npm run dist:linux
+```
+
+산출물은 `release/` 폴더에 생성됩니다. 오프라인 데스크탑으로는 아래 파일만 복사하면 됩니다.
+
+- `release/Midisaxo-*.AppImage`
+- (선택) `release/SHA256SUMS-desktop-*.txt`
+
 ```bash
 chmod +x Midisaxo-*.AppImage
 ./Midisaxo-*.AppImage
+```
+
+Linux (폴더/압축 버전: `tar.gz`, AppImage가 안 될 때 추천):
+
+```bash
+tar -xzf Midisaxo-*.tar.gz
+cd Midisaxo-*/
+./opendeck-ui
 ```
 
 만약 실행 시 FUSE 관련 에러가 나오면 Ubuntu/Debian 계열에서 아래가 필요할 수 있습니다:
@@ -79,6 +99,26 @@ sudo apt install -y libfuse2
 Windows:
 
 - `Midisaxo-*.exe` (portable) 또는 `Midisaxo-*-win.zip`을 내려받아 실행합니다.
+
+Windows (폴더/압축 버전: `win.zip`):
+
+- `Midisaxo-*-win.zip` 압축 해제
+- 폴더 안의 `Midisaxo.exe` 실행
+
+팁(오프라인):
+
+- 인터넷 되는 PC에서 빌드/다운로드 후, `Midisaxo-*-win.zip` 또는 `Midisaxo-*.exe`만 오프라인 데스크탑으로 복사해서 실행하면 됩니다.
+
+### Windows/리눅스 왔다갔다 하며 쓰기 (권장 워크플로)
+
+운영체제/PC가 바뀌면 브라우저 localStorage는 자동 공유가 안 됩니다.
+대신 이 UI는 **프리셋을 JSON 파일로 내보내기/가져오기**가 가능하므로, USB/클라우드로 파일만 옮기면 동일하게 쓸 수 있습니다.
+
+추천:
+
+- 키패드 레이아웃: 레이아웃 프리셋(Export/Import)
+
+노트→키 프리셋(단일/범위 Export/Import) 기능은 UI 단순화/안정화를 위해 제거되었습니다.
 
 MIDI가 안 보일 때(데스크탑 앱):
 

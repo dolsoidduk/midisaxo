@@ -16,6 +16,13 @@ export const Boards: IBoardDefinition[] = [
     oldId: [],
     firmwareFileName: null,
   },
+  // PROJECT_TARGET_UID (midisaxo_xiao_rp2040_convenience) = 0x2f2e3142
+  {
+    name: "Midisaxo XIAO RP2040 (Convenience)",
+    id: [47, 46, 49, 66],
+    oldId: [],
+    firmwareFileName: null,
+  },
   {
     name: "Arduino Leonardo",
     id: [1, 58, 76, 24],

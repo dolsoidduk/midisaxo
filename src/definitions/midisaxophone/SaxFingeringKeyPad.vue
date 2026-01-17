@@ -3,7 +3,8 @@
     <div class="flex items-center justify-between mb-2">
       <div class="text-xs text-gray-400">
         <strong class="text-gray-200">{{ visibleKeyCount }}키</strong>
-        <span class="ml-2">클릭해서 토글</span>
+        <span class="ml-2">눌림: <strong class="text-gray-200">{{ activeCount }}개</strong></span>
+        <span class="ml-2 text-gray-500">({{ activeKeysText || "-" }})</span>
       </div>
 
       <div class="flex items-center gap-2 text-xs">
@@ -33,7 +34,7 @@
             v-for="k in saxLayout"
             :key="`sax-${k.idx}`"
             type="button"
-            class="group relative select-none rounded-md border font-semibold transition flex items-center justify-center"
+            class="group relative select-none rounded-full border font-semibold transition flex items-center justify-center overflow-hidden sax-pad"
             :class="[keyClass(k.idx), k.big ? 'text-sm' : 'text-xs']"
             :style="keyStyle(k)"
             :aria-pressed="isActive(k.idx) ? 'true' : 'false'"
@@ -64,7 +65,7 @@
           v-for="idx in linearKeys"
           :key="`lin-${idx}`"
           type="button"
-          class="group relative select-none rounded-md border font-semibold transition flex items-center justify-center"
+          class="group relative select-none rounded-full border font-semibold transition flex items-center justify-center overflow-hidden sax-pad"
           :class="[keyClass(idx), 'text-sm']"
           :style="{ height: '42px' }"
           :aria-pressed="isActive(idx) ? 'true' : 'false'"
@@ -104,7 +105,7 @@
               v-for="idx in group.keys"
               :key="`k-${group.key}-${idx}`"
               type="button"
-              class="group relative select-none rounded-md border font-semibold transition flex items-center justify-center"
+              class="group relative select-none rounded-full border font-semibold transition flex items-center justify-center overflow-hidden sax-pad"
               :class="[keyClass(idx), group.big ? 'text-sm' : 'text-xs']"
               :style="{ height: group.big ? '42px' : '34px' }"
               :aria-pressed="isActive(idx) ? 'true' : 'false'"
@@ -136,6 +137,11 @@
 
 <script lang="ts">
 import { defineComponent, computed } from "vue";
+import {
+  DEFAULT_SAX_LAYOUT_24,
+  SaxLayoutKey,
+  normalizeSaxLayoutToFineGrid,
+} from "./sax-fingering-layout";
 
 type KeyGroup = {
   key: string;
@@ -145,21 +151,12 @@ type KeyGroup = {
   big?: boolean;
 };
 
-type SaxLayoutKey = {
-  idx: number;
-  row: number;
-  col: number;
-  rowSpan?: number;
-  colSpan?: number;
-  big?: boolean;
-};
-
 export default defineComponent({
   name: "SaxFingeringKeyPad",
   props: {
     mask: { type: Number, required: true },
     disabled: { type: Boolean, default: false },
-    keyCount: { type: Number, default: 26 },
+    keyCount: { type: Number, default: 24 },
     usableMask: { type: Number, default: null },
     visibleMask: { type: Number, default: null },
     hideUnusableKeys: { type: Boolean, default: false },
@@ -172,21 +169,28 @@ export default defineComponent({
       type: (String as unknown) as () => "sax" | "grouped" | "linear",
       default: "sax",
     },
+
+    // Optional override for the sax silhouette layout (UI only).
+    // If invalid, the built-in default layout will be used.
+    saxLayoutOverride: {
+      type: Array as unknown as () => SaxLayoutKey[] | null,
+      default: null,
+    },
   },
   emits: ["update:mask"],
   setup(props, { emit }) {
     const effectiveKeyCount = computed(() => {
-      return Math.max(0, Math.min(26, Math.floor(Number(props.keyCount) || 26)));
+      return Math.max(0, Math.min(24, Math.floor(Number(props.keyCount) || 24)));
     });
 
-    const full26Mask = 0x03ffffff;
+    const full24Mask = 0x00ffffff;
 
     const normalizedUsableMask = computed((): number | null => {
       const raw = props.usableMask;
       if (typeof raw !== "number") {
         return null;
       }
-      return (Number(raw) >>> 0) & full26Mask;
+      return (Number(raw) >>> 0) & full24Mask;
     });
 
     const normalizedVisibleMask = computed((): number | null => {
@@ -194,7 +198,7 @@ export default defineComponent({
       if (typeof raw !== "number") {
         return null;
       }
-      return (Number(raw) >>> 0) & full26Mask;
+      return (Number(raw) >>> 0) & full24Mask;
     });
 
     const allMask = computed(() => {
@@ -203,11 +207,13 @@ export default defineComponent({
         return usable;
       }
       const count = effectiveKeyCount.value;
-      // 26 is safe for JS bitwise ops (<= 31)
+      // 24 is safe for JS bitwise ops (<= 31)
       return ((1 << count) - 1) >>> 0;
     });
 
-    const safeMask = computed(() => (Number(props.mask) >>> 0) & allMask.value);
+    // For visualization, keep the raw 24-bit mask even if usableMask hides/disables keys.
+    // This prevents “눌림은 있는데 표시가 없다” 상황을 줄입니다.
+    const safeMask = computed(() => (Number(props.mask) >>> 0) & full24Mask);
 
     const maskHex = computed(() =>
       safeMask.value.toString(16).toUpperCase().padStart(8, "0"),
@@ -243,16 +249,14 @@ export default defineComponent({
         "FRONT F",
         "HIGH F#",
         "LOW C#",
-        "ALT 2",
-        "LOW A",
       ];
     });
 
     const labelFor = (index: number): string => {
-      const i = Math.max(0, Math.min(25, Math.floor(Number(index) || 0)));
+      const i = Math.max(0, Math.min(23, Math.floor(Number(index) || 0)));
       const custom =
         props.labels && Array.isArray(props.labels) ? props.labels : null;
-      const list = custom && custom.length >= 26 ? custom : defaultLabels.value;
+      const list = custom && custom.length >= 24 ? custom : defaultLabels.value;
       return String(list[i] ?? i);
     };
 
@@ -295,16 +299,15 @@ export default defineComponent({
           title: "로우(하단)",
           // 실제 색소폰 느낌(왼손 새끼손가락 클러스터: G#/B/Bb, 오른손 새끼손가락: C/Eb)
           // 인덱스 의미는 그대로 두고, 표시 순서만 더 직관적으로 정리합니다.
-          // 바리톤(LOW A 포함) 기준으로 LOW A(25)도 로우 클러스터에 포함합니다.
           // LOW C#은 ALT1(23)을 재지정해서 사용(표시/편의 목적)
-          keys: [19, 20, 23, 25, 18, 17, 7],
-          columns: 7,
+          keys: [19, 20, 23, 18, 17, 7],
+          columns: 6,
         },
         {
           key: "alt",
           title: "보조/알티시모",
-          keys: [21, 22, 24, 8],
-          columns: 4,
+          keys: [21, 22, 8],
+          columns: 3,
         },
       ];
     });
@@ -322,66 +325,62 @@ export default defineComponent({
         .filter((g) => g.keys.length > 0);
     });
 
+    const normalizeSaxLayout = (raw: unknown): SaxLayoutKey[] | null => {
+      if (!raw || !Array.isArray(raw)) {
+        return null;
+      }
+
+      if (raw.length !== 24) {
+        return null;
+      }
+
+      const seen = new Set<number>();
+      const out: SaxLayoutKey[] = [];
+
+      for (const item of raw as any[]) {
+        const idx = Math.floor(Number(item?.idx));
+        const row = Math.floor(Number(item?.row));
+        const col = Math.floor(Number(item?.col));
+        if (!Number.isFinite(idx) || idx < 0 || idx > 23) {
+          return null;
+        }
+        if (!Number.isFinite(row) || row < 1) {
+          return null;
+        }
+        if (!Number.isFinite(col) || col < 1) {
+          return null;
+        }
+        if (seen.has(idx)) {
+          return null;
+        }
+        seen.add(idx);
+
+        const rowSpan =
+          item?.rowSpan === undefined
+            ? undefined
+            : Math.max(1, Math.floor(Number(item?.rowSpan) || 1));
+        const colSpan =
+          item?.colSpan === undefined
+            ? undefined
+            : Math.max(1, Math.floor(Number(item?.colSpan) || 1));
+
+        out.push({
+          idx,
+          row,
+          col,
+          rowSpan,
+          colSpan,
+          big: !!item?.big,
+        });
+      }
+
+      return out;
+    };
+
     const saxLayout = computed((): SaxLayoutKey[] => {
-      // 대략적인 색소폰 실루엣 레이아웃 (12 columns grid)
-      // IMPORTANT: idx(0..25) 의미는 MIDI Saxophone 페이지의 라벨 프리셋과 동일해야 함.
-      // row/col은 1-base, span은 선택.
-      return [
-        // octave (back key)
-        { idx: 0, row: 2, col: 1, rowSpan: 2, colSpan: 2, big: true },
-
-        // palm keys (LH top)
-        { idx: 11, row: 1, col: 3, colSpan: 2 },
-        { idx: 12, row: 1, col: 5, colSpan: 2 },
-        { idx: 13, row: 2, col: 3, colSpan: 2 },
-
-        // front/extra near top of LH
-        { idx: 21, row: 2, col: 7, colSpan: 2 },
-
-        // left hand main stack
-        { idx: 1, row: 4, col: 4, rowSpan: 2, colSpan: 2, big: true },
-        { idx: 2, row: 6, col: 4, rowSpan: 2, colSpan: 2, big: true },
-        { idx: 3, row: 8, col: 4, rowSpan: 2, colSpan: 2, big: true },
-
-        // bis / g# near left hand
-        { idx: 9, row: 4, col: 7, colSpan: 2 },
-        { idx: 10, row: 9, col: 1, colSpan: 2 },
-
-        // right hand main stack
-        { idx: 4, row: 5, col: 7, rowSpan: 2, colSpan: 2, big: true },
-        { idx: 5, row: 7, col: 7, rowSpan: 2, colSpan: 2, big: true },
-        { idx: 6, row: 9, col: 7, rowSpan: 2, colSpan: 2, big: true },
-
-        // side keys (RH side)
-        { idx: 14, row: 5, col: 11, colSpan: 2 },
-        { idx: 15, row: 7, col: 11, colSpan: 2 },
-        { idx: 16, row: 9, col: 11, colSpan: 2 },
-
-        // low keys cluster
-        // 목표: 실제 색소폰처럼 왼손 새끼손가락(G#) 아래에 LOW B / LOW Bb를 배치.
-        // 오른손 새끼손가락 쪽(C/Eb)은 우측에 모아 배치.
-        { idx: 19, row: 11, col: 1, colSpan: 2 },
-        { idx: 20, row: 12, col: 1, colSpan: 2 },
-
-        // LOW C# (repurpose ALT1=23): place to the right of LOW B/Bb cluster
-        { idx: 23, row: 11, col: 3, colSpan: 2 },
-
-        // RH pinky cluster (C / Eb) + low F# (often sits further right)
-        // Option A: C를 Eb보다 살짝 아래로 내려 롤러 느낌을 만듭니다.
-        { idx: 18, row: 12, col: 7, colSpan: 2 },
-        { idx: 17, row: 10, col: 9, colSpan: 2 },
-
-        // low F# (RH pinky) + HIGH F# 바로 위(실물 느낌)
-        { idx: 22, row: 11, col: 11, colSpan: 2 },
-        { idx: 7, row: 12, col: 11, colSpan: 2 },
-
-        // baritone LOW A: 옥타브키(0) 아래로 배치
-        { idx: 25, row: 4, col: 1, colSpan: 2 },
-
-        // alt keys (extra)
-        { idx: 8, row: 13, col: 7, colSpan: 2 },
-        { idx: 24, row: 14, col: 7, colSpan: 2 },
-      ];
+      const override = normalizeSaxLayout(props.saxLayoutOverride);
+      const base = override ?? DEFAULT_SAX_LAYOUT_24;
+      return normalizeSaxLayoutToFineGrid(base);
     });
 
     const visibleSaxLayout = computed((): SaxLayoutKey[] => {
@@ -395,7 +394,7 @@ export default defineComponent({
       const visible = normalizedVisibleMask.value;
       if (typeof visible === "number") {
         const keys: number[] = [];
-        for (let i = 0; i < 26; i++) {
+        for (let i = 0; i < 24; i++) {
           if ((visible >>> i) & 1) {
             keys.push(i);
           }
@@ -406,7 +405,7 @@ export default defineComponent({
       const usable = normalizedUsableMask.value;
       if (typeof usable === "number") {
         const keys: number[] = [];
-        for (let i = 0; i < 26; i++) {
+        for (let i = 0; i < 24; i++) {
           if ((usable >>> i) & 1) {
             keys.push(i);
           }
@@ -425,18 +424,18 @@ export default defineComponent({
     const keyStyle = (k: SaxLayoutKey) => {
       const rowSpan = Math.max(1, Math.floor(Number(k.rowSpan) || 1));
       const colSpan = Math.max(1, Math.floor(Number(k.colSpan) || 1));
-      const height = k.big ? 40 : 32;
 
       return {
         gridRow: `${k.row} / span ${rowSpan}`,
         gridColumn: `${k.col} / span ${colSpan}`,
-        height: `${height}px`,
+        width: "100%",
+        height: "100%",
       };
     };
 
     const activeCount = computed(() => {
       let cnt = 0;
-      for (let i = 0; i < 26; i++) {
+      for (let i = 0; i < 24; i++) {
         if ((safeMask.value >>> i) & 1) {
           cnt++;
         }
@@ -444,13 +443,23 @@ export default defineComponent({
       return cnt;
     });
 
+    const activeKeysText = computed((): string => {
+      const keys: number[] = [];
+      for (let i = 0; i < 24; i++) {
+        if ((safeMask.value >>> i) & 1) {
+          keys.push(i);
+        }
+      }
+      return keys.join(",");
+    });
+
     const isActive = (index: number): boolean => {
-      const i = Math.max(0, Math.min(25, Math.floor(Number(index) || 0)));
+      const i = Math.max(0, Math.min(23, Math.floor(Number(index) || 0)));
       return ((safeMask.value >>> i) & 1) === 1;
     };
 
     const isUsableKey = (index: number): boolean => {
-      const i = Math.max(0, Math.min(25, Math.floor(Number(index) || 0)));
+      const i = Math.max(0, Math.min(23, Math.floor(Number(index) || 0)));
       const usable = normalizedUsableMask.value;
       if (typeof usable === "number") {
         return ((usable >>> i) & 1) === 1;
@@ -459,7 +468,7 @@ export default defineComponent({
     };
 
     const isVisibleKey = (index: number): boolean => {
-      const i = Math.max(0, Math.min(25, Math.floor(Number(index) || 0)));
+      const i = Math.max(0, Math.min(23, Math.floor(Number(index) || 0)));
       const visible = normalizedVisibleMask.value;
       if (typeof visible === "number") {
         return ((visible >>> i) & 1) === 1;
@@ -471,16 +480,24 @@ export default defineComponent({
     };
 
     const keyClass = (index: number): string => {
+      // In read-only mode (disabled), still show which keys are active.
       if (props.disabled) {
-        return "opacity-50 cursor-not-allowed border-gray-800";
+        if (isActive(index)) {
+          // Make active keys clearly visible even when disabled (read-only preview).
+          return "cursor-not-allowed border-blue-300 bg-blue-500/45 text-blue-50 ring-1 ring-blue-400/70 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]";
+        }
+        if (!isUsableKey(index)) {
+          return "opacity-30 cursor-not-allowed border-gray-800 bg-gray-900/20 text-gray-500";
+        }
+        return "opacity-55 cursor-not-allowed border-gray-800 bg-gray-900/30 text-gray-200";
+      }
+
+      if (isActive(index)) {
+        return "border-blue-300 bg-blue-500/45 text-blue-50 ring-1 ring-blue-400/70 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]";
       }
 
       if (!isUsableKey(index)) {
         return "opacity-35 cursor-not-allowed border-gray-800 bg-gray-900/20 text-gray-500";
-      }
-
-      if (isActive(index)) {
-        return "border-blue-400 bg-blue-500/15 text-blue-100 shadow-[0_0_0_1px_rgba(59,130,246,0.15)]";
       }
 
       return "border-gray-700 bg-gray-900/30 text-gray-200 hover:border-gray-500";
@@ -490,7 +507,7 @@ export default defineComponent({
       if (props.disabled) {
         return;
       }
-      const i = Math.max(0, Math.min(25, Math.floor(Number(index) || 0)));
+      const i = Math.max(0, Math.min(23, Math.floor(Number(index) || 0)));
 
       if (!isUsableKey(i)) {
         return;
@@ -522,6 +539,7 @@ export default defineComponent({
       saxLayout: visibleSaxLayout,
       linearKeys,
       activeCount,
+      activeKeysText,
       isActive,
       isUsableKey,
       keyClass,
@@ -549,8 +567,36 @@ export default defineComponent({
 
 .sax-grid {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-auto-rows: 32px;
-  gap: 0.35rem;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  grid-auto-rows: 21px;
+  gap: 0.175rem;
+  align-items: stretch;
+  justify-items: stretch;
+}
+
+.sax-pad {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.32);
+}
+
+.sax-pad::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.03) 40%,
+    rgba(0, 0, 0, 0.15) 100%
+  );
+}
+
+.sax-pad:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+    0 1px 6px rgba(0, 0, 0, 0.28);
 }
 </style>

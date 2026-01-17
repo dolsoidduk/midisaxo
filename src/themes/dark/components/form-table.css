@@ -27,7 +27,7 @@
   @apply hidden;
 }
 .form-table-row .label {
-  @apply text-xs leading-tight text-gray-500 mb-0;
+  @apply text-xs leading-tight text-gray-400 mb-0;
 }
 .form-table-row .error-message {
   @apply text-xs mt-1;

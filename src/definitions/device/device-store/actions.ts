@@ -528,6 +528,45 @@ export const setComponentSectionValue = async (
     config,
   });
 
+// MIDI Saxophone helpers
+
+const SAX_PB_DEADZONE_BLOCK = Block.Global;
+const SAX_PB_DEADZONE_SECTION = 2;
+const SAX_PB_DEADZONE_INDEX = 12;
+const SAX_PB_DEADZONE_MIN = 0;
+const SAX_PB_DEADZONE_MAX = 2000;
+const SAX_PB_DEADZONE_STEP = 10;
+
+export const saxPitchBendDeadzoneGet = async (): Promise<number> =>
+  getValue(SAX_PB_DEADZONE_BLOCK, SAX_PB_DEADZONE_SECTION, SAX_PB_DEADZONE_INDEX);
+
+export const saxPitchBendDeadzoneSet = async (value: number): Promise<void> => {
+  const next = Math.max(
+    SAX_PB_DEADZONE_MIN,
+    Math.min(SAX_PB_DEADZONE_MAX, Math.trunc(Number(value) || 0)),
+  );
+
+  await setComponentSectionValue(
+    {
+      block: SAX_PB_DEADZONE_BLOCK,
+      section: SAX_PB_DEADZONE_SECTION,
+      index: SAX_PB_DEADZONE_INDEX,
+      value: next,
+    },
+    () => undefined,
+  );
+};
+
+export const saxPitchBendDeadzoneInc = async (): Promise<void> => {
+  const current = await saxPitchBendDeadzoneGet();
+  await saxPitchBendDeadzoneSet(Number(current) + SAX_PB_DEADZONE_STEP);
+};
+
+export const saxPitchBendDeadzoneDec = async (): Promise<void> => {
+  const current = await saxPitchBendDeadzoneGet();
+  await saxPitchBendDeadzoneSet(Number(current) - SAX_PB_DEADZONE_STEP);
+};
+
 export const getSectionValues = async (
   block: Block,
 ): Promise<Record<string, number[]>> => {
@@ -577,6 +616,10 @@ export const deviceStoreActions = {
   startFactoryReset,
   startReboot,
   saxPitchBendCenterCapture,
+  saxPitchBendDeadzoneGet,
+  saxPitchBendDeadzoneSet,
+  saxPitchBendDeadzoneInc,
+  saxPitchBendDeadzoneDec,
   startDeviceConnectionWatcher,
   stopDeviceConnectionWatcher,
   startFirmwareUpdate,

@@ -80,6 +80,8 @@ namespace util
             database::Config::Section::global_t::SAX_FINGERING_MASK_HI12_ENABLE,
             database::Config::Section::global_t::SAX_FINGERING_NOTE,
             database::Config::Section::global_t::AMOUNT,    // capture is write-only, handled separately
+            database::Config::Section::global_t::AMOUNT,    // current mask is read-only, handled separately
+            database::Config::Section::global_t::AMOUNT,    // clear is write-only, handled separately
         };
 
         static constexpr database::Config::Section::button_t SYS_EX2_DB_BUTTON[static_cast<uint8_t>(sys::Config::Section::button_t::AMOUNT)] = {

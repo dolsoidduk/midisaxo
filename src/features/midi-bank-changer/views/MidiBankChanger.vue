@@ -1,6 +1,6 @@
 <template>
   <Section title="MIDI Bank Changer" class="w-full">
-    <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="w-full px-4 sm:px-6 lg:px-8">
       <p v-if="!isWebMidiSupported" class="text-sm">
         이 브라우저는 WebMIDI를 지원하지 않습니다.
       </p>
@@ -13,7 +13,7 @@
         <div v-else class="form-grid">
           <div class="form-field">
             <label class="label">MIDI Output</label>
-            <select class="input" v-model="selectedOutputId">
+            <select class="form-select mt-1 py-1 text-sm block w-full" v-model="selectedOutputId">
               <option
                 v-for="o in outputs"
                 :key="o.id"
@@ -27,7 +27,7 @@
           <div class="form-field">
             <label class="label">Channel (1-16)</label>
             <input
-              class="input"
+              class="form-input mt-1 py-1 text-sm block w-full"
               type="number"
               min="1"
               max="16"
@@ -53,7 +53,7 @@
           <div v-if="feedbackCcEnabled" class="form-field">
             <label class="label">LED Feedback CC# (0-127)</label>
             <input
-              class="input"
+              class="form-input mt-1 py-1 text-sm block w-full"
               type="number"
               min="0"
               max="127"
@@ -77,7 +77,7 @@
               <div class="form-field">
                 <label class="label">테스트용 Buttons 개수</label>
                 <input
-                  class="input"
+                  class="form-input mt-1 py-1 text-sm block w-full"
                   type="number"
                   min="0"
                   max="128"
@@ -88,7 +88,7 @@
               <div class="form-field">
                 <label class="label">테스트용 Touchscreen 개수</label>
                 <input
-                  class="input"
+                  class="form-input mt-1 py-1 text-sm block w-full"
                   type="number"
                   min="0"
                   max="128"
@@ -121,7 +121,7 @@
 
                 <div class="form-field">
                   <label class="label">전송 타입</label>
-                  <select class="input" v-model="buttonMappings[index].mode">
+                  <select class="form-select mt-1 py-1 text-sm block w-full" v-model="buttonMappings[index].mode">
                     <option value="msb+lsb+pc">MSB + LSB + PC</option>
                     <option value="msb+pc">MSB + PC</option>
                     <option value="lsb+pc">LSB + PC</option>
@@ -133,7 +133,7 @@
                 <div class="form-field">
                   <label class="label">Bank MSB (CC0, 0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
@@ -144,7 +144,7 @@
                 <div class="form-field">
                   <label class="label">Bank LSB (CC32, 0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
@@ -159,7 +159,7 @@
                   <label class="label">Bank (0-16383)</label>
                   <div class="relative">
                     <input
-                      class="input pr-8"
+                      class="form-input mt-1 py-1 text-sm block w-full pr-8"
                       type="number"
                       min="0"
                       max="16383"
@@ -196,7 +196,7 @@
                 <div class="form-field">
                   <label class="label">Program (PC, 0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
@@ -210,7 +210,7 @@
                 >
                   <label class="label">CC# (0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
@@ -224,7 +224,7 @@
                 >
                   <label class="label">CC Value (0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
@@ -256,7 +256,7 @@
 
                 <div class="form-field">
                   <label class="label">전송 타입</label>
-                  <select class="input" v-model="touchscreenMappings[index].mode">
+                  <select class="form-select mt-1 py-1 text-sm block w-full" v-model="touchscreenMappings[index].mode">
                     <option value="msb+lsb+pc">MSB + LSB + PC</option>
                     <option value="msb+pc">MSB + PC</option>
                     <option value="lsb+pc">LSB + PC</option>
@@ -268,7 +268,7 @@
                 <div class="form-field">
                   <label class="label">Bank MSB (CC0, 0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
@@ -279,7 +279,7 @@
                 <div class="form-field">
                   <label class="label">Bank LSB (CC32, 0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
@@ -294,7 +294,7 @@
                   <label class="label">Bank (0-16383)</label>
                   <div class="relative">
                     <input
-                      class="input pr-8"
+                      class="form-input mt-1 py-1 text-sm block w-full pr-8"
                       type="number"
                       min="0"
                       max="16383"
@@ -331,7 +331,7 @@
                 <div class="form-field">
                   <label class="label">Program (PC, 0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
@@ -345,7 +345,7 @@
                 >
                   <label class="label">CC# (0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
@@ -359,7 +359,7 @@
                 >
                   <label class="label">CC Value (0-127)</label>
                   <input
-                    class="input"
+                    class="form-input mt-1 py-1 text-sm block w-full"
                     type="number"
                     min="0"
                     max="127"
